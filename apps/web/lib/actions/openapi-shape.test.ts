@@ -60,8 +60,11 @@ test('openapi.json 창구는 봉투 없이 문서를 주고 형과 응답을 공
   assert.ok(!/\bok\s*\(/.test(src), 'ok( 로 봉투를 씌움')
   assert.ok(/NextResponse\.json\(\s*spec\b/.test(src), '문서를 그대로 내보내지 않음')
   assert.ok(src.includes('responseHeaders('), 'CORS 와 한도 헤더가 빠짐')
-  assert.ok(src.includes('paramSchema(p.type)'), '매개변수 형을 문서 표에서 읽지 않음')
-  assert.ok(src.includes('standardResponses('), '응답 선언을 공용 함수로 만들지 않음')
+  // 명세 조립은 CLI 가 박는 것과 한 벌이 되도록 lib/api-docs/public-spec.ts 로 옮겼다 (P0173)
+  const lib = readFileSync(join(WEB, 'lib/api-docs/public-spec.ts'), 'utf8')
+  assert.ok(src.includes('publicSpec('), '공용 명세 함수를 안 부름')
+  assert.ok(lib.includes('paramSchema(p.type)'), '매개변수 형을 문서 표에서 읽지 않음')
+  assert.ok(lib.includes('standardResponses('), '응답 선언을 공용 함수로 만들지 않음')
   assert.ok(/^\s*const auth = await authenticatePublicApi\(request\)/m.test(src), '키 확인이 첫 줄이 아님')
 })
 

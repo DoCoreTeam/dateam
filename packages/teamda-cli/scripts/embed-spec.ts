@@ -1,7 +1,10 @@
 /**
  * Copy the generated OpenAPI spec into the package so a compiled binary carries it.
  *
- * Source: apps/web/lib/actions/generated/openapi.json (written by the web app's cli:gen).
+ * Source: apps/web/lib/actions/generated/openapi.public.json (written by the web app's cli:gen): the
+ * spec the server's /api/public/v1/openapi.json serves, registry request bodies included (P0173).
+ * Embedding openapi.json alone dropped those bodies, so gpu quote and three other public writes
+ * sent their fields as query parameters until the user ran `teamda sync`.
  * Target: src/generated/spec.json (imported by src/spec.ts, embedded by `bun build --compile`).
  *
  * Only rewrites the target when the content changed, so repeated builds leave git clean.
@@ -12,7 +15,7 @@ import { join, dirname } from 'node:path'
 import { createHash } from 'node:crypto'
 
 const PKG = join(import.meta.dir, '..')
-const DEFAULT_SOURCE = join(PKG, '..', '..', 'apps', 'web', 'lib', 'actions', 'generated', 'openapi.json')
+const DEFAULT_SOURCE = join(PKG, '..', '..', 'apps', 'web', 'lib', 'actions', 'generated', 'openapi.public.json')
 const TARGET = join(PKG, 'src', 'generated', 'spec.json')
 
 const source = process.argv[2] ?? DEFAULT_SOURCE

@@ -47,6 +47,16 @@ const SPEC = {
         requestBody: { content: { 'application/json': { schema: { type: 'object', 'x-known-properties': { count: { type: 'integer' } } } } } },
       },
     },
+    '/settings': {
+      put: {
+        operationId: 't.settings.set', summary: 'set', 'x-cli': 't settings set', 'x-scope': 'write', 'x-kind': 'route', 'x-query-complete': true,
+        parameters: [{ name: 'dryRun', in: 'query', schema: { type: 'string', enum: ['1'] } }],
+        requestBody: { content: { 'application/json': { schema: {
+          type: 'object', additionalProperties: false, required: ['key'],
+          properties: { key: { type: 'string' }, value: { type: 'string' } },
+        } } } },
+      },
+    },
     '/actions/t/preview': {
       post: {
         operationId: 't.act.preview', summary: 'preview', 'x-cli': 't act preview', 'x-scope': 'read', 'x-kind': 'action', 'x-args': ['answers', 'overrides'],
@@ -168,6 +178,29 @@ test('an open list passes names it does not know (the server may read them)', as
 
 test('a secret flag is still refused before any input check', async () => {
   const r = await runCli(['t', 'month', '--year', '2026', '--month', '10', '--token', 'x'], env())
+  expect(r.code).toBe(2)
+  expect(err(r).code).toBe('secret_on_argv')
+})
+
+// P0173: `ci settings set --key <setting name>` was refused as an API key on argv, so the
+// four commands whose schema names a `key` field could not run at all
+test('a command whose schema names a `key` field takes --key as that field', async () => {
+  const before = server.seen.length
+  const r = await runCli(['t', 'settings', 'set', '--key', 'theme', '--value', 'dark'], env())
+  expect(r.code).toBe(0)
+  expect(server.seen[before].body).toEqual({ key: 'theme', value: 'dark' })
+})
+
+test('a command without a `key` field still refuses --key, and so do built-ins', async () => {
+  for (const argv of [['t', 'month', '--year', '2026', '--month', '10', '--key', 'x'], ['auth', 'login', '--key', 'x'], ['api', 'GET', 'x', '--key', 'x']]) {
+    const r = await runCli(argv, env())
+    expect(r.code).toBe(2)
+    expect(err(r).code).toBe('secret_on_argv')
+  }
+})
+
+test('a declared `key` field does not open other secret names on that command', async () => {
+  const r = await runCli(['t', 'settings', 'set', '--key', 'theme', '--token', 'x'], env())
   expect(r.code).toBe(2)
   expect(err(r).code).toBe('secret_on_argv')
 })

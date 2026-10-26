@@ -9,7 +9,7 @@
  */
 import type { Context } from './context.ts'
 import { redact } from './context.ts'
-import { parseArgs, rejectSecretFlags, takeFlag } from './args.ts'
+import { parseArgs, rejectSecretFlags, secretFlagsIn, takeFlag } from './args.ts'
 import { deliver } from './file-out.ts'
 import { resolveKey } from './credentials.ts'
 import { CliError, EXIT, usage, type ExitCode } from './exit.ts'
@@ -31,8 +31,21 @@ function emitJson(ctx: Context, value: unknown, key: string | null): void {
   ctx.out(`${redact(JSON.stringify(value ?? null), key)}\n`)
 }
 
+const BUILT_INS = new Set(['help', 'sync', 'auth', 'config', 'api'])
+
+/** Input names the spec command on argv declares; empty for built-ins and unknown commands. */
+function declaredInputs(ctx: Context, argv: string[]): Set<string> {
+  if (secretFlagsIn(argv).length === 0) return new Set()
+  const { positionals } = parseArgs(argv)
+  if (positionals.length === 0 || BUILT_INS.has(positionals[0])) return new Set()
+  const hit = resolveCommand(buildCommandTree(loadSpec(ctx).spec), positionals)
+  if (!hit) return new Set()
+  const c = hit.command
+  return new Set([...c.queryParams, ...(c.bodyFields ?? [])].map((n) => n.toLowerCase()))
+}
+
 async function dispatch(ctx: Context, argv: string[], keyRef: { key: string | null }): Promise<ExitCode> {
-  rejectSecretFlags(argv)
+  rejectSecretFlags(argv, declaredInputs(ctx, argv))
   const parsed = parseArgs(argv)
   // a built-in flag, never sent to the server: where a file response is written
   const out = takeFlag(parsed.flags, 'out')

@@ -18,11 +18,25 @@ const BOOLEAN_FLAGS = new Set(['dry-run', 'help', 'stdin', 'no-verify'])
  */
 export const SECRET_FLAGS = ['key', 'api-key', 'apikey', 'token', 'secret', 'password'] as const
 
-export function rejectSecretFlags(argv: string[]): void {
+/** Secret-looking flag names on argv, in order, up to `--`. */
+export function secretFlagsIn(argv: string[]): string[] {
+  const found: string[] = []
   for (const a of argv) {
-    if (a === '--') return
+    if (a === '--') break
     const name = /^--?([A-Za-z-]+)(?:=|$)/.exec(a)?.[1]?.toLowerCase()
-    if (name && (SECRET_FLAGS as readonly string[]).includes(name)) {
+    if (name && (SECRET_FLAGS as readonly string[]).includes(name)) found.push(name)
+  }
+  return found
+}
+
+/**
+ * `declared` holds the input names the resolved command's schema gives (`ci settings set` has a
+ * body field named `key`, the setting's name). Those are that command's own inputs, not an API key.
+ * Built-ins (auth, sync, api) pass nothing, so every secret name stays refused there.
+ */
+export function rejectSecretFlags(argv: string[], declared: ReadonlySet<string> = new Set()): void {
+  for (const name of secretFlagsIn(argv)) {
+    if (!declared.has(name)) {
       throw usage('secret_on_argv', `--${name} is refused: pass the key with --key-file <path> or --key-file - (stdin), or TEAMDA_API_KEY`)
     }
   }

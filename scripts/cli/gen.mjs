@@ -314,7 +314,11 @@ export async function generate({ check = false, scaffoldFirst = false } = {}) {
     [path.join(GEN_DIR, 'table.ts')]: genTable(rows),
     [TABLE_MD]: genMarkdown(rows),
   }
-  files[path.join(GEN_DIR, 'openapi.json')] = JSON.stringify(buildOpenApi(mountedOf(rows).mounted, existingOf(rows)), null, 1) + '\n'
+  const openapi = buildOpenApi(mountedOf(rows).mounted, existingOf(rows))
+  files[path.join(GEN_DIR, 'openapi.json')] = JSON.stringify(openapi, null, 1) + '\n'
+  // 서버가 주는 명세 그대로(등재 표의 본문 포함), teamda CLI 가 이 파일을 박는다 (P0173)
+  const { publicSpec } = await import(pathToFileURL(path.join(WEB, 'lib/api-docs/public-spec.ts')).href)
+  files[path.join(GEN_DIR, 'openapi.public.json')] = JSON.stringify(publicSpec('/api/public/v1', openapi), null, 1) + '\n'
 
   const stale = []
   for (const [file, content] of Object.entries(files)) {

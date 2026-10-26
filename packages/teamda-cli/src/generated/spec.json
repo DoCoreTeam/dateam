@@ -1,17 +1,37 @@
 {
  "openapi": "3.1.0",
  "info": {
-  "title": "teamda API",
-  "version": "v1"
+  "title": "사내 자동화 API",
+  "version": "1",
+  "description": "지금 배포된 사내 자동화 API 의 엔드포인트 전체입니다. 모든 요청에 X-API-Key 헤더(또는 Authorization: Bearer <키>)가 필요하고, 키는 「내 키 관리」에서 발급합니다. 배포가 바뀌면 이 스펙도 함께 바뀌므로 코드 생성 전에 다시 받아 쓰세요.",
+  "x-spec-hash": "a502f494f0c95e21"
  },
  "servers": [
   {
    "url": "/api/public/v1"
   }
  ],
+ "tags": [
+  {
+   "name": "GPU 가격",
+   "description": "실시간 가격·견적·재고·환율. 내부 화면과 같은 계산을 씁니다."
+  },
+  {
+   "name": "영업 CRM",
+   "description": "회사·인물·딜·미팅·견적·할 일. 키를 만든 계정의 CRM 권한을 그대로 씁니다."
+  },
+  {
+   "name": "콘텐츠 인텔리전스",
+   "description": "채널·게시물. 워크스페이스가 여럿이면 workspace 를 지정합니다."
+  },
+  {
+   "name": "이관 중",
+   "description": "구 CRM 표를 향합니다. 새 코드는 「영업 CRM」을 쓰세요."
+  }
+ ],
  "components": {
   "securitySchemes": {
-   "ApiKey": {
+   "apiKey": {
     "type": "apiKey",
     "in": "header",
     "name": "X-API-Key"
@@ -20,1871 +40,19 @@
  },
  "security": [
   {
-   "ApiKey": []
+   "apiKey": []
   }
  ],
  "paths": {
-  "/approvals/{id}": {
-   "get": {
-    "operationId": "meta.approval.get",
-    "summary": "meta.approval.get",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "approval get",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": [
-     {
-      "name": "id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "string"
-      }
-     }
-    ]
-   }
-  },
-  "/ci/channels": {
-   "get": {
-    "operationId": "ci.channel.list-v1",
-    "summary": "ci.channel.list-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "ci channel list-v1",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
-   },
-   "post": {
-    "operationId": "ci.channel.create",
-    "summary": "ci.channel.create",
-    "tags": [
-     "ci"
-    ],
-    "x-cli": "ci channel create",
-    "x-scope": "write",
-    "x-kind": "route",
-    "x-internal": "/api/ci/channels",
-    "parameters": [
-     {
-      "name": "workspaceId",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string"
-      }
-     },
-     {
-      "name": "dryRun",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string",
-       "enum": [
-        "1"
-       ]
-      }
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "성공, data 는 화면이 받는 값과 같음"
-     },
-     "201": {
-      "description": "만들어짐"
-     },
-     "202": {
-      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-query-complete": true,
-    "requestBody": {
-     "required": false,
-     "content": {
-      "application/json": {
-       "schema": {
-        "type": "object",
-        "properties": {
-         "input": {
-          "type": "string"
-         },
-         "monitor": {
-          "type": "boolean"
-         },
-         "topicId": {
-          "type": "string"
-         }
-        },
-        "additionalProperties": false,
-        "required": [
-         "input"
-        ]
-       }
-      }
-     }
-    }
-   }
-  },
-  "/ci/contents": {
-   "get": {
-    "operationId": "ci.content.list-v1",
-    "summary": "ci.content.list-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "ci content list-v1",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
-   }
-  },
-  "/crm/companies": {
-   "get": {
-    "operationId": "crm.company.list-v1",
-    "summary": "crm.company.list-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "crm company list-v1",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
-   },
-   "post": {
-    "operationId": "crm.company.create",
-    "summary": "생성",
-    "tags": [
-     "crm"
-    ],
-    "x-cli": "crm company create",
-    "x-scope": "write",
-    "x-kind": "route",
-    "x-internal": "/api/crm/companies",
-    "parameters": [
-     {
-      "name": "dryRun",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string",
-       "enum": [
-        "1"
-       ]
-      }
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "성공, data 는 화면이 받는 값과 같음"
-     },
-     "201": {
-      "description": "만들어짐"
-     },
-     "202": {
-      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-query-complete": true,
-    "requestBody": {
-     "required": false,
-     "content": {
-      "application/json": {
-       "schema": {
-        "type": "object",
-        "properties": {
-         "descriptionMd": {
-          "type": "string"
-         },
-         "domain": {
-          "type": "string"
-         },
-         "employeeRange": {
-          "type": "string"
-         },
-         "industry": {
-          "type": "string"
-         },
-         "name": {
-          "type": "string"
-         },
-         "ownerId": {
-          "type": "string"
-         },
-         "region": {
-          "type": "string"
-         }
-        },
-        "additionalProperties": false,
-        "required": [
-         "name"
-        ]
-       }
-      }
-     }
-    }
-   }
-  },
-  "/crm/companies/{id}": {
-   "get": {
-    "operationId": "crm.company.get-v1",
-    "summary": "crm.company.get-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "crm company get-v1",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": [
-     {
-      "name": "id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "string"
-      }
-     }
-    ]
-   },
-   "delete": {
-    "operationId": "crm.company.rm",
-    "summary": "휴지통 기본, ?mode=purge 면 영구 삭제",
-    "tags": [
-     "crm"
-    ],
-    "x-cli": "crm company rm",
-    "x-scope": "delete",
-    "x-kind": "route",
-    "x-internal": "/api/crm/companies/{id}",
-    "parameters": [
-     {
-      "name": "id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "string"
-      }
-     },
-     {
-      "name": "mode",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string"
-      }
-     },
-     {
-      "name": "dryRun",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string",
-       "enum": [
-        "1"
-       ]
-      }
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "성공, data 는 화면이 받는 값과 같음"
-     },
-     "202": {
-      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-query-complete": true
-   },
-   "patch": {
-    "operationId": "crm.company.update",
-    "summary": "수정(낙관적 잠금)",
-    "tags": [
-     "crm"
-    ],
-    "x-cli": "crm company update",
-    "x-scope": "write",
-    "x-kind": "route",
-    "x-internal": "/api/crm/companies/{id}",
-    "parameters": [
-     {
-      "name": "id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "string"
-      }
-     },
-     {
-      "name": "dryRun",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string",
-       "enum": [
-        "1"
-       ]
-      }
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "성공, data 는 화면이 받는 값과 같음"
-     },
-     "202": {
-      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-query-complete": true,
-    "requestBody": {
-     "required": false,
-     "content": {
-      "application/json": {
-       "schema": {
-        "type": "object",
-        "properties": {
-         "descriptionMd": {
-          "type": "string"
-         },
-         "domain": {
-          "type": "string"
-         },
-         "employeeRange": {
-          "type": "string"
-         },
-         "industry": {
-          "type": "string"
-         },
-         "name": {
-          "type": "string"
-         },
-         "region": {
-          "type": "string"
-         },
-         "version": {
-          "type": "number",
-          "description": "화면이 들고 있던 버전. 어긋나면 409"
-         }
-        },
-        "additionalProperties": false,
-        "required": [
-         "version"
-        ]
-       }
-      }
-     }
-    }
-   }
-  },
-  "/crm/deals": {
-   "get": {
-    "operationId": "crm.deal.list-v1",
-    "summary": "crm.deal.list-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "crm deal list-v1",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
-   },
-   "post": {
-    "operationId": "crm.deal.create",
-    "summary": "생성",
-    "tags": [
-     "crm"
-    ],
-    "x-cli": "crm deal create",
-    "x-scope": "write",
-    "x-kind": "route",
-    "x-internal": "/api/crm/deals",
-    "parameters": [
-     {
-      "name": "dryRun",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string",
-       "enum": [
-        "1"
-       ]
-      }
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "성공, data 는 화면이 받는 값과 같음"
-     },
-     "201": {
-      "description": "만들어짐"
-     },
-     "202": {
-      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-query-complete": true,
-    "requestBody": {
-     "required": false,
-     "content": {
-      "application/json": {
-       "schema": {
-        "type": "object",
-        "properties": {
-         "amountMinor": {},
-         "businessType": {
-          "type": "string",
-          "description": "무엇을 파는 일인가 — 유형마다 원가 구조도 계약 형태도 다르다."
-         },
-         "companyId": {
-          "type": "string"
-         },
-         "currency": {
-          "type": "string"
-         },
-         "endDate": {
-          "type": "string"
-         },
-         "endDateUnknown": {
-          "type": "boolean",
-          "description": "종료일을 정할 수 없는 사업(크레딧 소진 시까지 등)"
-         },
-         "expectedCloseDate": {
-          "type": "string"
-         },
-         "name": {
-          "type": "string"
-         },
-         "ownerId": {
-          "type": "string"
-         },
-         "pipelineId": {
-          "type": "string",
-          "description": "비우면 워크스페이스 기본 파이프라인(단계를 주면 그 단계의 파이프라인) — resolveDealStart"
-         },
-         "stageId": {
-          "type": "string",
-          "description": "비우면 그 파이프라인의 첫 열린 단계"
-         },
-         "startDate": {
-          "type": "string"
-         },
-         "termType": {
-          "type": "string",
-          "description": "사업 기간 — 장기를 고르면 연차 구분이 열린다"
-         }
-        },
-        "additionalProperties": false,
-        "required": [
-         "companyId",
-         "name"
-        ]
-       }
-      }
-     }
-    }
-   }
-  },
-  "/crm/deals/{id}": {
-   "get": {
-    "operationId": "crm.deal.get-v1",
-    "summary": "crm.deal.get-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "crm deal get-v1",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": [
-     {
-      "name": "id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "string"
-      }
-     }
-    ]
-   },
-   "delete": {
-    "operationId": "crm.deal.rm",
-    "summary": "crm.deal.rm",
-    "tags": [
-     "crm"
-    ],
-    "x-cli": "crm deal rm",
-    "x-scope": "delete",
-    "x-kind": "route",
-    "x-internal": "/api/crm/deals/{id}",
-    "parameters": [
-     {
-      "name": "id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "string"
-      }
-     },
-     {
-      "name": "mode",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string"
-      }
-     },
-     {
-      "name": "dryRun",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string",
-       "enum": [
-        "1"
-       ]
-      }
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "성공, data 는 화면이 받는 값과 같음"
-     },
-     "202": {
-      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-query-complete": true
-   },
-   "patch": {
-    "operationId": "crm.deal.update",
-    "summary": "crm.deal.update",
-    "tags": [
-     "crm"
-    ],
-    "x-cli": "crm deal update",
-    "x-scope": "write",
-    "x-kind": "route",
-    "x-internal": "/api/crm/deals/{id}",
-    "parameters": [
-     {
-      "name": "id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "string"
-      }
-     },
-     {
-      "name": "dryRun",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string",
-       "enum": [
-        "1"
-       ]
-      }
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "성공, data 는 화면이 받는 값과 같음"
-     },
-     "202": {
-      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-query-complete": true,
-    "requestBody": {
-     "required": false,
-     "content": {
-      "application/json": {
-       "schema": {
-        "type": "object",
-        "properties": {
-         "amountMinor": {},
-         "businessType": {
-          "type": "string",
-          "description": "무엇을 파는 일인가 — 유형마다 원가 구조도 계약 형태도 다르다."
-         },
-         "companyId": {
-          "type": "string"
-         },
-         "currency": {
-          "type": "string"
-         },
-         "endDate": {
-          "type": "string"
-         },
-         "endDateUnknown": {
-          "type": "boolean",
-          "description": "종료일을 정할 수 없는 사업(크레딧 소진 시까지 등)"
-         },
-         "expectedCloseDate": {
-          "type": "string"
-         },
-         "name": {
-          "type": "string"
-         },
-         "pipelineId": {
-          "type": "string",
-          "description": "비우면 워크스페이스 기본 파이프라인(단계를 주면 그 단계의 파이프라인) — resolveDealStart"
-         },
-         "stageId": {
-          "type": "string",
-          "description": "비우면 그 파이프라인의 첫 열린 단계"
-         },
-         "startDate": {
-          "type": "string"
-         },
-         "termType": {
-          "type": "string",
-          "description": "사업 기간 — 장기를 고르면 연차 구분이 열린다"
-         },
-         "version": {
-          "type": "number"
-         }
-        },
-        "additionalProperties": false,
-        "required": [
-         "version"
-        ]
-       }
-      }
-     }
-    }
-   }
-  },
-  "/crm/meetings": {
-   "get": {
-    "operationId": "crm.meeting.list-v1",
-    "summary": "crm.meeting.list-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "crm meeting list-v1",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
-   },
-   "post": {
-    "operationId": "crm.meeting.create",
-    "summary": "미팅 만들기",
-    "tags": [
-     "crm"
-    ],
-    "x-cli": "crm meeting create",
-    "x-scope": "write",
-    "x-kind": "route",
-    "x-internal": "/api/crm/meetings",
-    "parameters": [
-     {
-      "name": "dryRun",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string",
-       "enum": [
-        "1"
-       ]
-      }
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "성공, data 는 화면이 받는 값과 같음"
-     },
-     "201": {
-      "description": "만들어짐"
-     },
-     "202": {
-      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-query-complete": true,
-    "requestBody": {
-     "required": false,
-     "content": {
-      "application/json": {
-       "schema": {
-        "type": "object",
-        "x-known-properties": {
-         "companyId": {},
-         "dealId": {},
-         "endedAt": {},
-         "location": {},
-         "startedAt": {},
-         "title": {},
-         "withNote": {}
-        }
-       }
-      }
-     }
-    }
-   }
-  },
-  "/crm/people": {
-   "get": {
-    "operationId": "crm.person.list-v1",
-    "summary": "crm.person.list-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "crm person list-v1",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
-   },
-   "post": {
-    "operationId": "crm.person.create",
-    "summary": "생성",
-    "tags": [
-     "crm"
-    ],
-    "x-cli": "crm person create",
-    "x-scope": "write",
-    "x-kind": "route",
-    "x-internal": "/api/crm/people",
-    "parameters": [
-     {
-      "name": "dryRun",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string",
-       "enum": [
-        "1"
-       ]
-      }
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "성공, data 는 화면이 받는 값과 같음"
-     },
-     "201": {
-      "description": "만들어짐"
-     },
-     "202": {
-      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-query-complete": true,
-    "requestBody": {
-     "required": false,
-     "content": {
-      "application/json": {
-       "schema": {
-        "type": "object",
-        "properties": {
-         "companyId": {
-          "type": "string"
-         },
-         "email": {
-          "type": "string"
-         },
-         "lifecycleStage": {
-          "type": "string"
-         },
-         "memo": {
-          "type": "string"
-         },
-         "name": {
-          "type": "string"
-         },
-         "ownerId": {
-          "type": "string"
-         },
-         "phone": {
-          "type": "string"
-         },
-         "title": {
-          "type": "string"
-         }
-        },
-        "additionalProperties": false,
-        "required": [
-         "name"
-        ]
-       }
-      }
-     }
-    }
-   }
-  },
-  "/crm/people/{id}": {
-   "get": {
-    "operationId": "crm.person.get-v1",
-    "summary": "crm.person.get-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "crm person get-v1",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": [
-     {
-      "name": "id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "string"
-      }
-     }
-    ]
-   },
-   "delete": {
-    "operationId": "crm.person.rm",
-    "summary": "휴지통 기본, ?mode=purge 면 영구 삭제",
-    "tags": [
-     "crm"
-    ],
-    "x-cli": "crm person rm",
-    "x-scope": "delete",
-    "x-kind": "route",
-    "x-internal": "/api/crm/people/{id}",
-    "parameters": [
-     {
-      "name": "id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "string"
-      }
-     },
-     {
-      "name": "mode",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string"
-      }
-     },
-     {
-      "name": "dryRun",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string",
-       "enum": [
-        "1"
-       ]
-      }
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "성공, data 는 화면이 받는 값과 같음"
-     },
-     "202": {
-      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-query-complete": true
-   },
-   "patch": {
-    "operationId": "crm.person.update",
-    "summary": "낙관적 잠금",
-    "tags": [
-     "crm"
-    ],
-    "x-cli": "crm person update",
-    "x-scope": "write",
-    "x-kind": "route",
-    "x-internal": "/api/crm/people/{id}",
-    "parameters": [
-     {
-      "name": "id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "string"
-      }
-     },
-     {
-      "name": "dryRun",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string",
-       "enum": [
-        "1"
-       ]
-      }
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "성공, data 는 화면이 받는 값과 같음"
-     },
-     "202": {
-      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-query-complete": true,
-    "requestBody": {
-     "required": false,
-     "content": {
-      "application/json": {
-       "schema": {
-        "type": "object",
-        "properties": {
-         "companyId": {
-          "type": "string"
-         },
-         "email": {
-          "type": "string"
-         },
-         "lifecycleStage": {
-          "type": "string"
-         },
-         "memo": {
-          "type": "string"
-         },
-         "name": {
-          "type": "string"
-         },
-         "phone": {
-          "type": "string"
-         },
-         "title": {
-          "type": "string"
-         },
-         "version": {
-          "type": "number"
-         }
-        },
-        "additionalProperties": false,
-        "required": [
-         "version"
-        ]
-       }
-      }
-     }
-    }
-   }
-  },
-  "/crm/quotes": {
-   "get": {
-    "operationId": "crm.quote.list-v1",
-    "summary": "crm.quote.list-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "crm quote list-v1",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
-   },
-   "post": {
-    "operationId": "crm.quote.create",
-    "summary": "견적 생성 (항목을 함께 보낼 수 있다)",
-    "tags": [
-     "crm"
-    ],
-    "x-cli": "crm quote create",
-    "x-scope": "write",
-    "x-kind": "route",
-    "x-internal": "/api/crm/quotes",
-    "parameters": [
-     {
-      "name": "dryRun",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string",
-       "enum": [
-        "1"
-       ]
-      }
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "성공, data 는 화면이 받는 값과 같음"
-     },
-     "201": {
-      "description": "만들어짐"
-     },
-     "202": {
-      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-query-complete": true,
-    "requestBody": {
-     "required": false,
-     "content": {
-      "application/json": {
-       "schema": {
-        "type": "object",
-        "properties": {
-         "autoFilled": {},
-         "budgetIncludesTax": {
-          "type": "boolean"
-         },
-         "budgetMinor": {},
-         "currency": {
-          "type": "string"
-         },
-         "dealId": {
-          "type": "string"
-         },
-         "fillConditions": {},
-         "fillText": {
-          "type": "string"
-         },
-         "importCheck": {
-          "type": "object",
-          "description": "파일로 읽었을 때의 **대조 결과.** 지표로만 남고 견적의 어떤 값도 안 바꾼다."
-         },
-         "learnedAliases": {
-          "description": "글로 채우기에서 AI 가 읽고 사람이 받아들인 낱말 — 품목 별칭이 된다"
-         },
-         "lineNoteKeys": {
-          "type": "array",
-          "items": {
-           "type": "string"
-          }
-         },
-         "lines": {
-          "type": "array",
-          "items": {
-           "type": "object"
-          }
-         },
-         "notesMd": {
-          "type": "string"
-         },
-         "ownerId": {
-          "type": "string"
-         },
-         "rateAxisKeys": {
-          "type": "array",
-          "items": {
-           "type": "string"
-          }
-         },
-         "rateHoursPerMonth": {
-          "description": "금액 표시 — 무엇을 함께 인쇄할지. **합계는 이 선택으로 안 바뀐다.**"
-         },
-         "recipientPersonId": {
-          "type": "string",
-          "description": "공급받는 곳의 담당자. 안 고르면 null — 회사 앞으로만 나간다"
-         },
-         "roundingMode": {
-          "type": "string",
-          "description": "DOWN(버림) · NEAREST(반올림) · UP(올림)"
-         },
-         "roundingUnit": {
-          "description": "절사 단위(원). 0 = 안 함"
-         },
-         "sections": {
-          "type": "array",
-          "items": {
-           "type": "object"
-          },
-          "description": "묶음. 안 주면 묶음 없는 견적이다(지금 있는 견적 전부가 그렇다)"
-         },
-         "sourceFileName": {
-          "type": "string",
-          "description": "견적서 파일에서 만들었으면 그 파일 이름."
-         },
-         "sourcePageEnd": {
-          "type": "number"
-         },
-         "sourcePageStart": {
-          "type": "number",
-          "description": "원본의 몇 쪽에서 읽었나. **못 읽었으면 안 보낸다** — 0 이나 1 로 눕히면"
-         },
-         "sourceSnapshotId": {
-          "type": "string",
-          "description": "그 쪽을 오려 둔 첨부 id. 조각을 나중에 붙이면 수정 경로로 채운다"
-         },
-         "supplyRoundingUnit": {
-          "description": "할인 후 공급가 절사 단위(원). 제품으로 채우면 제품의 값이 온다. 0 = 안 함"
-         },
-         "termIds": {
-          "type": "array",
-          "items": {
-           "type": "string"
-          },
-          "description": "고른 거래 조건. 순서가 곧 인쇄 순서다"
-         },
-         "title": {
-          "type": "string"
-         },
-         "totalConvKeys": {
-          "type": "array",
-          "items": {
-           "type": "string"
-          }
-         },
-         "validUntil": {
-          "type": "string",
-          "description": "유효기간, 날짜만(YYYY-MM-DD) 주면 그 날 KST 23:59, 시각을 주면 그대로"
-         }
-        },
-        "additionalProperties": false,
-        "required": [
-         "dealId"
-        ]
-       }
-      }
-     }
-    }
-   }
-  },
-  "/crm/tasks": {
-   "get": {
-    "operationId": "crm.task.list-v1",
-    "summary": "crm.task.list-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "crm task list-v1",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
-   },
-   "post": {
-    "operationId": "crm.task.create",
-    "summary": "생성",
-    "tags": [
-     "crm"
-    ],
-    "x-cli": "crm task create",
-    "x-scope": "write",
-    "x-kind": "route",
-    "x-internal": "/api/crm/tasks",
-    "parameters": [
-     {
-      "name": "dryRun",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string",
-       "enum": [
-        "1"
-       ]
-      }
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "성공, data 는 화면이 받는 값과 같음"
-     },
-     "201": {
-      "description": "만들어짐"
-     },
-     "202": {
-      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-query-complete": true,
-    "requestBody": {
-     "required": false,
-     "content": {
-      "application/json": {
-       "schema": {
-        "type": "object",
-        "properties": {
-         "assigneeId": {
-          "type": "string"
-         },
-         "companyId": {
-          "type": "string"
-         },
-         "dealId": {
-          "type": "string"
-         },
-         "dueAt": {
-          "type": "string",
-          "description": "마감, 날짜만(YYYY-MM-DD) 주면 그 날 KST 23:59 (웹과 같음), 시각을 주면 그대로"
-         },
-         "personId": {
-          "type": "string"
-         },
-         "sourceMeetingId": {
-          "type": "string",
-          "description": "회의에서 나온 할 일이면 그 미팅 id — 출처이자 멱등 열쇠다(마이그 256)"
-         },
-         "startAt": {
-          "type": "string",
-          "description": "시작, 날짜만(YYYY-MM-DD) 주면 그 날 KST 00:00, 시각을 주면 그대로"
-         },
-         "status": {
-          "type": "string"
-         },
-         "title": {
-          "type": "string"
-         }
-        },
-        "additionalProperties": false,
-        "required": [
-         "title"
-        ]
-       }
-      }
-     }
-    }
-   }
-  },
-  "/fx": {
-   "get": {
-    "operationId": "gpu.fx.list-v1",
-    "summary": "gpu.fx.list-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "gpu fx list-v1",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
-   }
-  },
-  "/inventory": {
-   "get": {
-    "operationId": "gpu.inventory.list-v1",
-    "summary": "gpu.inventory.list-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "gpu inventory list-v1",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
-   }
-  },
-  "/market": {
-   "get": {
-    "operationId": "gpu.market.list-v1",
-    "summary": "gpu.market.list-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "gpu market list-v1",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
-   }
-  },
-  "/me": {
-   "get": {
-    "operationId": "meta.me.get",
-    "summary": "meta.me.get",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "me",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
-   }
-  },
-  "/openapi.json": {
-   "get": {
-    "operationId": "meta.openapi.get",
-    "summary": "meta.openapi.get",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "sync",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
-   }
-  },
-  "/pool-stock": {
-   "get": {
-    "operationId": "gpu.pool-stock.list-v1",
-    "summary": "gpu.pool-stock.list-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "gpu pool-stock list-v1",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
-   },
-   "post": {
-    "operationId": "gpu.pool-stock.create-v1",
-    "summary": "gpu.pool-stock.create-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "201": {
-      "description": "만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "gpu pool-stock create-v1",
-    "x-scope": "write",
-    "x-kind": "public",
-    "parameters": []
-   }
-  },
   "/products": {
    "get": {
-    "operationId": "gpu.product.list-v1",
-    "summary": "gpu.product.list-v1",
+    "operationId": "gpu.products.list",
+    "summary": "GPU 목록",
+    "description": "취급 중인 GPU 구성과 우리 판매가. 내부 가격표 화면과 같은 계산으로 낸 값입니다. 고정된 목록이라 커서 없이 한 번에 전부 주고, meta.total 이 전체 수입니다.",
+    "tags": [
+     "GPU 가격"
+    ],
+    "deprecated": false,
     "responses": {
      "200": {
       "description": "성공"
@@ -1907,14 +75,28 @@
     },
     "x-cli": "gpu product list-v1",
     "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
+    "x-kind": "public"
    }
   },
   "/products/{id}": {
    "get": {
-    "operationId": "gpu.product.get-v1",
-    "summary": "gpu.product.get-v1",
+    "operationId": "gpu.products.get",
+    "summary": "GPU 상세",
+    "description": "구성 하나의 스펙·가격·공급 상태.",
+    "tags": [
+     "GPU 가격"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
     "responses": {
      "200": {
       "description": "성공"
@@ -1937,193 +119,39 @@
     },
     "x-cli": "gpu product get-v1",
     "x-scope": "read",
-    "x-kind": "public",
-    "parameters": [
-     {
-      "name": "id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "string"
-      }
-     }
-    ]
-   }
-  },
-  "/settings": {
-   "get": {
-    "operationId": "gpu.settings.list-v1",
-    "summary": "gpu.settings.list-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "gpu settings list-v1",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
-   },
-   "patch": {
-    "operationId": "gpu.settings.update-v1",
-    "summary": "gpu.settings.update-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "gpu settings update-v1",
-    "x-scope": "admin",
-    "x-kind": "public",
-    "parameters": []
-   }
-  },
-  "/suppliers": {
-   "get": {
-    "operationId": "gpu.supplier.list-v1",
-    "summary": "gpu.supplier.list-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "gpu supplier list-v1",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
-   },
-   "post": {
-    "operationId": "gpu.supplier.create-v1",
-    "summary": "gpu.supplier.create-v1",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "201": {
-      "description": "만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "gpu supplier create-v1",
-    "x-scope": "write",
-    "x-kind": "public",
-    "parameters": []
-   }
-  },
-  "/approvals/{id}/cancel": {
-   "post": {
-    "operationId": "meta.approval.cancel",
-    "summary": "meta.approval.cancel",
-    "responses": {
-     "200": {
-      "description": "성공"
-     },
-     "201": {
-      "description": "만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-cli": "approval cancel",
-    "x-scope": "read",
-    "x-kind": "public",
-    "parameters": [
-     {
-      "name": "id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "string"
-      }
-     }
-    ]
+    "x-kind": "public"
    }
   },
   "/quote": {
    "post": {
-    "operationId": "gpu.quote.calc",
-    "summary": "gpu.quote.calc",
+    "operationId": "gpu.quote.create.alias",
+    "summary": "견적 계산",
+    "description": "구성과 수량으로 견적을 계산합니다. 아무것도 저장하지 않습니다. 줄마다 마진을 따로 지정할 수 있습니다.",
+    "tags": [
+     "GPU 가격"
+    ],
+    "deprecated": false,
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "required": [
+         "items"
+        ],
+        "properties": {
+         "items": {
+          "description": "{ product_id, quantity, custom_margin_pct } 목록, 1줄 이상 50줄 이하. product_id 는 구성 id(uuid), quantity 는 1 이상 10000 이하 정수, custom_margin_pct 는 그 줄에만 적용할 마진(%)으로 0 이상 200 이하이고 없으면 기본 판매가입니다"
+         },
+         "currency": {
+          "description": "견적 통화. 기본 USD"
+         }
+        }
+       }
+      }
+     }
+    },
     "responses": {
      "200": {
       "description": "성공"
@@ -2152,8 +180,2871 @@
     },
     "x-cli": "gpu quote",
     "x-scope": "read",
-    "x-kind": "public",
-    "parameters": []
+    "x-kind": "public"
+   }
+  },
+  "/inventory": {
+   "get": {
+    "operationId": "gpu.inventory.list.alias",
+    "summary": "재고",
+    "description": "Tier 별 재고 수량.",
+    "tags": [
+     "GPU 가격"
+    ],
+    "deprecated": false,
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "gpu inventory list-v1",
+    "x-scope": "read",
+    "x-kind": "public"
+   }
+  },
+  "/fx": {
+   "get": {
+    "operationId": "gpu.fx.list.alias",
+    "summary": "환율",
+    "description": "USD/KRW 환율 이력(최근 7일). 가격 계산에 쓰인 값과 같습니다.",
+    "tags": [
+     "GPU 가격"
+    ],
+    "deprecated": false,
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "gpu fx list-v1",
+    "x-scope": "read",
+    "x-kind": "public"
+   }
+  },
+  "/suppliers": {
+   "get": {
+    "operationId": "gpu.suppliers.list",
+    "summary": "공급사 목록",
+    "description": "등록된 공급사.",
+    "tags": [
+     "GPU 가격"
+    ],
+    "deprecated": false,
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "gpu supplier list-v1",
+    "x-scope": "read",
+    "x-kind": "public"
+   },
+   "post": {
+    "operationId": "gpu.suppliers.create",
+    "summary": "공급사 등록",
+    "description": "새 공급사를 등록합니다.",
+    "tags": [
+     "GPU 가격"
+    ],
+    "deprecated": false,
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "required": [
+         "name"
+        ],
+        "properties": {
+         "name": {
+          "description": "공급사 이름"
+         },
+         "location": {
+          "description": "위치"
+         },
+         "contact": {
+          "description": "연락처"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "gpu supplier create-v1",
+    "x-scope": "write",
+    "x-kind": "public"
+   }
+  },
+  "/market": {
+   "get": {
+    "operationId": "gpu.market.list.alias",
+    "summary": "경쟁사 시세",
+    "description": "수집된 경쟁사 가격 관측치.",
+    "tags": [
+     "GPU 가격"
+    ],
+    "deprecated": false,
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "gpu market list-v1",
+    "x-scope": "read",
+    "x-kind": "public"
+   }
+  },
+  "/settings": {
+   "get": {
+    "operationId": "gpu.settings.get",
+    "summary": "가격 설정 조회",
+    "description": "기본 마진과 가격 전략 설정.",
+    "tags": [
+     "GPU 가격"
+    ],
+    "deprecated": false,
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "gpu settings list-v1",
+    "x-scope": "read",
+    "x-kind": "public"
+   },
+   "patch": {
+    "operationId": "gpu.settings.update.alias",
+    "summary": "가격 설정 변경",
+    "description": "기본 마진을 바꿉니다. 바꾼 사람은 감사 기록에 남습니다.",
+    "tags": [
+     "GPU 가격"
+    ],
+    "deprecated": false,
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "required": [
+         "margin_pct"
+        ],
+        "properties": {
+         "margin_pct": {
+          "description": "기본 마진(%)"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "gpu settings update-v1",
+    "x-scope": "admin",
+    "x-kind": "public"
+   }
+  },
+  "/pool-stock": {
+   "get": {
+    "operationId": "gpu.poolStock.list",
+    "summary": "풀 재고 조회",
+    "description": "Tier 3 풀 재고 수량.",
+    "tags": [
+     "GPU 가격"
+    ],
+    "deprecated": false,
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "gpu pool-stock list-v1",
+    "x-scope": "read",
+    "x-kind": "public"
+   },
+   "post": {
+    "operationId": "gpu.poolStock.update",
+    "summary": "풀 재고 갱신",
+    "description": "풀 재고 수량을 갱신합니다. 바꾼 사람은 감사 기록에 남습니다.",
+    "tags": [
+     "GPU 가격"
+    ],
+    "deprecated": false,
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "required": [
+         "product_id",
+         "pool_qty"
+        ],
+        "properties": {
+         "product_id": {
+          "description": "대상 구성 id"
+         },
+         "pool_qty": {
+          "description": "풀 재고 수량. 정수로 반올림하고 0 보다 작으면 0 으로 저장합니다"
+         },
+         "sell_price_krw": {
+          "description": "함께 바꿀 판매가(원). 없으면 판매가는 그대로입니다"
+         },
+         "note": {
+          "description": "메모"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "gpu pool-stock create-v1",
+    "x-scope": "write",
+    "x-kind": "public"
+   }
+  },
+  "/crm/companies": {
+   "get": {
+    "operationId": "crm.companies.list",
+    "summary": "회사 목록",
+    "description": "워크스페이스의 회사. 최신순 커서 페이지.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "description": "한 번에 가져올 개수. 기본 20, 최대 100",
+      "schema": {
+       "type": "number"
+      }
+     },
+     {
+      "name": "cursor",
+      "in": "query",
+      "required": false,
+      "description": "이어 보기 커서. 응답 meta.nextCursor 를 그대로 넣습니다",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "description": "이름·제목 검색어",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm company list-v1",
+    "x-scope": "read",
+    "x-kind": "public"
+   },
+   "post": {
+    "operationId": "crm.companies.create",
+    "summary": "새 회사",
+    "description": "회사를 만듭니다. 키 주인이 소유자가 됩니다. 키에 write 범위가 있어야 바로 실행되고, 없으면 403 입니다. Idempotency-Key 헤더를 실으면 같은 요청을 다시 보내도 한 번만 실행됩니다.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "required": [
+         "name"
+        ],
+        "properties": {
+         "name": {
+          "description": "회사 이름"
+         },
+         "domain": {
+          "description": "웹사이트 도메인"
+         },
+         "industry": {
+          "description": "업종"
+         },
+         "region": {
+          "description": "지역"
+         },
+         "descriptionMd": {
+          "description": "소개(마크다운)"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm company create",
+    "x-scope": "write",
+    "x-kind": "route"
+   }
+  },
+  "/crm/companies/{id}": {
+   "get": {
+    "operationId": "crm.companies.get",
+    "summary": "회사 상세",
+    "description": "회사 하나의 속성.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm company get-v1",
+    "x-scope": "read",
+    "x-kind": "public"
+   },
+   "patch": {
+    "operationId": "crm.companies.update",
+    "summary": "회사 수정",
+    "description": "보낸 칸만 고칩니다. 소유자는 여기서 바꾸지 않습니다. 키에 write 범위가 있어야 바로 실행되고, 없으면 403 입니다. Idempotency-Key 헤더를 실으면 같은 요청을 다시 보내도 한 번만 실행됩니다.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "required": [
+         "version"
+        ],
+        "properties": {
+         "version": {
+          "description": "상세 응답의 version 을 그대로 넣습니다. 그 사이 누가 먼저 고쳤으면 409 입니다"
+         },
+         "name": {
+          "description": "회사 이름"
+         },
+         "domain": {
+          "description": "웹사이트 도메인"
+         },
+         "industry": {
+          "description": "업종"
+         },
+         "region": {
+          "description": "지역"
+         },
+         "descriptionMd": {
+          "description": "소개(마크다운)"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm company update",
+    "x-scope": "write",
+    "x-kind": "route"
+   },
+   "delete": {
+    "operationId": "crm.companies.delete",
+    "summary": "회사 삭제",
+    "description": "기본은 휴지통으로 옮겨 화면에서 되돌릴 수 있습니다. 키에 delete 범위가 있어야 바로 실행되고, 없으면 키 주인 계정에 그 권한이 있을 때 202 로 승인 요청이 만들어집니다. Idempotency-Key 헤더를 실으면 같은 요청을 다시 보내도 한 번만 실행됩니다.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "mode",
+      "in": "query",
+      "required": false,
+      "description": "비우면 휴지통으로 옮기고, purge 면 영구 삭제합니다. 영구 삭제는 되돌릴 수 없습니다",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm company rm",
+    "x-scope": "delete",
+    "x-kind": "route"
+   }
+  },
+  "/crm/people": {
+   "get": {
+    "operationId": "crm.people.list",
+    "summary": "인물 목록",
+    "description": "회사에 속한 사람. 「담당자」가 아니라 「인물」입니다.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "description": "한 번에 가져올 개수. 기본 20, 최대 100",
+      "schema": {
+       "type": "number"
+      }
+     },
+     {
+      "name": "cursor",
+      "in": "query",
+      "required": false,
+      "description": "이어 보기 커서. 응답 meta.nextCursor 를 그대로 넣습니다",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "description": "이름·제목 검색어",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm person list-v1",
+    "x-scope": "read",
+    "x-kind": "public"
+   },
+   "post": {
+    "operationId": "crm.people.create",
+    "summary": "새 인물",
+    "description": "인물을 만듭니다. 키에 write 범위가 있어야 바로 실행되고, 없으면 403 입니다. Idempotency-Key 헤더를 실으면 같은 요청을 다시 보내도 한 번만 실행됩니다.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "required": [
+         "name"
+        ],
+        "properties": {
+         "name": {
+          "description": "인물 이름"
+         },
+         "companyId": {
+          "description": "속한 회사 id"
+         },
+         "email": {
+          "description": "이메일"
+         },
+         "phone": {
+          "description": "전화번호"
+         },
+         "title": {
+          "description": "직함"
+         },
+         "memo": {
+          "description": "메모"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm person create",
+    "x-scope": "write",
+    "x-kind": "route"
+   }
+  },
+  "/crm/people/{id}": {
+   "get": {
+    "operationId": "crm.people.get",
+    "summary": "인물 상세",
+    "description": "인물 하나의 속성과 연락 수단.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm person get-v1",
+    "x-scope": "read",
+    "x-kind": "public"
+   },
+   "patch": {
+    "operationId": "crm.people.update",
+    "summary": "인물 수정",
+    "description": "보낸 칸만 고칩니다. 소유자는 여기서 바꾸지 않습니다. 키에 write 범위가 있어야 바로 실행되고, 없으면 403 입니다. Idempotency-Key 헤더를 실으면 같은 요청을 다시 보내도 한 번만 실행됩니다.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "required": [
+         "version"
+        ],
+        "properties": {
+         "version": {
+          "description": "상세 응답의 version 을 그대로 넣습니다. 그 사이 누가 먼저 고쳤으면 409 입니다"
+         },
+         "name": {
+          "description": "인물 이름"
+         },
+         "companyId": {
+          "description": "속한 회사 id"
+         },
+         "email": {
+          "description": "이메일"
+         },
+         "phone": {
+          "description": "전화번호"
+         },
+         "title": {
+          "description": "직함"
+         },
+         "memo": {
+          "description": "메모"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm person update",
+    "x-scope": "write",
+    "x-kind": "route"
+   },
+   "delete": {
+    "operationId": "crm.people.delete",
+    "summary": "인물 삭제",
+    "description": "기본은 휴지통으로 옮겨 화면에서 되돌릴 수 있습니다. 키에 delete 범위가 있어야 바로 실행되고, 없으면 키 주인 계정에 그 권한이 있을 때 202 로 승인 요청이 만들어집니다. Idempotency-Key 헤더를 실으면 같은 요청을 다시 보내도 한 번만 실행됩니다.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "mode",
+      "in": "query",
+      "required": false,
+      "description": "비우면 휴지통으로 옮기고, purge 면 영구 삭제합니다. 영구 삭제는 되돌릴 수 없습니다",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm person rm",
+    "x-scope": "delete",
+    "x-kind": "route"
+   }
+  },
+  "/crm/deals": {
+   "get": {
+    "operationId": "crm.deals.list",
+    "summary": "딜 목록",
+    "description": "진행 중인 영업 건. 「영업기회」가 아니라 「딜」입니다.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "description": "한 번에 가져올 개수. 기본 20, 최대 100",
+      "schema": {
+       "type": "number"
+      }
+     },
+     {
+      "name": "cursor",
+      "in": "query",
+      "required": false,
+      "description": "이어 보기 커서. 응답 meta.nextCursor 를 그대로 넣습니다",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "description": "이름·제목 검색어",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm deal list-v1",
+    "x-scope": "read",
+    "x-kind": "public"
+   },
+   "post": {
+    "operationId": "crm.deals.create",
+    "summary": "새 딜",
+    "description": "딜을 만듭니다. 키에 write 범위가 있어야 바로 실행되고, 없으면 403 입니다. Idempotency-Key 헤더를 실으면 같은 요청을 다시 보내도 한 번만 실행됩니다.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "required": [
+         "companyId",
+         "name"
+        ],
+        "properties": {
+         "companyId": {
+          "description": "딜이 붙는 회사 id"
+         },
+         "name": {
+          "description": "딜 이름"
+         },
+         "pipelineId": {
+          "description": "비우면 워크스페이스 기본 파이프라인입니다"
+         },
+         "stageId": {
+          "description": "비우면 그 파이프라인의 첫 단계입니다"
+         },
+         "amountMinor": {
+          "description": "금액. 통화의 가장 작은 단위로 적습니다(원화는 원)"
+         },
+         "currency": {
+          "description": "통화 코드"
+         },
+         "expectedCloseDate": {
+          "description": "예상 마감일(YYYY-MM-DD)"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm deal create",
+    "x-scope": "write",
+    "x-kind": "route"
+   }
+  },
+  "/crm/deals/{id}": {
+   "get": {
+    "operationId": "crm.deals.get",
+    "summary": "딜 상세",
+    "description": "딜 하나의 단계·금액·소유자.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm deal get-v1",
+    "x-scope": "read",
+    "x-kind": "public"
+   },
+   "patch": {
+    "operationId": "crm.deals.update",
+    "summary": "딜 수정",
+    "description": "보낸 칸만 고칩니다. 소유자는 여기서 바꾸지 않습니다. 키에 write 범위가 있어야 바로 실행되고, 없으면 403 입니다. Idempotency-Key 헤더를 실으면 같은 요청을 다시 보내도 한 번만 실행됩니다.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "required": [
+         "version"
+        ],
+        "properties": {
+         "version": {
+          "description": "상세 응답의 version 을 그대로 넣습니다. 그 사이 누가 먼저 고쳤으면 409 입니다"
+         },
+         "companyId": {
+          "description": "딜이 붙는 회사 id"
+         },
+         "name": {
+          "description": "딜 이름"
+         },
+         "pipelineId": {
+          "description": "비우면 워크스페이스 기본 파이프라인입니다"
+         },
+         "stageId": {
+          "description": "비우면 그 파이프라인의 첫 단계입니다"
+         },
+         "amountMinor": {
+          "description": "금액. 통화의 가장 작은 단위로 적습니다(원화는 원)"
+         },
+         "currency": {
+          "description": "통화 코드"
+         },
+         "expectedCloseDate": {
+          "description": "예상 마감일(YYYY-MM-DD)"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm deal update",
+    "x-scope": "write",
+    "x-kind": "route"
+   },
+   "delete": {
+    "operationId": "crm.deals.delete",
+    "summary": "딜 삭제",
+    "description": "기본은 휴지통으로 옮겨 화면에서 되돌릴 수 있습니다. 키에 delete 범위가 있어야 바로 실행되고, 없으면 키 주인 계정에 그 권한이 있을 때 202 로 승인 요청이 만들어집니다. Idempotency-Key 헤더를 실으면 같은 요청을 다시 보내도 한 번만 실행됩니다.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "mode",
+      "in": "query",
+      "required": false,
+      "description": "비우면 휴지통으로 옮기고, purge 면 영구 삭제합니다. 영구 삭제는 되돌릴 수 없습니다",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm deal rm",
+    "x-scope": "delete",
+    "x-kind": "route"
+   }
+  },
+  "/crm/meetings": {
+   "get": {
+    "operationId": "crm.meetings.list",
+    "summary": "미팅 목록",
+    "description": "기록된 미팅. 요약·전사 상태를 함께 줍니다.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "description": "한 번에 가져올 개수. 기본 20, 최대 100",
+      "schema": {
+       "type": "number"
+      }
+     },
+     {
+      "name": "cursor",
+      "in": "query",
+      "required": false,
+      "description": "이어 보기 커서. 응답 meta.nextCursor 를 그대로 넣습니다",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "description": "이름·제목 검색어",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm meeting list-v1",
+    "x-scope": "read",
+    "x-kind": "public"
+   },
+   "post": {
+    "operationId": "crm.meetings.create",
+    "summary": "새 미팅",
+    "description": "미팅 기록을 만듭니다. 제목과 시작 시각이 없으면 400 입니다. 키에 write 범위가 있어야 바로 실행되고, 없으면 403 입니다. Idempotency-Key 헤더를 실으면 같은 요청을 다시 보내도 한 번만 실행됩니다.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "required": [
+         "title",
+         "startedAt"
+        ],
+        "properties": {
+         "title": {
+          "description": "미팅 제목"
+         },
+         "startedAt": {
+          "description": "시작 시각(ISO 8601)"
+         },
+         "endedAt": {
+          "description": "끝난 시각(ISO 8601)"
+         },
+         "companyId": {
+          "description": "회사 id"
+         },
+         "dealId": {
+          "description": "딜 id"
+         },
+         "location": {
+          "description": "장소"
+         },
+         "withNote": {
+          "description": "true 면 회의노트도 함께 만듭니다"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm meeting create",
+    "x-scope": "write",
+    "x-kind": "route"
+   }
+  },
+  "/crm/quotes": {
+   "get": {
+    "operationId": "crm.quotes.list",
+    "summary": "견적 목록",
+    "description": "CRM 견적(딜에 붙는 문서). GPU 견적 계산과는 다릅니다.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "description": "한 번에 가져올 개수. 기본 20, 최대 100",
+      "schema": {
+       "type": "number"
+      }
+     },
+     {
+      "name": "cursor",
+      "in": "query",
+      "required": false,
+      "description": "이어 보기 커서. 응답 meta.nextCursor 를 그대로 넣습니다",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "description": "이름·제목 검색어",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm quote list-v1",
+    "x-scope": "read",
+    "x-kind": "public"
+   },
+   "post": {
+    "operationId": "crm.quotes.create",
+    "summary": "새 견적",
+    "description": "딜에 붙는 견적을 만듭니다. 품목 줄을 함께 보낼 수 있습니다. 키에 write 범위가 있어야 바로 실행되고, 없으면 403 입니다. Idempotency-Key 헤더를 실으면 같은 요청을 다시 보내도 한 번만 실행됩니다.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "required": [
+         "dealId"
+        ],
+        "properties": {
+         "dealId": {
+          "description": "견적이 붙는 딜 id"
+         },
+         "title": {
+          "description": "견적 제목"
+         },
+         "currency": {
+          "description": "통화 코드"
+         },
+         "validUntil": {
+          "description": "유효 기한(YYYY-MM-DD)"
+         },
+         "notesMd": {
+          "description": "비고(마크다운)"
+         },
+         "lines": {
+          "description": "품목 줄. 칸은 견적 상세 응답의 줄과 같습니다"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm quote create",
+    "x-scope": "write",
+    "x-kind": "route"
+   }
+  },
+  "/crm/quotes/{id}/export": {
+   "get": {
+    "operationId": "crm.quotes.export",
+    "summary": "견적서 내려받기",
+    "description": "견적서를 화면 미리보기 그대로 PDF 나 PNG 파일로 돌려줍니다. read 범위면 부를 수 있고, 키를 만든 계정에 CRM 내보내기 권한이 있어야 합니다. 2단계 인증을 켠 계정의 키로는 만들 수 없어 403 을 돌려줍니다. 그때는 화면에서 내려받아 주세요.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "format",
+      "in": "query",
+      "required": true,
+      "description": "pdf 는 문서 전체, png 는 한 쪽을 이미지로 받습니다. 다른 값이면 400 입니다",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "page",
+      "in": "query",
+      "required": false,
+      "description": "png 로 받을 쪽 번호. 1부터 세고 비우면 1쪽입니다. pdf 에서는 쓰지 않습니다",
+      "schema": {
+       "type": "number"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공, JSON 봉투 대신 파일 본문 (오류일 때만 공통 봉투)",
+      "content": {
+       "application/pdf": {
+        "schema": {
+         "type": "string",
+         "format": "binary"
+        }
+       },
+       "image/png": {
+        "schema": {
+         "type": "string",
+         "format": "binary"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm quote export",
+    "x-scope": "read",
+    "x-kind": "route"
+   }
+  },
+  "/crm/tasks": {
+   "get": {
+    "operationId": "crm.tasks.list",
+    "summary": "할 일 목록",
+    "description": "딜·회사에 붙은 할 일.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "description": "한 번에 가져올 개수. 기본 20, 최대 100",
+      "schema": {
+       "type": "number"
+      }
+     },
+     {
+      "name": "cursor",
+      "in": "query",
+      "required": false,
+      "description": "이어 보기 커서. 응답 meta.nextCursor 를 그대로 넣습니다",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "q",
+      "in": "query",
+      "required": false,
+      "description": "이름·제목 검색어",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm task list-v1",
+    "x-scope": "read",
+    "x-kind": "public"
+   },
+   "post": {
+    "operationId": "crm.tasks.create",
+    "summary": "새 할 일",
+    "description": "할 일을 만듭니다. 키에 write 범위가 있어야 바로 실행되고, 없으면 403 입니다. Idempotency-Key 헤더를 실으면 같은 요청을 다시 보내도 한 번만 실행됩니다.",
+    "tags": [
+     "영업 CRM"
+    ],
+    "deprecated": false,
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "required": [
+         "title"
+        ],
+        "properties": {
+         "title": {
+          "description": "할 일 제목"
+         },
+         "dueAt": {
+          "description": "기한(ISO 8601)"
+         },
+         "assigneeId": {
+          "description": "맡은 사람 id"
+         },
+         "companyId": {
+          "description": "회사 id"
+         },
+         "personId": {
+          "description": "인물 id"
+         },
+         "dealId": {
+          "description": "딜 id"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "crm task create",
+    "x-scope": "write",
+    "x-kind": "route"
+   }
+  },
+  "/ci/channels": {
+   "get": {
+    "operationId": "ci.channels.list",
+    "summary": "채널 목록",
+    "description": "모니터링 중인 채널.",
+    "tags": [
+     "콘텐츠 인텔리전스"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "workspace",
+      "in": "query",
+      "required": false,
+      "description": "워크스페이스 id. 속한 곳이 하나면 생략할 수 있습니다",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "ownership",
+      "in": "query",
+      "required": false,
+      "description": "owned 는 우리 채널만, tracked 는 추적하는 다른 채널만. 없으면 둘 다",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "ci channel list-v1",
+    "x-scope": "read",
+    "x-kind": "public"
+   },
+   "post": {
+    "operationId": "ci.channels.create",
+    "summary": "새 채널",
+    "description": "채널 주소나 핸들로 채널을 더합니다. 요금제 한도를 넘으면 거절됩니다. 키에 write 범위가 있어야 바로 실행되고, 없으면 403 입니다. Idempotency-Key 헤더를 실으면 같은 요청을 다시 보내도 한 번만 실행됩니다.",
+    "tags": [
+     "콘텐츠 인텔리전스"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "workspaceId",
+      "in": "query",
+      "required": true,
+      "description": "워크스페이스 id. 목록의 workspace 와 이름이 다르고, 비우면 400 입니다",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "required": [
+         "input"
+        ],
+        "properties": {
+         "input": {
+          "description": "채널 주소 또는 핸들"
+         },
+         "topicId": {
+          "description": "묶을 주제 id"
+         },
+         "monitor": {
+          "description": "바로 모니터링할지. 기본 true"
+         }
+        }
+       }
+      }
+     }
+    },
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "ci channel create",
+    "x-scope": "write",
+    "x-kind": "route"
+   }
+  },
+  "/ci/contents": {
+   "get": {
+    "operationId": "ci.contents.list",
+    "summary": "게시물 목록",
+    "description": "수집된 게시물. 「콘텐츠」가 아니라 「게시물」입니다.",
+    "tags": [
+     "콘텐츠 인텔리전스"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "workspace",
+      "in": "query",
+      "required": false,
+      "description": "워크스페이스 id",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "topicId",
+      "in": "query",
+      "required": false,
+      "description": "주제로 좁히기",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "windowDays",
+      "in": "query",
+      "required": false,
+      "description": "최근 N일",
+      "schema": {
+       "type": "number"
+      }
+     },
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "description": "개수. 기본 20, 최대 100",
+      "schema": {
+       "type": "number"
+      }
+     },
+     {
+      "name": "cursor",
+      "in": "query",
+      "required": false,
+      "description": "이어 보기 커서. 응답 meta.nextCursor(<first_seen_at>__<uuid> 꼴)를 그대로 넣습니다. 형식이 틀리면 400 이고, 두 번째 쪽부터는 meta.total 을 싣지 않습니다",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "ci content list-v1",
+    "x-scope": "read",
+    "x-kind": "public"
+   }
+  },
+  "/openapi.json": {
+   "get": {
+    "operationId": "ref.openapi",
+    "summary": "OpenAPI 스펙",
+    "description": "이 표에서 생성한 OpenAPI 3.1 스펙. 봉투 없이 OpenAPI 문서 그대로(최상위 openapi) 돌려줍니다. 이 주소도 키가 있어야 하므로, 키를 실어 받아 파일로 저장한 뒤 클라이언트 생성기에 넣습니다.",
+    "tags": [
+     "참고"
+    ],
+    "deprecated": false,
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "sync",
+    "x-scope": "read",
+    "x-kind": "public"
+   }
+  },
+  "/me": {
+   "get": {
+    "operationId": "ref.me",
+    "summary": "내 키 정보",
+    "description": "이 키의 주인, 역할, 실제로 쓸 수 있는 범위를 돌려줍니다. 범위와 상관없이 부를 수 있습니다.",
+    "tags": [
+     "참고"
+    ],
+    "deprecated": false,
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "me",
+    "x-scope": "read",
+    "x-kind": "public"
+   }
+  },
+  "/approvals/{id}": {
+   "get": {
+    "operationId": "ref.approval",
+    "summary": "승인 요청 상태",
+    "description": "범위 밖 동작이 202 로 돌려준 승인 요청의 상태와 실행 결과. 키 주인의 요청만 보입니다.",
+    "tags": [
+     "참고"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "approval get",
+    "x-scope": "read",
+    "x-kind": "public"
+   }
+  },
+  "/approvals/{id}/cancel": {
+   "post": {
+    "operationId": "ref.approval.cancel",
+    "summary": "승인 요청 취소",
+    "description": "이 키가 만든 승인 요청 가운데 기다리는 중인 것을 거둡니다. 다른 키의 요청과 없는 요청은 같은 404, 이미 결정되었거나 만료된 요청은 409 입니다.",
+    "tags": [
+     "참고"
+    ],
+    "deprecated": false,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-cli": "approval cancel",
+    "x-scope": "read",
+    "x-kind": "public"
+   }
+  },
+  "/accounts": {
+   "get": {
+    "operationId": "legacy.accounts.list",
+    "summary": "거래처 목록",
+    "description": "목록 조회. → crm.companies.list\n\n구 화면(/accounts)의 표입니다. 새 코드는 「회사」 API(/crm/companies)를 쓰세요. 「거래처」는 폐기된 말입니다.",
+    "tags": [
+     "이관 중"
+    ],
+    "deprecated": true,
+    "parameters": [
+     {
+      "name": "search",
+      "in": "query",
+      "required": false,
+      "description": "이름 검색",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "cursor",
+      "in": "query",
+      "required": false,
+      "description": "이어 보기 커서",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "sort",
+      "in": "query",
+      "required": false,
+      "description": "정렬 기준",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "dir",
+      "in": "query",
+      "required": false,
+      "description": "정렬 방향",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    }
+   },
+   "post": {
+    "operationId": "legacy.accounts.create",
+    "summary": "거래처 생성",
+    "description": "만든 사람이 소유자가 됩니다.\n\n구 화면(/accounts)의 표입니다. 새 코드는 「회사」 API(/crm/companies)를 쓰세요. 「거래처」는 폐기된 말입니다.",
+    "tags": [
+     "이관 중"
+    ],
+    "deprecated": true,
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    }
+   }
+  },
+  "/accounts/{id}": {
+   "get": {
+    "operationId": "legacy.accounts.get",
+    "summary": "거래처 상세",
+    "description": "단건 조회.\n\n구 화면(/accounts)의 표입니다. 새 코드는 「회사」 API(/crm/companies)를 쓰세요. 「거래처」는 폐기된 말입니다.",
+    "tags": [
+     "이관 중"
+    ],
+    "deprecated": true,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    }
+   },
+   "patch": {
+    "operationId": "legacy.accounts.update",
+    "summary": "거래처 수정",
+    "description": "단건 수정.\n\n구 화면(/accounts)의 표입니다. 새 코드는 「회사」 API(/crm/companies)를 쓰세요. 「거래처」는 폐기된 말입니다.",
+    "tags": [
+     "이관 중"
+    ],
+    "deprecated": true,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    }
+   },
+   "delete": {
+    "operationId": "legacy.accounts.delete",
+    "summary": "거래처 삭제",
+    "description": "단건 삭제. 되돌릴 수 없습니다.\n\n구 화면(/accounts)의 표입니다. 새 코드는 「회사」 API(/crm/companies)를 쓰세요. 「거래처」는 폐기된 말입니다.",
+    "tags": [
+     "이관 중"
+    ],
+    "deprecated": true,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    }
+   }
+  },
+  "/contacts": {
+   "get": {
+    "operationId": "legacy.contacts.list",
+    "summary": "담당자 목록",
+    "description": "목록 조회. → crm.people.list\n\n구 화면(/contacts)의 표입니다. 새 코드는 「인물」 API(/crm/people)를 쓰세요. 「담당자」는 폐기된 말입니다.",
+    "tags": [
+     "이관 중"
+    ],
+    "deprecated": true,
+    "parameters": [
+     {
+      "name": "search",
+      "in": "query",
+      "required": false,
+      "description": "이름 검색",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "cursor",
+      "in": "query",
+      "required": false,
+      "description": "이어 보기 커서",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "sort",
+      "in": "query",
+      "required": false,
+      "description": "정렬 기준",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "dir",
+      "in": "query",
+      "required": false,
+      "description": "정렬 방향",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    }
+   },
+   "post": {
+    "operationId": "legacy.contacts.create",
+    "summary": "담당자 생성",
+    "description": "만든 사람이 소유자가 됩니다.\n\n구 화면(/contacts)의 표입니다. 새 코드는 「인물」 API(/crm/people)를 쓰세요. 「담당자」는 폐기된 말입니다.",
+    "tags": [
+     "이관 중"
+    ],
+    "deprecated": true,
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    }
+   }
+  },
+  "/contacts/{id}": {
+   "get": {
+    "operationId": "legacy.contacts.get",
+    "summary": "담당자 상세",
+    "description": "단건 조회.\n\n구 화면(/contacts)의 표입니다. 새 코드는 「인물」 API(/crm/people)를 쓰세요. 「담당자」는 폐기된 말입니다.",
+    "tags": [
+     "이관 중"
+    ],
+    "deprecated": true,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    }
+   },
+   "patch": {
+    "operationId": "legacy.contacts.update",
+    "summary": "담당자 수정",
+    "description": "단건 수정.\n\n구 화면(/contacts)의 표입니다. 새 코드는 「인물」 API(/crm/people)를 쓰세요. 「담당자」는 폐기된 말입니다.",
+    "tags": [
+     "이관 중"
+    ],
+    "deprecated": true,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    }
+   },
+   "delete": {
+    "operationId": "legacy.contacts.delete",
+    "summary": "담당자 삭제",
+    "description": "단건 삭제. 되돌릴 수 없습니다.\n\n구 화면(/contacts)의 표입니다. 새 코드는 「인물」 API(/crm/people)를 쓰세요. 「담당자」는 폐기된 말입니다.",
+    "tags": [
+     "이관 중"
+    ],
+    "deprecated": true,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    }
+   }
+  },
+  "/deals": {
+   "get": {
+    "operationId": "legacy.deals.list",
+    "summary": "영업기회 목록",
+    "description": "목록 조회. → crm.deals.list\n\n구 화면(/deals)의 표입니다. 새 코드는 「딜」 API(/crm/deals)를 쓰세요. 「영업기회」는 폐기된 말입니다.",
+    "tags": [
+     "이관 중"
+    ],
+    "deprecated": true,
+    "parameters": [
+     {
+      "name": "search",
+      "in": "query",
+      "required": false,
+      "description": "이름 검색",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "cursor",
+      "in": "query",
+      "required": false,
+      "description": "이어 보기 커서",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "sort",
+      "in": "query",
+      "required": false,
+      "description": "정렬 기준",
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "dir",
+      "in": "query",
+      "required": false,
+      "description": "정렬 방향",
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    }
+   },
+   "post": {
+    "operationId": "legacy.deals.create",
+    "summary": "영업기회 생성",
+    "description": "만든 사람이 소유자가 됩니다.\n\n구 화면(/deals)의 표입니다. 새 코드는 「딜」 API(/crm/deals)를 쓰세요. 「영업기회」는 폐기된 말입니다.",
+    "tags": [
+     "이관 중"
+    ],
+    "deprecated": true,
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    }
+   }
+  },
+  "/deals/{id}": {
+   "get": {
+    "operationId": "legacy.deals.get",
+    "summary": "영업기회 상세",
+    "description": "단건 조회.\n\n구 화면(/deals)의 표입니다. 새 코드는 「딜」 API(/crm/deals)를 쓰세요. 「영업기회」는 폐기된 말입니다.",
+    "tags": [
+     "이관 중"
+    ],
+    "deprecated": true,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    }
+   },
+   "patch": {
+    "operationId": "legacy.deals.update",
+    "summary": "영업기회 수정",
+    "description": "단건 수정.\n\n구 화면(/deals)의 표입니다. 새 코드는 「딜」 API(/crm/deals)를 쓰세요. 「영업기회」는 폐기된 말입니다.",
+    "tags": [
+     "이관 중"
+    ],
+    "deprecated": true,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    }
+   },
+   "delete": {
+    "operationId": "legacy.deals.delete",
+    "summary": "영업기회 삭제",
+    "description": "단건 삭제. 되돌릴 수 없습니다.\n\n구 화면(/deals)의 표입니다. 새 코드는 「딜」 API(/crm/deals)를 쓰세요. 「영업기회」는 폐기된 말입니다.",
+    "tags": [
+     "이관 중"
+    ],
+    "deprecated": true,
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    }
    }
   },
   "/actions/studio/chat/add-knowledge-text": {
@@ -42984,83 +43875,6 @@
     "x-query-complete": true
    }
   },
-  "/crm/quotes/{id}/export": {
-   "get": {
-    "operationId": "crm.quote.export",
-    "summary": "견적서를 화면 미리보기 그대로 PDF 나 PNG 로",
-    "tags": [
-     "crm"
-    ],
-    "x-cli": "crm quote export",
-    "x-scope": "read",
-    "x-kind": "route",
-    "x-internal": "/api/crm/quotes/{id}/export",
-    "parameters": [
-     {
-      "name": "id",
-      "in": "path",
-      "required": true,
-      "schema": {
-       "type": "string"
-      }
-     },
-     {
-      "name": "format",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string"
-      }
-     },
-     {
-      "name": "page",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string"
-      }
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "성공, JSON 봉투 대신 파일 본문 (오류일 때만 공통 봉투)",
-      "content": {
-       "application/pdf": {
-        "schema": {
-         "type": "string",
-         "format": "binary"
-        }
-       },
-       "image/png": {
-        "schema": {
-         "type": "string",
-         "format": "binary"
-        }
-       }
-      }
-     },
-     "202": {
-      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-query-complete": true
-   }
-  },
   "/crm/reports": {
    "get": {
     "operationId": "crm.report.list",
@@ -59504,6 +60318,5 @@
     }
    }
   }
- },
- "x-spec-hash": "58e29320db655fa3"
+ }
 }
