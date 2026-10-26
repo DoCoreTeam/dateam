@@ -208,3 +208,60 @@ test('★ 이미 짝이 있는 지역 id 는 회의를 다시 만들지 않고 �
   assert.deepEqual(h.rekeyed, [['local_a', 'note_prev']])
   assert.equal(r.moved, 1)
 })
+
+function memoHarness(memo: string, uploadFails: () => boolean) {
+  const memos = new Map<string, string>([['local_a', memo]])
+  const uploads: [string, string][] = []
+  const h = harness([meeting('local_a')], {
+    readMemo: (localId: string) => memos.get(localId) ?? '',
+    clearMemo: (localId: string) => { memos.delete(localId) },
+    uploadBody: async (noteId: string, html: string) => {
+      uploads.push([noteId, html])
+      if (uploadFails()) throw new Error('서버가 안 받아요')
+    },
+  })
+  return { ...h, memos, uploads }
+}
+
+test('★ 기기에 적은 기록이 회의를 만든 뒤 escape 된 본문으로 올라가고, 그 뒤에야 지운다', async () => {
+  const h = memoHarness('고객 <요청>\n\n& 단가', () => false)
+  const r = await reconcilePendingMeetings(h.deps)
+  assert.equal(r.moved, 1)
+  assert.equal(h.created.length, 1)
+  assert.deepEqual(h.uploads, [['note_real', '<p>고객 &lt;요청&gt;</p><p></p><p>&amp; 단가</p>']])
+  assert.equal(h.memos.has('local_a'), false)
+  assert.deepEqual(h.forgot, ['local_a'])
+})
+
+test('★ 기록 올리기가 실패하면 기록도 대기 회의도 남고, 다음 판은 회의를 다시 안 만들고 올린다', async () => {
+  let fail = true
+  const h = memoHarness('적은 글', () => fail)
+  const first = await reconcilePendingMeetings(h.deps)
+  assert.equal(first.moved, 0)
+  assert.equal(first.failed.length, 1)
+  assert.equal(h.memos.get('local_a'), '적은 글')
+  assert.deepEqual(h.forgot, [])
+
+  fail = false
+  const second = await reconcilePendingMeetings(h.deps)
+  assert.equal(second.moved, 1)
+  assert.equal(h.created.length, 1, '같은 회의를 두 번 만들지 않는다')
+  assert.deepEqual(h.uploads.map(([id]) => id), ['note_real', 'note_real'])
+  assert.equal(h.memos.has('local_a'), false)
+  assert.deepEqual(h.forgot, ['local_a'])
+})
+
+test('기록이 없거나 빈 줄뿐이면 본문을 안 올린다', async () => {
+  const h = memoHarness('  \n\n ', () => false)
+  const r = await reconcilePendingMeetings(h.deps)
+  assert.equal(r.moved, 1)
+  assert.deepEqual(h.uploads, [])
+})
+
+test('★ 녹음 중인 회의는 기록도 안 올린다', async () => {
+  const h = memoHarness('적은 글', () => false)
+  const r = await reconcilePendingMeetings({ ...h.deps, activeNoteIds: ['local_a'] })
+  assert.equal(r.deferred, 1)
+  assert.deepEqual(h.uploads, [])
+  assert.equal(h.memos.get('local_a'), '적은 글')
+})
