@@ -69,8 +69,11 @@ export default function OfflineBar() {
    * 값이 아니라 칸으로 들고 있는 이유: 대상이 바뀔 때마다 올리는 함수를 새로 만들 이유가 없다.
    */
   const rec = useRecordingSession()
-  const activeNoteIdRef = useRef<string | null>(null)
-  useEffect(() => { activeNoteIdRef.current = rec.target?.noteId ?? null }, [rec.target])
+  const activeNoteIdsRef = useRef<(string | null)[]>([])
+  /* 이 탭의 녹음(target) 과 다른 탭의 녹음(remote) 둘 다 — 다른 탭이 건넨 사고가 있었다 (2026-10-26) */
+  useEffect(() => {
+    activeNoteIdsRef.current = [rec.target?.noteId ?? null, rec.remote?.noteId ?? null]
+  }, [rec.target, rec.remote])
 
   /** 연속 실패 셈 — 한 번 튄 요청에 경고가 깜빡이면 그 배너는 고장 신호가 된다 */
   const streakRef = useRef(0)
@@ -93,7 +96,7 @@ export default function OfflineBar() {
       그 회의가 서버에 생기기 전에는 올릴 주소가 없다. 이 한 줄이 없으면 부품은 다 있는데
       오프라인 회의만 영영 안 올라간다 — 이 저장소가 여러 번 겪은 그 상태다.
     */
-    await reconcilePendingMeetings({ activeNoteId: activeNoteIdRef.current }).catch(() => {})
+    await reconcilePendingMeetings({ activeNoteIds: activeNoteIdsRef.current }).catch(() => {})
 
     const before = await blobStore.countPending().catch(() => 0)
     if (before === 0) return

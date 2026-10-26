@@ -13,6 +13,7 @@
  *   ② 옮기기 전에는 **대기 목록에서 안 지운다.** 지우면 그 구간들의 주인이 없어진다
  *   ③ **녹음 중인 회의는 안 건넌다.** 건너는 동안에도 구간이 계속 쌓이므로,
  *      옮기고 지우면 그 뒤에 들어온 구간이 고아가 된다. 녹음이 끝난 뒤에 건넌다
+ *      다른 탭에서 도는 녹음도 미룬다(2026-10-26 실측)
  *   ④ 시작 시각은 **녹음을 켠 순간**으로 간다. 지금 시각으로 만들면 오전 회의가 오후가 된다
  */
 
@@ -22,6 +23,7 @@ import {
   type PendingMeeting,
 } from './local-meeting.ts'
 import { rekeyNote } from './blob-store.ts'
+import { liveLeasedNoteIds } from './recording-lease.ts'
 
 export interface ReconcileResult {
   /** 서버로 건너간 회의 수 */
@@ -42,6 +44,10 @@ export interface ReconcileDeps {
   rekey?: (fromNoteId: string, toNoteId: string) => Promise<number>
   /** 지금 녹음이 붙어 있는 회의 — 이것만은 건너지 않는다 */
   activeNoteId?: string | null
+  /** 이 탭과 다른 탭에서 녹음이 붙어 있는 회의들 (target, remote) */
+  activeNoteIds?: (string | null | undefined)[]
+  /** 녹음 임대가 살아 있는 회의 — 소식이 끊긴 탭의 녹음도 이걸로 안다 */
+  leased?: () => string[]
   isOnline?: () => boolean
 }
 
@@ -59,13 +65,18 @@ export async function reconcilePendingMeetings(deps: ReconcileDeps = {}): Promis
   const rows = list()
   if (rows.length === 0) return { moved: 0, failed: [], deferred: 0, skipped: false }
 
+  const recording = new Set<string>(
+    [deps.activeNoteId, ...(deps.activeNoteIds ?? []), ...(deps.leased ?? liveLeasedNoteIds)()]
+      .filter((id): id is string => typeof id === 'string' && id.length > 0),
+  )
+
   let moved = 0
   let deferred = 0
   const failed: ReconcileResult['failed'] = []
 
   for (const m of rows) {
     // ③ 아직 녹음 중이다. 실패가 아니라 미루는 것이다
-    if (deps.activeNoteId && m.localId === deps.activeNoteId) { deferred += 1; continue }
+    if (recording.has(m.localId)) { deferred += 1; continue }
 
     try {
       // ① 이미 만들었으면 다시 안 만든다
