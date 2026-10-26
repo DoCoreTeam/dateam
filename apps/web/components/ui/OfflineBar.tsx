@@ -25,6 +25,7 @@ import { CloudOff, CloudUpload, CircleAlert, Check, ServerOff } from 'lucide-rea
 import * as blobStore from '@/lib/offline/blob-store'
 import { syncPendingParts } from '@/lib/offline/sync-parts'
 import { reconcilePendingMeetings } from '@/lib/offline/reconcile'
+import { adoptOrphanParts, withHandoverLock } from '@/lib/offline/adopt-orphans'
 import { useRecordingSession } from '@/lib/meeting/recording-context'
 import { SYNC_STATUS_META, type SyncStatusKey } from '@/lib/offline/ui/sync-status'
 import { pingServer, nextFailureStreak, isUnreachable } from '@/lib/offline/reachable'
@@ -96,7 +97,18 @@ export default function OfflineBar() {
       그 회의가 서버에 생기기 전에는 올릴 주소가 없다. 이 한 줄이 없으면 부품은 다 있는데
       오프라인 회의만 영영 안 올라간다 — 이 저장소가 여러 번 겪은 그 상태다.
     */
-    await reconcilePendingMeetings({ activeNoteIds: activeNoteIdsRef.current }).catch(() => {})
+    await withHandoverLock(() => reconcilePendingMeetings({ activeNoteIds: activeNoteIdsRef.current }))
+      .catch(() => {})
+
+    /*
+      **대기 회의 없이 남은 지역 구간을 입양한다.** 녹음 중에 회의가 건너가면 그 뒤 구간은
+      주인 없이 남는다(2026-10-26 실측). 건네기 다음, 올리기 전에 돈다
+    */
+    const adopted = await adoptOrphanParts({ activeNoteIds: activeNoteIdsRef.current })
+      .catch((e: unknown) => { console.error('[offline] 지역 구간 입양 실패', e); return null })
+    if (adopted && adopted.failed.length > 0) {
+      console.error('[offline] 입양하지 못한 지역 회의', adopted.failed)
+    }
 
     const before = await blobStore.countPending().catch(() => 0)
     if (before === 0) return
