@@ -16,6 +16,8 @@ import assert from 'node:assert/strict'
 import {
   LOCAL_ID_PREFIX, newLocalNoteId, isLocalNoteId,
   addPendingMeeting, listPendingMeetings, removePendingMeeting, expiredPendingMeetings,
+  markPendingMeetingCreated,
+  LOCAL_NOTE_MAP_KEY, rememberHandover, serverIdFor, pruneHandovers, listHandovers,
   type PendingMeeting,
 } from './local-meeting.ts'
 import { MAX_KEEP_DAYS } from './blob-store.ts'
@@ -134,4 +136,39 @@ test('망가진 내용이 들어 있어도 죽지 않는다 — 한 번 깨지�
   assert.deepEqual(listPendingMeetings(T0, store), [])
   assert.equal(addPendingMeeting(meeting('local_a'), store), true, '깨진 뒤로는 못 쓰게 된다')
   assert.equal(listPendingMeetings(T0, store).length, 1)
+})
+
+test('★ 건넨 짝은 대기 회의를 지운 뒤에도 남는다 — 녹음 중에 건너간 회의의 뒤 구간이 갈 곳을 안다 (2026-10-26 실측)', () => {
+  const store = fakeStore()
+  addPendingMeeting(meeting('local_a'), store)
+  markPendingMeetingCreated('local_a', 'note_real', store)
+  rememberHandover('local_a', 'note_real', T0, store)
+  removePendingMeeting('local_a', store)
+  assert.deepEqual(listPendingMeetings(T0, store), [])
+  assert.equal(serverIdFor('local_a', T0, store), 'note_real')
+  assert.equal(serverIdFor('local_none', T0, store), null)
+  assert.ok(store.getItem(LOCAL_NOTE_MAP_KEY))
+})
+
+test('★ 짝은 MAX_KEEP_DAYS 를 넘기면 무시되고 정리된다', () => {
+  const store = fakeStore()
+  rememberHandover('local_old', 'note_old', T0, store)
+  rememberHandover('local_new', 'note_new', T0 + 86_400_000, store)
+  const later = T0 + MAX_KEEP_DAYS * 86_400_000 + 1
+  assert.equal(serverIdFor('local_old', later, store), null)
+  assert.equal(serverIdFor('local_new', later, store), 'note_new')
+  pruneHandovers(later, store)
+  assert.deepEqual(listHandovers(T0, store).map((h) => h.localId), ['local_new'])
+})
+
+test('짝 저장소가 망가지거나 던져도 죽지 않는다', () => {
+  const store = fakeStore()
+  store.setItem(LOCAL_NOTE_MAP_KEY, '{망가짐')
+  assert.equal(serverIdFor('local_a', T0, store), null)
+  store.setItem(LOCAL_NOTE_MAP_KEY, JSON.stringify({ local_a: { serverNoteId: 5, at: T0 } }))
+  assert.equal(serverIdFor('local_a', T0, store), null)
+  const throwing = { ...fakeStore(), getItem: () => { throw new Error('막힘') }, setItem: () => { throw new Error('막힘') } } as Storage
+  assert.equal(serverIdFor('local_a', T0, throwing), null)
+  assert.doesNotThrow(() => rememberHandover('local_a', 'n', T0, throwing))
+  assert.doesNotThrow(() => pruneHandovers(T0, throwing))
 })

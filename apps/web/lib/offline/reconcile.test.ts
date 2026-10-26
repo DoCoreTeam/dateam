@@ -28,9 +28,10 @@ function harness(rows: PendingMeeting[], over: Partial<Parameters<typeof reconci
   const rekeyed: [string, string][] = []
   const created: { localId: string | null; input: unknown }[] = []
   const marked: [string, string][] = []
+  const remembered: [string, string][] = []
   let list = [...rows]
   return {
-    forgot, rekeyed, created, marked,
+    forgot, rekeyed, created, marked, remembered,
     deps: {
       list: () => list,
       create: async (input: unknown) => { created.push({ localId: null, input }); return { id: 'm', noteId: 'note_real' } },
@@ -43,6 +44,8 @@ function harness(rows: PendingMeeting[], over: Partial<Parameters<typeof reconci
       rekey: async (from: string, to: string) => { rekeyed.push([from, to]); return 1 },
       isOnline: () => true,
       leased: () => [] as string[],
+      serverIdFor: (_localId: string) => null as string | null,
+      remember: (localId: string, noteId: string) => { remembered.push([localId, noteId]) },
       ...over,
     },
   }
@@ -190,4 +193,18 @@ test('녹음 임대: 저장소가 없거나 망가지거나 던져도 죽지 않
   assert.deepEqual(liveLeasedNoteIds(0, throwing), [])
   assert.doesNotThrow(() => writeRecordingLease('local_a', 0, throwing))
   assert.doesNotThrow(() => clearRecordingLease('local_a', throwing))
+})
+
+test('★ 회의를 만들면 지역 id 와 서버 id 짝을 대기 목록과 따로 남긴다', async () => {
+  const h = harness([meeting('local_a')])
+  await reconcilePendingMeetings(h.deps)
+  assert.deepEqual(h.remembered, [['local_a', 'note_real']])
+})
+
+test('★ 이미 짝이 있는 지역 id 는 회의를 다시 만들지 않고 그 서버 id 로 옮긴다', async () => {
+  const h = harness([meeting('local_a')], { serverIdFor: (id: string) => (id === 'local_a' ? 'note_prev' : null) })
+  const r = await reconcilePendingMeetings(h.deps)
+  assert.equal(h.created.length, 0, '짝이 있는데 회의를 또 만들었다')
+  assert.deepEqual(h.rekeyed, [['local_a', 'note_prev']])
+  assert.equal(r.moved, 1)
 })

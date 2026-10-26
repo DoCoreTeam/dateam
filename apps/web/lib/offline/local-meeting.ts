@@ -146,3 +146,80 @@ export function removePendingMeeting(localId: string, store?: Storage): void {
   if (rows.length === 0) return
   writeAll(rows.filter((m) => m.localId !== localId), store)
 }
+
+/**
+ * 건넨 짝 — **지역 id 가 어느 서버 회의로 건너갔나** 를 대기 목록과 따로 적는다
+ *
+ * 왜 따로 두나 (실측 2026-10-26): 녹음 도중에 회의가 건너가면 대기 회의는 지워지는데
+ * 녹음기는 계속 `local_…` 밑에 구간을 쌓는다. 짝이 대기 회의 안에만 있으면 그 구간들은
+ * 갈 곳을 잃는다. 짝은 id 둘과 시각만 담고(제목 없음), `MAX_KEEP_DAYS` 가 지나면 지운다.
+ */
+export const LOCAL_NOTE_MAP_KEY = 'newax.local-note-map'
+
+export interface Handover {
+  localId: string
+  serverNoteId: string
+  /** 짝을 적은 시각(ms). 보관 기한을 여기서 잰다 */
+  at: number
+}
+
+function readHandovers(store?: Storage): Handover[] {
+  const s = pick(store)
+  if (!s) return []
+  try {
+    const raw = s.getItem(LOCAL_NOTE_MAP_KEY)
+    if (!raw) return []
+    const parsed: unknown = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return []
+    return Object.entries(parsed as Record<string, unknown>).flatMap(([localId, v]) => {
+      const row = v as { serverNoteId?: unknown; at?: unknown } | null
+      if (!row || typeof row.serverNoteId !== 'string' || typeof row.at !== 'number') return []
+      return [{ localId, serverNoteId: row.serverNoteId, at: row.at }]
+    })
+  } catch {
+    return []
+  }
+}
+
+function writeHandovers(rows: Handover[], store?: Storage): boolean {
+  const s = pick(store)
+  if (!s) return false
+  try {
+    if (rows.length === 0) s.removeItem(LOCAL_NOTE_MAP_KEY)
+    else s.setItem(LOCAL_NOTE_MAP_KEY, JSON.stringify(
+      Object.fromEntries(rows.map((h) => [h.localId, { serverNoteId: h.serverNoteId, at: h.at }])),
+    ))
+    return true
+  } catch {
+    return false
+  }
+}
+
+function isHandoverExpired(h: Handover, now: number): boolean {
+  return now - h.at > MAX_KEEP_DAYS * 86_400_000
+}
+
+/** 회의를 서버에 만든 직후 부른다 */
+export function rememberHandover(
+  localId: string, serverNoteId: string, now: number = Date.now(), store?: Storage,
+): boolean {
+  const rows = readHandovers(store).filter((h) => h.localId !== localId && !isHandoverExpired(h, now))
+  return writeHandovers([...rows, { localId, serverNoteId, at: now }], store)
+}
+
+/** 기한 안의 짝만 준다 */
+export function listHandovers(now: number = Date.now(), store?: Storage): Handover[] {
+  return readHandovers(store).filter((h) => !isHandoverExpired(h, now))
+}
+
+/** 이 지역 id 가 건너간 서버 회의 — 없거나 기한이 지났으면 null */
+export function serverIdFor(localId: string, now: number = Date.now(), store?: Storage): string | null {
+  return listHandovers(now, store).find((h) => h.localId === localId)?.serverNoteId ?? null
+}
+
+/** 기한 지난 짝을 지운다 */
+export function pruneHandovers(now: number = Date.now(), store?: Storage): void {
+  const rows = readHandovers(store)
+  const kept = rows.filter((h) => !isHandoverExpired(h, now))
+  if (kept.length !== rows.length) writeHandovers(kept, store)
+}

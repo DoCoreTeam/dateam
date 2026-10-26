@@ -20,6 +20,7 @@
 import { startMeeting, type StartMeetingInput, type StartedMeeting } from '../crm/ui/start-meeting.ts'
 import {
   listPendingMeetings, markPendingMeetingCreated, removePendingMeeting,
+  rememberHandover, serverIdFor,
   type PendingMeeting,
 } from './local-meeting.ts'
 import { rekeyNote } from './blob-store.ts'
@@ -41,6 +42,9 @@ export interface ReconcileDeps {
   list?: (now?: number) => PendingMeeting[]
   markCreated?: (localId: string, serverNoteId: string) => boolean
   forget?: (localId: string) => void
+  /** 지역 id 와 서버 id 짝 — 대기 회의를 지운 뒤에도 남는다 */
+  remember?: (localId: string, serverNoteId: string) => void
+  serverIdFor?: (localId: string) => string | null
   rekey?: (fromNoteId: string, toNoteId: string) => Promise<number>
   /** 지금 녹음이 붙어 있는 회의 — 이것만은 건너지 않는다 */
   activeNoteId?: string | null
@@ -57,6 +61,8 @@ export async function reconcilePendingMeetings(deps: ReconcileDeps = {}): Promis
   const markCreated = deps.markCreated ?? markPendingMeetingCreated
   const forget = deps.forget ?? removePendingMeeting
   const rekey = deps.rekey ?? rekeyNote
+  const remember = deps.remember ?? ((localId: string, noteId: string) => { rememberHandover(localId, noteId) })
+  const pairedId = deps.serverIdFor ?? ((localId: string) => serverIdFor(localId))
   const isOnline = deps.isOnline
     ?? (() => (typeof navigator === 'undefined' ? true : navigator.onLine !== false))
 
@@ -79,8 +85,8 @@ export async function reconcilePendingMeetings(deps: ReconcileDeps = {}): Promis
     if (recording.has(m.localId)) { deferred += 1; continue }
 
     try {
-      // ① 이미 만들었으면 다시 안 만든다
-      let noteId = m.serverNoteId ?? null
+      // ① 이미 만들었으면 다시 안 만든다 — 대기 회의에 없어도 짝이 남아 있으면 그것을 쓴다
+      let noteId = m.serverNoteId ?? pairedId(m.localId)
       if (!noteId) {
         /*
           ④ 시작 시각을 그대로 되살린다. `buildStartBody` 가 `now` 의 KST 벽시계로
@@ -94,6 +100,7 @@ export async function reconcilePendingMeetings(deps: ReconcileDeps = {}): Promis
         })
         noteId = made.noteId
         markCreated(m.localId, noteId)
+        remember(m.localId, noteId)
       }
 
       // ② 옮기고 나서 지운다
