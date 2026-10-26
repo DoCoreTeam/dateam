@@ -10380,7 +10380,11 @@ main.page-inner.daily-fullpane-main { padding-bottom: var(--space-6); }
     margin: 0 !important;
   }
 
-  /* 종이에는 배경을 깔지 않는다 — 잉크를 쓰고 글자 대비만 떨어진다 */
+  /*
+    종이에는 배경을 깔지 않는다 — 잉크를 쓰고 글자 대비만 떨어진다
+    html 도 칠한다. 앱 배경은 html 에 있어서, 종이가 끝난 쪽의 남은 자리에 회색이 찍혔다(P0173, 서버 견적서 PDF 2쪽)
+  */
+  html,
   body,
   .app-shell,
   .app-content {

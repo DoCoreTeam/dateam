@@ -60,6 +60,22 @@ test('★ 문서 표면은 «보일 것만 남기는» 인쇄 규칙과 짝이�
     '@page 여백이 0 이 아니다 — 종이 안쪽 여백과 이중이 되어 인쇄 폭이 화면과 달라진다')
 })
 
+test('★ 인쇄에서 html 배경도 흰색이다 — 종이가 끝난 쪽 아래에 앱 회색이 찍히지 않게 (P0173)', () => {
+  const css = readFileSync(join(ROOT, 'app/globals.css'), 'utf8')
+  const print = css.slice(css.indexOf('@media print {'))
+  const selectors = [...print.matchAll(/((?:[\w.-]+,\s*)*[\w.-]+)\s*\{\s*background:\s*white\s*!important;\s*\}/g)]
+    .flatMap((m) => m[1].split(',').map((s) => s.trim()))
+  assert.ok(selectors.length > 0, '인쇄 흰 배경 규칙이 없다')
+  assert.ok(selectors.includes('html'), `인쇄 흰 배경 규칙에 html 이 없다: ${selectors.join(', ')}`)
+})
+
+test('★ 견적 번호 옆 표지(개정·안)는 줄 안에서 끊기지 않는다 (P0173)', () => {
+  const css = readFileSync(join(ROOT, 'app/(crm)/crm/quotes/[id]/quote-document.module.css'), 'utf8')
+  const block = css.match(/\.revTag\s*\{([^}]*)\}/)?.[1] ?? ''
+  assert.match(block, /white-space:\s*nowrap/, '표지가 글자 사이에서 꺾여 아래 줄에 겹친다')
+  assert.match(block, /display:\s*inline-block/, '표지가 inline 이면 줄 끝에서 테두리가 갈린다')
+})
+
 test('★ DocSurface 는 body 로 포털한다 — 셸 안에 있으면 인쇄에서 함께 사라진다', () => {
   const src = readFileSync(join(ROOT, SURFACE), 'utf8')
   assert.ok(src.includes('createPortal'), '포털을 안 쓴다')

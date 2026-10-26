@@ -844,7 +844,10 @@
 .sectionSum .num { color: var(--text); }
 
 /* 개정·안 표시 — 번호 옆에 작게. 번호보다 커지면 무엇이 문서 번호인지 흐려진다 */
+/* 한 덩어리로 움직인다. 줄 안에서 끊기면 「2」와 「안」이 갈려 아래 줄 견적일 위에 겹쳤다(P0173, 웹 PDF) */
 .revTag {
+  display: inline-block;
+  white-space: nowrap;
   margin-left: var(--space-2);
   padding: 1px 6px;
   border: var(--hairline) solid var(--border-color);
