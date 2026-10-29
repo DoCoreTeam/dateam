@@ -19,7 +19,7 @@ import { computePatterns, type PatternSample } from '../analysis/patterns.ts'
 import {
   buildContrastSets, promoteDiscoveries, assertDiscoveryBudget, type DiscoverySample,
 } from '../analysis/discovery.ts'
-import { discoverFromContrasts } from '../ai/discover-server.ts'
+import { discoverFromContrasts, previewContrasts } from '../ai/discover-server.ts'
 import { buildCorrectionExamples, type CorrectionRecord } from '../analysis/corrections.ts'
 import { resolveSettings, type SettingRow } from '../settings/resolve.ts'
 import { CORPUS_FILTER } from '../corpus.ts'
@@ -646,6 +646,65 @@ export async function runPatterns(workspaceId: string): Promise<StageResult> {
 }
 
 
+/** 주제 하나의 대조쌍. 실행(runDiscovery)과 미리 세기(previewDiscovery)가 같은 말뭉치를 읽게 한 곳에 둔다 */
+async function loadTopicContrastSets(adminClient: any, workspaceId: string, topicId: string) {
+  const { data } = await adminClient.from('ci_contents')
+    .select('id, channel_id, title, caption, format, duration_sec, published_at, thumbnail_url, ci_content_derived ( outlier_index, outlier_baseline_n )')
+    .eq('workspace_id', workspaceId).eq('topic_id', topicId)
+    .eq('source', CORPUS_FILTER.source).eq('is_stat_excluded', CORPUS_FILTER.is_stat_excluded)
+    .is('deleted_at', null).limit(1000)
+
+  const samples: DiscoverySample[] = ((data ?? []) as any[]).map((r) => ({
+    contentId: r.id,
+    channelId: r.channel_id,
+    title: r.title,
+    caption: r.caption,
+    format: r.format,
+    durationSec: r.duration_sec,
+    publishedAt: r.published_at,
+    thumbnailUrl: r.thumbnail_url,
+    outlierIndex: r.ci_content_derived?.outlier_index ?? null,
+    baselineN: r.ci_content_derived?.outlier_baseline_n ?? 0,
+  }))
+
+  return buildContrastSets(samples)
+}
+
+/** 주제 목록. topicIds 가 있으면 그 주제만 */
+async function loadDiscoveryTopics(adminClient: any, workspaceId: string, topicIds?: readonly string[]) {
+  let topicQuery = adminClient.from('ci_topics')
+    .select('id').eq('workspace_id', workspaceId).is('deleted_at', null)
+  if (topicIds?.length) topicQuery = topicQuery.in('id', topicIds)
+  const { data: topics } = await topicQuery
+  return (topics ?? []) as { id: string }[]
+}
+
+/**
+ * 누르기 전에 «AI 에 새로 물을 것 몇 건»을 센다. **AI 를 안 부른다.**
+ *
+ * runDiscovery 와 같은 주제, 같은 말뭉치, 같은 상한으로 센다. 하나라도 다르면
+ * 화면이 말한 숫자와 실제로 묻는 횟수가 갈린다.
+ */
+export async function previewDiscovery(
+  workspaceId: string,
+  opts: { maxSetsPerTopic: number; topicIds?: readonly string[] },
+): Promise<{ fresh: number; cached: number; sets: number }> {
+  assertDiscoveryBudget(opts)
+  const adminClient = createAdminClient() as any
+  let fresh = 0
+  let cached = 0
+  let setsTotal = 0
+  for (const t of await loadDiscoveryTopics(adminClient, workspaceId, opts.topicIds)) {
+    const sets = await loadTopicContrastSets(adminClient, workspaceId, t.id)
+    if (sets.length === 0) continue
+    setsTotal += Math.min(sets.length, opts.maxSetsPerTopic)
+    const counted = await previewContrasts(sets, { maxSets: opts.maxSetsPerTopic, workspaceId })
+    fresh += counted.fresh
+    cached += counted.cached
+  }
+  return { fresh, cached, sets: setsTotal }
+}
+
 /**
  * 발견 — "왜 이것만 잘됐나"를 대조로 찾는다 (runPatterns 의 후계)
  *
@@ -677,10 +736,7 @@ export async function runDiscovery(
   assertDiscoveryBudget(opts)
   const adminClient = createAdminClient() as any
 
-  let topicQuery = adminClient.from('ci_topics')
-    .select('id').eq('workspace_id', workspaceId).is('deleted_at', null)
-  if (opts?.topicIds?.length) topicQuery = topicQuery.in('id', opts.topicIds)
-  const { data: topics } = await topicQuery
+  const topics = await loadDiscoveryTopics(adminClient, workspaceId, opts.topicIds)
 
   let promotedTotal = 0
   let blocked: string | null = null
@@ -692,27 +748,8 @@ export async function runDiscovery(
   let clustersTotal = 0
   let topicsWithData = 0
 
-  for (const t of (topics ?? []) as { id: string }[]) {
-    const { data } = await adminClient.from('ci_contents')
-      .select('id, channel_id, title, caption, format, duration_sec, published_at, thumbnail_url, ci_content_derived ( outlier_index, outlier_baseline_n )')
-      .eq('workspace_id', workspaceId).eq('topic_id', t.id)
-      .eq('source', CORPUS_FILTER.source).eq('is_stat_excluded', CORPUS_FILTER.is_stat_excluded)
-      .is('deleted_at', null).limit(1000)
-
-    const samples: DiscoverySample[] = ((data ?? []) as any[]).map((r) => ({
-      contentId: r.id,
-      channelId: r.channel_id,
-      title: r.title,
-      caption: r.caption,
-      format: r.format,
-      durationSec: r.duration_sec,
-      publishedAt: r.published_at,
-      thumbnailUrl: r.thumbnail_url,
-      outlierIndex: r.ci_content_derived?.outlier_index ?? null,
-      baselineN: r.ci_content_derived?.outlier_baseline_n ?? 0,
-    }))
-
-    const sets = buildContrastSets(samples)
+  for (const t of topics) {
+    const sets = await loadTopicContrastSets(adminClient, workspaceId, t.id)
     if (sets.length === 0) continue
     topicsWithData += 1
     setsTotal += Math.min(sets.length, opts.maxSetsPerTopic)

@@ -1,6 +1,6 @@
 # PLAN newAX: AI 호출을 무료 등급 안으로
 플랜 ID: P0030
-플랜 버전: v0.2.1
+플랜 버전: v0.2.2
 상태: 진행중
 지시: iv_0069
 목표 버전: v0.11.95
@@ -403,12 +403,35 @@
 의존: 없음
 범위 메모: 거절 줄이 원장에 남아 그날 상한을 같이 채운다. 몰려서 거절이 많이 나면 하루 상한이 실제 호출보다 빨리 찬다 (실측 7일 거절 157건)
 
+### I17a 누르기 전에 새로 물을 수를 세는 조회 창구
+상태: 통과
+모드: 경량
+범위: apps/web/lib/ci/ai/discover-server.ts, apps/web/lib/ci/jobs/stages.ts, apps/web/app/api/ci/patterns/recompute/route.ts, apps/web/lib/actions/defs/ci.ts (+ cli:gen 생성물 openapi.json table.ts spec.json 02-기능대응표.md), apps/web/lib/ci/ai/discover-preview.test.ts (신규), apps/web/package.json
+감사 기준:
+- 보안: 새 저장 없음, 새 창구 GET /api/ci/patterns/recompute 는 requireCiMemberApi(member) 를 부르고 서비스롤 읽기는 그 확인 뒤, topicId 는 매개변수 질의로만 씀
+- 미리 세기는 벤더를 안 부름 (단위 시험, 호출 0회 단정) 그리고 저장된 답 수와 새로 물을 수를 실행 때와 같은 셈(splitByKnown, 같은 상한)으로 냄
+- node --experimental-strip-types scripts/cli-parity-check.mjs 통과, gen.mjs --check 통과, 정의 줄 ci.pattern.recompute-preview 가 대응표에 CLI됨으로 있음
+- pnpm typecheck 통과
+의존: 없음
+범위 메모: I17 의 「새로 물을 것 N건」을 그리는 화면이 없었다. 숫자는 실행 뒤 안내 줄에만 있었고 누르기 전에는 몰랐다 (F-8 배선 누락, I17 착수 때 발견)
+
+### I17b 트렌드 화면이 누르기 전에 새로 물을 수를 말한다
+상태: 대기
+모드: 경량
+범위: apps/web/app/(ci)/ci/trends/TrendsView.tsx
+감사 기준:
+- 보안: 해당 없음, 기존 창구를 읽기만 하고 새 저장 없음
+- 성공 공식 탭 다시 계산 단추 옆에 「AI 에 새로 물을 것 N건」이 보이고, 0건이면 「AI 를 안 부릅니다」라고 말함 (단추는 공식 계산이 AI 없이 돌므로 눌림)
+- 주제를 바꾸면 숫자가 다시 셈, 세기 실패는 빈 숫자가 아니라 「못 셈」으로 보임
+- pnpm typecheck, lint 통과, 전체 시험 통과
+의존: I17a
+
 ### I17 실브라우저에서 트렌드 화면과 사용량 화면을 확인한다
 상태: 대기
 모드: 경량
 범위: 코드 변경 없음 (확인만)
 감사 기준:
-- 트렌드 화면이 「새로 물을 것 N건」을 보이고 0건이면 버튼이 안 눌림 (스크린샷)
+- 트렌드 화면이 「AI 에 새로 물을 것 N건」을 보이고 0건이면 「AI 를 안 부릅니다」 (스크린샷), 단추는 공식 계산이라 눌림
 - 관리자 사용량 화면의 오늘 숫자가 psql 집계와 같음 (스크린샷)
 - 상한 바꾸기가 관리자에게만 열리고 비관리자에게는 403 (실제로 눌러 확인)
 의존: 없음
@@ -489,3 +512,4 @@ output-limit·usage-query·deploy-env·provider-key-source·discover-prompt·gem
 - v0.1.23 (2026-09-20) 종합 감사 결과를 기록하고 못 잰 둘을 항목으로 남김. 완료 정의 아홉 줄 중 일곱이 충족이고 둘은 배포가 있어야 재는 것이다 — 실브라우저 확인(I17)과 적용 하루 뒤 원장 실측(I18). 배포는 사용자가 하므로 조용히 넘기지 않고 대기 항목으로 남긴다 (audit:final)
 - v0.2.0 (2026-09-20) 사용자 개입(ins_0042 상한 이름 안 맞는 거 고쳐줘)으로 I19 추가. 착수 전에 재어 보니 어긋남이 crm 하나가 아니라 창구 41 중 32 가 상한이 아예 없었다 — 게이트가 모르면 통과라 그 32 는 무제한이다. 이름을 하나 고치는 대신 앞자리를 타고 올라가는 규칙과 받아 주는 줄로 구조를 고친다 (iv_0042)
 - v0.2.1 (2026-10-29) I18 실측(하루 95.6건)에서 나온 원인 넷을 항목으로 추가(I20 Claude 생각 설정, I21 채팅 대체 후보 능력표, I22 분류 재질문, I23 거절 줄 셈) 하고 I18 셈에서 거절 줄과 trading(jev, P0072 사용자 지시)을 따로 적게 고침 (audit:I18)
+- v0.2.2 (2026-10-29) I17 착수 때 누르기 전 숫자를 그리는 화면이 없음을 발견, I17a 조회 창구와 I17b 화면을 앞에 넣고 0건 기준을 단추 비활성에서 안내로 고침 (공식 계산은 AI 없이 돎) (audit:I17)

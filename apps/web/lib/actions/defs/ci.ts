@@ -29,6 +29,7 @@ export const CI_DEFS: ActionDef[] = [
   { op: "GET /api/ci/topics", name: "ci.topic.list", scope: "read", cli: "ci topic list" },
   { op: "GET /api/ci/topics/backfill", name: "ci.topic.backfill", scope: "read", cli: "ci topic backfill" },
   { op: "GET /api/ci/topics/propose", name: "ci.topic.propose", scope: "read", cli: "ci topic propose" },
+  { op: "GET /api/ci/patterns/recompute", name: "ci.pattern.recompute-preview", scope: "read", cli: "ci pattern recompute-preview" },
   { op: "GET /api/ci/trends/outliers", name: "ci.trend.outliers", scope: "read", cli: "ci trend outliers" },
   { op: "GET /api/ci/workspaces", name: "ci.workspace.list", scope: "read", cli: "ci workspace list" },
   { op: "GET /api/public/v1/ci/channels", name: "ci.channel.list-v1", scope: "read", cli: "ci channel list-v1" },

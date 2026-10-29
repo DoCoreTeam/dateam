@@ -1,6 +1,6 @@
 import { ok, failUnexpected } from '@/lib/ci/api'
 import { requireCiMemberApi, workspaceIdFromRequest } from '@/lib/ci/auth/requireCiMember'
-import { runPatterns, runDiscovery } from '@/lib/ci/jobs/stages'
+import { runPatterns, runDiscovery, previewDiscovery } from '@/lib/ci/jobs/stages'
 import { DEFAULT_MAX_SETS } from '@/lib/ci/analysis/discovery'
 
 /**
@@ -8,6 +8,27 @@ import { DEFAULT_MAX_SETS } from '@/lib/ci/analysis/discovery'
  * — 그러면 발견이 반쯤 만들어진 채로 사라지고, 화면은 이유를 모른 채 오류만 본다.
  */
 export const maxDuration = 300
+
+/**
+ * 누르기 전에 «AI 에 새로 물을 것 몇 건»을 센다. AI 를 안 부른다.
+ * 아래 POST 와 같은 주제 고르기, 같은 상한으로 센다 — 다르면 화면이 말한 숫자와 실제가 갈린다.
+ */
+export async function GET(req: Request) {
+  try {
+    const workspaceId = workspaceIdFromRequest(req)
+    const { session, error } = await requireCiMemberApi(workspaceId, 'member')
+    if (error) return error
+
+    const topicId = new URL(req.url).searchParams.get('topicId')
+    const counted = await previewDiscovery(session.workspaceId, {
+      maxSetsPerTopic: DEFAULT_MAX_SETS,
+      ...(topicId ? { topicIds: [topicId] } : {}),
+    })
+    return ok(counted)
+  } catch (e) {
+    return failUnexpected(e)
+  }
+}
 
 /** 성공 공식·발견 재계산. 사용자가 직접 돌릴 수 있게 열어둔다. */
 export async function POST(req: Request) {

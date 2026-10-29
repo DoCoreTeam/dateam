@@ -55,6 +55,27 @@ export interface DiscoverResult {
   unchanged: boolean
 }
 
+/** 저장된 답과 대조해 «이미 아는 것»과 «물어야 하는 것»으로 가른다. 실행과 미리 세기가 같은 셈을 쓴다 */
+async function splitTargets(targets: readonly ContrastSet[], workspaceId: string) {
+  const known = await loadAnswers(workspaceId, targets.map((t) => contrastKey(t)))
+  return splitByKnown(targets, known)
+}
+
+/**
+ * 누르기 전에 «AI 에 새로 물을 것 몇 건»을 센다. **벤더를 안 부른다.**
+ *
+ * 숫자를 모르고 누르면 매번 도박이다. 실행과 같은 상한(maxSets)과 같은 가르기를 써야
+ * 미리 센 숫자와 실제로 묻는 횟수가 갈리지 않는다.
+ */
+export async function previewContrasts(
+  sets: readonly ContrastSet[],
+  opts: { maxSets: number; workspaceId: string },
+): Promise<{ fresh: number; cached: number }> {
+  if (sets.length === 0) return { fresh: 0, cached: 0 }
+  const { cached, fresh } = await splitTargets(sets.slice(0, opts.maxSets), opts.workspaceId)
+  return { fresh: fresh.length, cached: cached.length }
+}
+
 /**
  * 대조쌍들을 읽고 반복되는 이유를 뽑는다.
  *
@@ -88,11 +109,7 @@ export async function discoverFromContrasts(
     실측 2026-09-20: 서로 다른 질문이 최대 624개인데 사흘 동안 49,064번 물었다(78.6배).
     그중 46,212번이 한도로 실패했고, 그동안 같은 키를 쓰는 회의노트와 CRM 이 함께 죽었다.
   */
-  const known = await loadAnswers(
-    opts.workspaceId,
-    targets.map((t) => contrastKey(t)),
-  )
-  const { cached, fresh } = splitByKnown(targets, known)
+  const { cached, fresh } = await splitTargets(targets, opts.workspaceId)
 
   const findings: RawFinding[] = []
   const kindsFromStore: Record<string, DiscoveryKind> = {}

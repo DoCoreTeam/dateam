@@ -4,7 +4,7 @@
   "title": "사내 자동화 API",
   "version": "1",
   "description": "지금 배포된 사내 자동화 API 의 엔드포인트 전체입니다. 모든 요청에 X-API-Key 헤더(또는 Authorization: Bearer <키>)가 필요하고, 키는 「내 키 관리」에서 발급합니다. 배포가 바뀌면 이 스펙도 함께 바뀌므로 코드 생성 전에 다시 받아 쓰세요.",
-  "x-spec-hash": "a502f494f0c95e21"
+  "x-spec-hash": "9aec50447a839990"
  },
  "servers": [
   {
@@ -38470,6 +38470,141 @@
     }
    }
   },
+  "/ci/patterns/recompute": {
+   "get": {
+    "operationId": "ci.pattern.recompute-preview",
+    "summary": "ci.pattern.recompute-preview",
+    "tags": [
+     "ci"
+    ],
+    "x-cli": "ci pattern recompute-preview",
+    "x-scope": "read",
+    "x-kind": "route",
+    "x-internal": "/api/ci/patterns/recompute",
+    "parameters": [
+     {
+      "name": "topicId",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "workspaceId",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공, data 는 화면이 받는 값과 같음"
+     },
+     "202": {
+      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-query-complete": true
+   },
+   "post": {
+    "operationId": "ci.pattern.recompute",
+    "summary": "ci.pattern.recompute",
+    "tags": [
+     "ci"
+    ],
+    "x-cli": "ci pattern recompute",
+    "x-scope": "write",
+    "x-kind": "route",
+    "x-internal": "/api/ci/patterns/recompute",
+    "parameters": [
+     {
+      "name": "topicId",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "workspaceId",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "dryRun",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "enum": [
+        "1"
+       ]
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공, data 는 화면이 받는 값과 같음"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "202": {
+      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-query-complete": true,
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
   "/ci/publications": {
    "get": {
     "operationId": "ci.publication.list",
@@ -52216,88 +52351,6 @@
         "required": [
          "urls"
         ]
-       }
-      }
-     }
-    }
-   }
-  },
-  "/ci/patterns/recompute": {
-   "post": {
-    "operationId": "ci.pattern.recompute",
-    "summary": "ci.pattern.recompute",
-    "tags": [
-     "ci"
-    ],
-    "x-cli": "ci pattern recompute",
-    "x-scope": "write",
-    "x-kind": "route",
-    "x-internal": "/api/ci/patterns/recompute",
-    "parameters": [
-     {
-      "name": "topicId",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string"
-      }
-     },
-     {
-      "name": "workspaceId",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string"
-      }
-     },
-     {
-      "name": "dryRun",
-      "in": "query",
-      "required": false,
-      "schema": {
-       "type": "string",
-       "enum": [
-        "1"
-       ]
-      }
-     }
-    ],
-    "responses": {
-     "200": {
-      "description": "성공, data 는 화면이 받는 값과 같음"
-     },
-     "201": {
-      "description": "만들어짐"
-     },
-     "202": {
-      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
-     },
-     "400": {
-      "description": "입력 오류"
-     },
-     "401": {
-      "description": "API 키가 없거나 유효하지 않음"
-     },
-     "403": {
-      "description": "범위 또는 권한 부족"
-     },
-     "404": {
-      "description": "없음"
-     },
-     "409": {
-      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
-     },
-     "429": {
-      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
-     }
-    },
-    "x-query-complete": true,
-    "requestBody": {
-     "required": false,
-     "content": {
-      "application/json": {
-       "schema": {
-        "type": "object"
        }
       }
      }

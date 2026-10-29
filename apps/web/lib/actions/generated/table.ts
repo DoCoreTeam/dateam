@@ -753,6 +753,7 @@ export const MOUNTED: MountedOp[] = [
   {"name":"ci.home.list","scope":"read","cli":"ci home list","kind":"route","method":"GET","mount":"/ci/home","internal":"/api/ci/home","params":[],"exported":"GET","module":88},
   {"name":"ci.idea.list","scope":"read","cli":"ci idea list","kind":"route","method":"GET","mount":"/ci/ideas","internal":"/api/ci/ideas","params":[],"exported":"GET","module":90},
   {"name":"ci.notification.list","scope":"read","cli":"ci notification list","kind":"route","method":"GET","mount":"/ci/notifications","internal":"/api/ci/notifications","params":[],"exported":"GET","module":92},
+  {"name":"ci.pattern.recompute-preview","scope":"read","cli":"ci pattern recompute-preview","kind":"route","method":"GET","mount":"/ci/patterns/recompute","internal":"/api/ci/patterns/recompute","params":[],"exported":"GET","module":93},
   {"name":"ci.publication.list","scope":"read","cli":"ci publication list","kind":"route","method":"GET","mount":"/ci/publications","internal":"/api/ci/publications","params":[],"exported":"GET","module":97},
   {"name":"ci.queue.drain","scope":"read","cli":"ci queue drain","kind":"route","method":"GET","mount":"/ci/queue/drain","internal":"/api/ci/queue/drain","params":[],"exported":"GET","module":98},
   {"name":"ci.queue.progress","scope":"read","cli":"ci queue progress","kind":"route","method":"GET","mount":"/ci/queue/progress","internal":"/api/ci/queue/progress","params":[],"exported":"GET","module":99},

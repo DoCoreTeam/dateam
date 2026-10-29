@@ -194,3 +194,43 @@ test('★ 출력 상한을 숫자로 박지 않고 능력이 정한다', () => {
   assert.ok(!/maxOutputTokens:\s*400/.test(src), '잘림이 나던 400 이 아직 박혀 있다')
   assert.match(src, /capability: 'suggest'/, '능력을 안 넘겨 상한이 예전 기본값으로 간다')
 })
+
+/** export 된 함수 하나의 본문. 다음 최상위 선언 앞까지 */
+function bodyOf(source: string, head: string): string {
+  const at = source.indexOf(head)
+  assert.notEqual(at, -1, `${head} 가 없다`)
+  const next = source.slice(at + head.length).search(/\n(export |async function |function )/)
+  return next === -1 ? source.slice(at) : source.slice(at, at + head.length + next)
+}
+
+test('★ 미리 세기는 벤더를 안 부른다 (P0030 I17a)', () => {
+  for (const [label, body] of [
+    ['previewContrasts', bodyOf(src, 'export async function previewContrasts(')],
+    ['previewDiscovery', bodyOf(stages, 'export async function previewDiscovery(')],
+  ] as const) {
+    assert.ok(!/callGemini|getGeminiMeta|discoverFromContrasts|saveAnswer/.test(body),
+      `${label} 가 AI 를 부르거나 답을 적는다. 누르기 전 세기가 비용을 쓰면 세는 의미가 없다`)
+  }
+})
+
+test('★ 미리 세기와 실행이 같은 셈을 쓴다', () => {
+  // 가르기가 한 곳(splitTargets)이어야 화면이 말한 숫자와 실제로 묻는 횟수가 안 갈린다
+  assert.match(bodyOf(src, 'export async function previewContrasts('), /splitTargets\(\s*sets\.slice\(0,\s*opts\.maxSets\)/)
+  assert.match(bodyOf(src, 'export async function discoverFromContrasts('), /splitTargets\(\s*targets,/)
+  // 같은 주제, 같은 말뭉치
+  for (const head of ['export async function previewDiscovery(', 'export async function runDiscovery(']) {
+    const body = bodyOf(stages, head)
+    assert.match(body, /loadDiscoveryTopics\(/, `${head} 가 주제 고르기를 따로 한다`)
+    assert.match(body, /loadTopicContrastSets\(/, `${head} 가 말뭉치를 따로 읽는다`)
+    assert.match(body, /assertDiscoveryBudget\(opts\)/, `${head} 가 예산 없이 돈다`)
+  }
+})
+
+test('★ 미리 세기 창구는 회원 확인 뒤에 세고, 실행과 같은 상한을 쓴다', () => {
+  const route = strip(readFileSync(join(process.cwd(), 'app/api/ci/patterns/recompute/route.ts'), 'utf8'))
+  const get = bodyOf(route, 'export async function GET(')
+  const authAt = get.indexOf("requireCiMemberApi(workspaceId, 'member')")
+  assert.notEqual(authAt, -1, '미리 세기 창구가 회원 확인을 안 한다')
+  assert.ok(authAt < get.indexOf('previewDiscovery('), '세기가 회원 확인보다 앞에 있다')
+  assert.match(get, /maxSetsPerTopic:\s*DEFAULT_MAX_SETS/, '실행과 다른 상한으로 센다')
+})
