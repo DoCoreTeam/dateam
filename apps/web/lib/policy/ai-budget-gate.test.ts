@@ -297,3 +297,11 @@ test('★ 받아 주는 줄을 씨앗에 심어 둔다 — 규칙만 있고 줄�
   assert.match(mig, /'\*'/, '받아 주는 줄을 안 심는다')
   assert.match(mig, /on conflict \(feature\) do nothing/i, '이미 사람이 고쳐 둔 값을 덮어쓴다')
 })
+
+test('★ 사용량을 셀 때 거절 줄은 빼고 오류 없는 줄은 남긴다', () => {
+  const src = strip(readFileSync(join(WEB, 'lib/ai/budget-gate.ts'), 'utf8'))
+  assert.match(src, /NOT_DENIED = 'error\.is\.null,error\.not\.like\.ai_budget_denied\*'/)
+  const counts = src.split(".from('ai_llm_calls')").slice(1)
+  assert.equal(counts.length, 2, '하루 셈과 분당 창 두 자리')
+  for (const q of counts) assert.ok(q.slice(0, 200).includes('.or(NOT_DENIED)'), '거절 줄을 빼지 않는 셈이 있다')
+})

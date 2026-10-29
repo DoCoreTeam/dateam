@@ -394,7 +394,7 @@
 범위 메모: 실측 7일, classify 가 콘텐츠 193건에 414번 돌았고 새 콘텐츠는 67건이다. runClassify 가 재수집마다 규칙이 애매한 콘텐츠를 다시 AI 에 묻는다. 마이그레이션 없이 기존 jsonb 에 싣는다
 
 ### I23 거절된 줄은 그날 사용량으로 안 센다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/ai/budget-gate.ts, apps/web/lib/policy/ai-budget-gate.test.ts
 감사 기준:

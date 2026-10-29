@@ -20,6 +20,16 @@ export interface BudgetGate {
 
 const MINUTE_MS = 60_000
 
+/*
+  거절된 줄은 사용량이 아니다.
+
+  거절도 원장에 남는다(화면이 「막혔다」를 보여야 하므로). 그 줄까지 세면 몰려서 거절이 날수록
+  그날 상한이 실제 호출보다 빨리 차고, 분당 창은 거절이 거절을 부른다 (실측 2026-10-29 최근 7일 거절 157건).
+  벤더로 나간 호출은 성공이든 실패든 계속 센다 — 실패도 공급자 한도를 쓴다.
+  `not like` 만 걸면 오류가 NULL 인 성공 줄까지 빠진다(NULL 비교는 참이 아니다). 그래서 둘을 or 로 건다.
+*/
+const NOT_DENIED = 'error.is.null,error.not.like.ai_budget_denied*'
+
 /**
  * 진짜로 세는 창구.
  *
@@ -65,10 +75,12 @@ export function serverBudgetGate(): BudgetGate {
           db.from('ai_llm_calls')
             .select('id', { count: 'exact', head: true })
             .eq('surface', feature)
+            .or(NOT_DENIED)
             .gte('created_at', dayStartIso),
           db.from('ai_llm_calls')
             .select('created_at')
             .eq('surface', feature)
+            .or(NOT_DENIED)
             .gte('created_at', windowStartIso)
             .order('created_at', { ascending: true })
             .limit(200),
