@@ -44,6 +44,7 @@ import WaitProgress from '@/components/ui/WaitProgress'
 import { useElapsedMs } from '@/components/ui/useElapsedMs'
 import { waitProgress } from '@/lib/ui/wait-progress'
 import { WAIT } from '@/lib/terms/wait'
+import { useDiscoveryPreview, discoveryPreviewText } from './useDiscoveryPreview'
 
 type Tab = 'market' | 'outliers' | 'patterns' | 'signals'
 
@@ -166,6 +167,8 @@ export default function TrendsView(p: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<{ code: string; message: string } | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  // 다시 계산을 누르기 전에 AI 를 몇 번 쓰는지 센다 — 성공 공식 탭에서만
+  const { preview, recount } = useDiscoveryPreview(p.workspaceId, p.topicId ?? null, p.tab === 'patterns')
 
   // 성공 공식 행을 눌렀을 때 열 근거. 문장을 함께 들고 가야 시트 헤더가 비지 않는다.
   const [openDiscovery, setOpenDiscovery] = useState<PatternRow | null>(null)
@@ -215,7 +218,7 @@ export default function TrendsView(p: Props) {
       // 사용자가 추측하게 두지 않는다(조용한 성공은 고장과 구분되지 않는다).
       setNotice(res.data?.discoveryNotice ?? null)
       router.refresh()
-    } finally { setBusy(false); setWaiting(null) }
+    } finally { setBusy(false); setWaiting(null); recount() }
   }
 
   /** 밀린 "왜 터졌나" 분석을 지금 돌린다. 결과 건수를 그대로 알려준다 — 조용히 끝내지 않는다. */
@@ -601,6 +604,7 @@ export default function TrendsView(p: Props) {
             <button type="button" className="btn-ghost" onClick={recomputePatterns} disabled={busy}>
               {busy ? '계산 중…' : '다시 계산'}
             </button>
+            <span className="field-note" role="status">{discoveryPreviewText(preview)}</span>
           </div>
 
           <ListToolbar
