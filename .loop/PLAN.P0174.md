@@ -65,7 +65,7 @@
 의존: I01
 
 ### I03 원본 없는 CRM 미팅 13건에 노트를 만든다
-상태: 대기
+상태: 통과
 모드: 중량
 범위: supabase/migrations/322_crm_meeting_backfill_note.sql (신규)
 감사 기준:
