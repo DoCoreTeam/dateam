@@ -12,6 +12,7 @@ import { ACTION, failedTo, NOTE_INFO_LABEL } from '@/lib/terms'
 import MeetingEditor from './MeetingEditor'
 import MeetingReadBody from './MeetingReadBody'
 import CrmPublishCard from './CrmPublishCard'
+import type { NoteVisibility } from '@/lib/meeting/note-visibility'
 import MeetingWorkbench from '@/components/meeting/MeetingWorkbench'
 import { deleteMeetingNote } from './actions'
 import { useAskDialog } from '@/components/ui/useAskDialog'
@@ -32,7 +33,7 @@ export interface MeetingNoteRecord {
   decisions: string | null
   created_at: string
   /** 공개 범위 — 작업대가 "나만 보기 / 영업팀 공개" 스위치를 그린다(마이그 216) */
-  visibility?: 'private' | 'crm'
+  visibility?: NoteVisibility
 }
 
 

@@ -71,17 +71,6 @@
   color: var(--text-muted);
 }
 
-/* 되돌릴 수 없는 쪽 말고 다른 길이 있다는 것을 확인창에서 알린다 */
-.modalAlt {
-  margin: 0 0 var(--space-3);
-  padding: var(--space-3);
-  background: var(--surface-bg);
-  border-left: var(--border-w-2) solid var(--brand);
-  border-radius: var(--radius);
-  font-size: var(--fs-sm);
-  color: var(--text);
-}
-
 .modalActions {
   display: flex;
   gap: var(--space-2);
@@ -109,9 +98,7 @@
 .badge:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 /* 색이 뜻을 나른다 — 팀에 보이는 것과 나만 보는 것이 한눈에 갈려야 한다 */
 .b_TEAM { color: var(--success); border-color: var(--success); background: var(--success-bg); }
-.b_RECORD_ONLY { color: var(--warning); border-color: var(--warning); background: var(--warning-bg); }
 .b_PRIVATE { color: var(--text-muted); }
-.b_NO_SOURCE { color: var(--text-faint); }
 .caret { opacity: 0.6; }
 
 .pop {

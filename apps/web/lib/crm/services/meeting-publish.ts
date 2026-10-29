@@ -22,12 +22,12 @@ import { withCrmTx } from '../db/tx.ts'
 import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
 import { normalizeText } from '../domain/normalize.ts'
-import { transcribe, deleteMeeting } from './meeting.ts'
+import { transcribe } from './meeting.ts'
 import { pastedTranscriptAdapter } from '../stt/adapter.ts'
 import { htmlToPlain } from '../../html-to-plain.ts'
-import { NOTE_VISIBILITY } from '../../meeting/note-visibility.ts'
+import { NOTE_VISIBILITY, toNoteVisibility, type NoteVisibility } from '../../meeting/note-visibility.ts'
 import {
-  readShareState, planShareState, type MeetingShareState,
+  readShareState, visibilityFor, type MeetingShareState,
 } from '../../meeting/share-state.ts'
 
 /** 스냅샷 출처를 기록에 남긴다 — 사람이 붙여넣은 것과 구분할 수 있어야 한다 */
@@ -99,7 +99,7 @@ async function loadReadableNote(noteId: string, hostUserId: string): Promise<Not
 
   const note = data as (NoteRow & { visibility: string | null }) | null
   if (!note) return null
-  const canOpen = note.user_id === hostUserId || note.visibility === NOTE_VISIBILITY.CRM
+  const canOpen = note.user_id === hostUserId || note.visibility === NOTE_VISIBILITY.TEAM
   return canOpen ? note : null
 }
 
@@ -442,7 +442,7 @@ export async function resyncFromNote(
  *      v0.7.576 이 없애려던 바로 그 상태다.
  *
  * 지금은 같은 목적("기록은 남기고 원본은 닫는다")을 링크가 아니라 **읽기 범위**로 이룬다.
- * 그것이 손잡이 SSOT 의 `RECORD_ONLY` 다.
+ * 「기록만」이 「나만 보기」로 합쳐졌으므로(2026-10-27) 지금은 `PRIVATE` 로 내린다, 미팅은 남는다.
  *
  * @deprecated 새 코드는 `setNoteShareState` 를 부른다. 이 함수는 옛 라우트의 하위호환이다.
  */
@@ -464,7 +464,7 @@ export async function unpublishNote(
   const { hostUserId } = await resolveNoteOwner(before.noteId)
   await setNoteShareState(workspaceId, actorId, hostUserId, {
     noteId: before.noteId,
-    next: 'RECORD_ONLY',
+    next: 'PRIVATE',
   })
   return { meetingId }
 }
@@ -506,7 +506,7 @@ export interface CreateWithNoteInput {
  *
  * 두 가지를 코드가 정한다.
  *   · `status='draft'` — 개인 회의노트 목록을 어지럽히지 않는다. 내용을 채우면 사람이 확정한다
- *   · `visibility='crm'` — **여기서 만든 것은 기본 공개다**(D6 원문: "미팅에서 생성하면 기본으로 공개").
+ *   · `visibility='team'` — **여기서 만든 것은 기본 공개다**(D6 원문: "미팅에서 생성하면 기본으로 공개").
  *     회의노트에서 만들면 컬럼 기본값 'private' 이 된다 — 출처에 따라 기본값이 다른 게 핵심이다
  *
  * 노트를 못 만들면 **미팅도 만들지 않는다.** 반쪽만 생기면 화면이 "원본 없음"을 띄우는데
@@ -534,7 +534,7 @@ export async function createMeetingWithNote(
       title,
       meeting_at: started.toISOString(),
       status: 'draft',
-      visibility: 'crm',
+      visibility: NOTE_VISIBILITY.TEAM,
     })
     /**
      * `updated_at` 도 함께 받는다 — 스냅샷 시각을 **DB 시계로** 찍기 위해서다.
@@ -646,7 +646,7 @@ export async function listMyNotesForPicker(
      * 현재 공개 상태만 표시 해주면 되는거 아냐?"* — 목록이 이 값을 건당 다시 물으면
      * 노트 수만큼 왕복이 생긴다(N+1).
      */
-    shareState: readShareState({ hasLiveMeeting: publishedSet.has(r.id), hasNoteLink: true, visibility: r.visibility === NOTE_VISIBILITY.CRM ? NOTE_VISIBILITY.CRM : NOTE_VISIBILITY.PRIVATE }),
+    shareState: readShareState(r.visibility),
   }))
 }
 
@@ -656,12 +656,12 @@ export interface NoteMeta {
   exists: boolean
   title: string | null
   updatedAt: string | null
-  visibility: 'private' | 'crm' | null
-  /** 이 사람이 원본을 열어 볼 수 있나 — 본인이거나, 공개(crm)로 열어 뒀거나 */
+  visibility: NoteVisibility | null
+  /** 이 사람이 원본을 열어 볼 수 있나 — 본인이거나, 팀 공개로 열어 뒀거나 */
   canOpen: boolean
   /**
    * 이 사람이 원본을 **고칠** 수 있나 — 작성한 사람뿐이다.
-   * 읽기 공개(crm)와 편집 권한은 다른 명제다(마이그 216 주석).
+   * 읽기 공개(team)와 편집 권한은 다른 명제다(마이그 216 주석).
    * CRM 화면의 작업대가 편집기를 그릴지 읽기로 그릴지를 이 값으로 정한다.
    */
   isOwner: boolean
@@ -719,7 +719,7 @@ export async function loadNoteMeta(
     }
   }
 
-  const visibility = row.visibility === 'crm' ? 'crm' : 'private'
+  const visibility = toNoteVisibility(row.visibility)
   return {
     id: row.id,
     exists: true,
@@ -727,7 +727,7 @@ export async function loadNoteMeta(
     updatedAt: row.updated_at,
     visibility,
     // 워크스페이스 멤버십은 CRM 세션이 이미 보장한다. 여기서는 공개 범위만 본다.
-    canOpen: row.user_id === hostUserId || visibility === 'crm',
+    canOpen: row.user_id === hostUserId || visibility === NOTE_VISIBILITY.TEAM,
     isOwner: row.user_id === hostUserId,
     isStale: isNoteNewerThanSnapshot(row.updated_at, noteSyncedAt ?? null),
     hasBody: Boolean((row.body_plain ?? '').trim()),
@@ -1052,13 +1052,7 @@ export async function readNoteShareState(
   const owned = !!row && !row.deleted_at && row.user_id === hostUserId
 
   return {
-    state: readShareState({
-      hasLiveMeeting: !!meeting,
-      hasNoteLink: !!meeting,
-      visibility: owned && row.visibility === NOTE_VISIBILITY.CRM
-        ? NOTE_VISIBILITY.CRM
-        : NOTE_VISIBILITY.PRIVATE,
-    }),
+    state: readShareState(owned ? row.visibility : null),
     meetingId: meeting?.id ?? null,
     ...(meeting
       ? await readMeetingLinks(getCrmDb(workspaceId), meeting)
@@ -1082,12 +1076,9 @@ export interface SetShareStateInput {
  * 두 저장소(회의노트 = Supabase, 미팅 = Prisma)를 건드리므로 한 트랜잭션으로 못 묶는다.
  * 그래서 **중간에 끊겨도 더 닫힌 쪽으로 남도록** 순서를 정한다:
  *
- *   · 좁히는 방향(→ PRIVATE): **원본을 먼저 잠그고** 미팅을 지운다.
- *     중간에 끊기면 "원본 잠김 + 미팅 남음" = `RECORD_ONLY` — 열려 있지 않다.
+ *   · 좁히는 방향(→ PRIVATE): 원본을 잠근다. 미팅은 지우지 않는다(「기록만」이 「나만 보기」로 합쳐짐)
  *   · 넓히는 방향(→ TEAM):    **미팅을 먼저 만들고** 원본을 연다.
- *     중간에 끊기면 "미팅 있음 + 원본 잠김" = `RECORD_ONLY` — 역시 열려 있지 않다.
- *
- * 어느 쪽으로 실패해도 착지점이 `RECORD_ONLY` 다. 조용히 더 열리는 일이 없다.
+ *     중간에 끊기면 "미팅 있음 + 원본 잠김" = `PRIVATE` — 열려 있지 않다.
  *
  * ## `noteId` 를 지우지 않는다
  *
@@ -1100,7 +1091,7 @@ export async function setNoteShareState(
   hostUserId: string,
   input: SetShareStateInput,
 ): Promise<{ state: MeetingShareState; meetingId: string | null }> {
-  const plan = planShareState(input.next)
+  const visibility = visibilityFor(input.next)
   const before = await readNoteShareState(workspaceId, input.noteId, hostUserId)
 
   // 원본 주인만 정할 수 있다 — 남의 회의 공개 범위를 바꾸는 창구가 되면 안 된다
@@ -1112,7 +1103,7 @@ export async function setNoteShareState(
     const admin = createAdminClient() as any
     const { error } = await admin
       .from('meeting_notes')
-      .update({ visibility: plan.visibility })
+      .update({ visibility })
       .eq('id', input.noteId)
       .eq('user_id', hostUserId)
     // supabase-js 는 실패를 던지지 않는다 — 반환 오류를 반드시 본다
@@ -1121,10 +1112,8 @@ export async function setNoteShareState(
 
   let meetingId = before.meetingId
 
-  if (!plan.wantMeeting) {
-    await setVisibility()                                   // ① 먼저 잠근다
-    if (meetingId) await deleteMeeting(workspaceId, actorId, meetingId)  // ② 그다음 내린다
-    meetingId = null
+  if (input.next === 'PRIVATE') {
+    await setVisibility()
   } else {
     if (!meetingId) {
       /**

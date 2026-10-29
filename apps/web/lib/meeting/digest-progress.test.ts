@@ -160,7 +160,7 @@ describe('공개 범위 — 열자마자 보인다', () => {
     const s = read(CARD)
     assert.doesNotMatch(s, /phase === 'loading' \|\| phase === 'no-access'/,
       '로딩을 no-access 와 같이 묶어 감추면 배지가 뒤늦게 나타난다')
-    assert.match(s, /initialShareState\(visibility\)/,
+    assert.match(s, /readShareState\(visibility\)/,
       '서버가 이미 아는 visibility 로 첫 렌더부터 그려야 한다')
   })
 

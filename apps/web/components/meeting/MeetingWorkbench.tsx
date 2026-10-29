@@ -49,7 +49,7 @@ import { hasDigestContent } from '@/lib/meeting/legacy-digest'
 import { plainTextLength } from '@/lib/meeting/memo-mode'
 import { isRecordingPinned } from '@/lib/meeting/recording-placement'
 import { EVIDENCE_LABEL, MEMO_LABEL, TRANSCRIPT_LABEL, digestMaterialLine } from '@/lib/terms'
-import type { NoteVisibility } from '@/lib/meeting/note-visibility'
+import { toNoteVisibility, type NoteVisibility } from '@/lib/meeting/note-visibility'
 import type { TranscriptSegment } from '@/lib/meeting/transcript'
 import styles from './workbench.module.css'
 
@@ -251,7 +251,7 @@ export default function MeetingWorkbench({
       setNote({
         bodyHtml: body.bodyHtml ?? '',
         canEdit: Boolean(body.canEdit),
-        visibility: body.visibility === 'crm' ? 'crm' : 'private',
+        visibility: toNoteVisibility(body.visibility),
         ...material,
         /*
           편집기와 **같은 함수로** 센다. 서버의 `bodyPlain` 은 `htmlToPlain` 이 만든 값이라

@@ -27,6 +27,7 @@ import ErrorState from '@/components/ui/ErrorState'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import RecordLayout, { RecordPanel, RecordField, RecordFieldList } from '@/components/ui/crm/RecordLayout'
 import MeetingWorkbench from '@/components/meeting/MeetingWorkbench'
+import type { NoteVisibility } from '@/lib/meeting/note-visibility'
 import MeetingFacts from './MeetingFacts'
 import DeleteRecordModal from '../../DeleteRecordModal'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
@@ -72,7 +73,7 @@ interface Suggestion {
  */
 interface NoteMeta {
   id: string; exists: boolean; title: string | null
-  updatedAt: string | null; visibility: 'private' | 'crm' | null
+  updatedAt: string | null; visibility: NoteVisibility | null
   canOpen: boolean; isOwner: boolean; isStale: boolean
   /** 원본에 사람이 쓴 본문이 있나 — AI 가 읽을 재료가 있는지 판정한다 */
   hasBody: boolean
