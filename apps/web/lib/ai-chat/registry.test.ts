@@ -8,7 +8,9 @@ import {
   isWired,
   META_KEYS,
   DEFAULT_MODELS,
+  wiredCapabilities,
 } from './registry.ts'
+import { buildModelChain } from './model-chain.ts'
 import { AI_PROVIDERS, AI_PROVIDER_IDS } from '../ai/provider-catalog.ts'
 import { DEFAULT_GEMINI_MODEL } from '../ai/gemini-model.ts'
 
@@ -268,4 +270,26 @@ test('끈 것을 다시 켜면 그대로 돌아온다', async () => {
   const on = { ...base, ai_provider_disabled: [] }
   assert.equal(getProviderConfig(off, 'openai'), null)
   assert.equal(getProviderConfig(on, 'openai')?.model, 'gpt-5.5', '키를 안 지웠으니 되돌아와야 한다')
+})
+
+test('능력표: 배선된 공급자 전부가 들어간다 (손으로 적은 셋이 아니다)', () => {
+  const table = wiredCapabilities()
+  const wired = AI_PROVIDER_IDS.filter((id) => isWired(id))
+  assert.deepEqual(Object.keys(table).sort(), [...wired].sort())
+  assert.ok(wired.includes('groq'), 'groq 어댑터가 배선돼 있어야 이 단정이 뜻이 있다')
+})
+
+test('Gemini 를 고른 대화가 막히면 키가 있는 groq 가 대체 후보에 들어온다', () => {
+  const providers = getAvailableProviders({ gemini_api_key: 'g', stt_api_key: 'gsk_live' })
+  const chain = buildModelChain({
+    chosen: { provider: 'gemini', model: 'gemini-3-flash-preview' },
+    providers, catalog: [], capabilities: wiredCapabilities(),
+  })
+  assert.ok(chain.some((c) => c.provider === 'groq'), JSON.stringify(chain.map((c) => c.provider)))
+})
+
+test('채팅 라우트가 능력표를 등록부에서 받는다', () => {
+  const src = readFileSync(new URL('../../app/api/admin/ai-chat/stream/route.ts', import.meta.url), 'utf8')
+  assert.ok(src.includes('capabilities: wiredCapabilities()'))
+  assert.equal(/getProvider\('(gemini|claude|openai)'\)\.capabilities/.test(src), false, '손으로 적은 능력표가 다시 생겼다')
 })

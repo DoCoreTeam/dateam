@@ -136,3 +136,16 @@ export function getProvider(id: ProviderId): ChatProvider {
   if (!impl) throw new Error(`어댑터가 배선되지 않은 AI 공급자: ${id}`)
   return impl
 }
+
+/**
+ * 대체 체인에 넘길 능력표. **배선된 공급자 전부**에서 만든다.
+ *
+ * 채팅 라우트가 여기에 gemini · claude · openai 셋만 손으로 적어 두는 동안, 표에 없는 groq · jev · grok 은
+ * `meetsRequirements(undefined)` 가 false 라 대체 후보에서 통째로 빠졌다. Gemini 키가 다 막히자
+ * 키가 살아 있는 Groq 를 두고 채팅이 실패했다 (실측 2026-10-29).
+ */
+export function wiredCapabilities(): Partial<Record<ProviderId, ChatProvider['capabilities']>> {
+  return Object.fromEntries(
+    (Object.entries(PROVIDER_IMPL) as [ProviderId, ChatProvider][]).map(([id, impl]) => [id, impl.capabilities]),
+  ) as Partial<Record<ProviderId, ChatProvider['capabilities']>>
+}

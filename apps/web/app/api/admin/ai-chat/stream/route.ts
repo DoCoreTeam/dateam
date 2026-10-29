@@ -3,7 +3,7 @@ import { isAiProviderId } from '@/lib/ai/provider-catalog'
 import { createAdminClient } from '@/lib/supabase/server'
 import { requireAdminApi } from '@/lib/auth/requireAdminApi'
 import { logTokenUsage } from '@/lib/token-logger'
-import { getProvider, getProviderConfig, getAvailableProviders } from '@/lib/ai-chat/registry'
+import { getProvider, getProviderConfig, getAvailableProviders, wiredCapabilities } from '@/lib/ai-chat/registry'
 import type { ChatTurn, AttachmentInput, StreamChatResult } from '@/lib/ai-chat/provider'
 import { buildActiveThread } from '@/lib/ai-chat/thread'
 import {
@@ -451,11 +451,7 @@ export async function POST(req: NextRequest) {
     chosen: { provider: conversation.provider, model: conversation.model },
     providers: getAvailableProviders(meta),
     catalog: (catalogRows as { provider: string; model_id: string }[] | null) ?? [],
-    capabilities: {
-      gemini: getProvider('gemini').capabilities,
-      claude: getProvider('claude').capabilities,
-      openai: getProvider('openai').capabilities,
-    },
+    capabilities: wiredCapabilities(),
     requires: { vision: attachmentIds.length > 0, tools: webSearchRequested },
   })
   if (chain.length === 0) {

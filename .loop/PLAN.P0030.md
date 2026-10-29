@@ -371,7 +371,7 @@
 범위 메모: 실측 2026-10-29, CI 이슈 수집 잡이 9-01부터 366번 연속 dead. Gemini 가 막히면 Claude 로 넘어가는데 haiku 4.5 에 adaptive 를 보내 400 「adaptive thinking is not supported on this model」로 죽었다. 같은 어댑터라 채팅의 Claude 대체 경로도 같이 막혀 있었다
 
 ### I21 채팅 대체 후보가 등록된 공급자 전부를 본다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/api/admin/ai-chat/stream/route.ts, apps/web/lib/ai-chat/registry.ts, apps/web/lib/ai-chat/registry.test.ts
 감사 기준:
