@@ -8,6 +8,7 @@ import type {
 } from '../provider.ts'
 import { classifyModelProbeFailure, getProviderErrorDetail } from '../probe-result.ts'
 import { toClaudeContent } from '../attachments.ts'
+import { thinkingFor } from './claude-thinking.ts'
 
 const DEFAULT_MAX_OUTPUT_TOKENS = 32000
 const DEFAULT_MODEL = 'claude-opus-4-8'
@@ -112,7 +113,8 @@ async function streamChat(params: StreamChatParams): Promise<StreamChatResult> {
         ...(system ? { system } : {}),
         messages: convo,
         // adaptive/summarized — 요약 thinking 스트림 수신 (display 미지정 시 omitted 위험)
-        thinking: { type: 'adaptive', display: 'summarized' },
+        // 4.6 이전 모델(운영의 haiku 4.5)은 adaptive 를 400 으로 거절한다 — 받는 모델에만 싣는다
+        ...thinkingFor(model || DEFAULT_MODEL),
         ...(requestTools ? { tools: requestTools as unknown as Anthropic.ToolUnion[] } : {}),
       })
 
