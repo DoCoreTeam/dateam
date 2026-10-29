@@ -382,7 +382,7 @@
 범위 메모: route.ts 456줄이 capabilities 에 셋만 넘겨 meetsRequirements(undefined)=false 로 groq jev grok 이 대체 후보에서 통째로 빠졌다. 공급자를 더할 때 안 따라오는 자리의 같은 꼴
 
 ### I22 분류가 같은 입력으로 AI 에 두 번 묻지 않는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/ci/jobs/stages.ts, apps/web/lib/ci/analysis/classify-ai-memo.ts (신규), apps/web/lib/ci/analysis/classify-ai-memo.test.ts (신규), apps/web/package.json
 감사 기준:

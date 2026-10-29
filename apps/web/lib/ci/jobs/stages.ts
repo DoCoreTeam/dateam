@@ -32,6 +32,7 @@ import { isProvisionalKey } from '../ucm/channel-key.ts'
 import { analyzeCreative } from '../ai/creative-server.ts'
 import { understandMedia, recordSkip } from '../media/understand-server.ts'
 import { understandingToEvidenceText, type MediaUnderstanding } from '../media/understand.ts'
+import { classifyAiKey, readClassifyAiMemo, toClassifyAiMemo, AI_MEMO_FIELD, type ClassifyAiMemo } from '../analysis/classify-ai-memo.ts'
 import { shouldUnderstand, MEDIA_MAX_PER_PASS, type AnalyzedRecord } from '../media/policy.ts'
 import { enqueueJob } from './queue.ts'
 import { OUTLIER_MIN_BASELINE } from '../format/metrics.ts'
@@ -213,7 +214,7 @@ export async function runClassify(workspaceId: string, contentId: string): Promi
 
   const { data: content } = await adminClient
     .from('ci_contents')
-    .select('id, platform, title, caption, topic_id, topic_source, channel_id, keywords, platform_category, topic_signals')
+    .select('id, platform, title, caption, topic_id, topic_source, channel_id, keywords, platform_category, topic_signals, topic_basis')
     .eq('id', contentId).maybeSingle()
   if (!content) return { ok: false, errorCode: 'NOT_FOUND', errorMessage: '콘텐츠를 찾을 수 없습니다' }
 
@@ -248,6 +249,7 @@ export async function runClassify(workspaceId: string, contentId: string): Promi
     topics,
   })
   const rungs: BasisRung[] = [...verdict.rungs]
+  let aiMemo: ClassifyAiMemo | null = null
 
   // ── L3 · AI ───────────────────────────────────────────────────
   // 후보가 1개 이하면 부르지 않는다. "요리인가 아닌가"를 물으면서 정답지에 요리만 놓으면
@@ -273,14 +275,28 @@ export async function runClassify(workspaceId: string, contentId: string): Promi
         mediaText: media.text,
         correctionExamples,
       })
-      const res = await callGemini({ apiKey: meta.geminiApiKey, model: meta.geminiModel, prompt })
-      if (res.ok) {
+      /*
+        같은 질문을 전에 했으면 그 답을 쓴다.
+        재수집마다 분류가 다시 돌면서, 입력이 그대로인 콘텐츠를 또 물었다
+        (실측 2026-10-29 최근 7일: 콘텐츠 193건에 414번, 새 콘텐츠는 67건).
+      */
+      const topicIds = topics.map((t) => t.id)
+      const aiKey = classifyAiKey(prompt, meta.geminiModel)
+      const remembered = readClassifyAiMemo(content.topic_basis, aiKey, topicIds)
+      const res = remembered
+        ? null
+        : await callGemini({ apiKey: meta.geminiApiKey, model: meta.geminiModel, prompt })
+      if (res?.ok) {
         logTokenUsage({
           userId: null, feature: 'ci-classify', model: meta.geminiModel,
           provider: 'gemini', promptTokens: res.promptTokens,
           outputTokens: res.outputTokens, totalTokens: res.promptTokens + res.outputTokens,
         })
-        const llm = parseLlmVerdict(res.text, topics.map((t) => t.id))
+      }
+      if (remembered || res?.ok) {
+        const llm = remembered ?? (res?.ok ? parseLlmVerdict(res.text, topicIds) : null)
+        // 답을 받은 것만 남긴다. 실패나 깨진 형식을 남기면 그 콘텐츠를 영영 다시 안 묻는다
+        if (llm) aiMemo = toClassifyAiMemo(aiKey, llm)
         if (llm) {
           // AI가 주제를 고른 경우에만 채택한다.
           // "고를 주제가 없다"는 답의 확신도를 "이 주제가 맞다"는 확신도와 비교하면
@@ -309,7 +325,7 @@ export async function runClassify(workspaceId: string, contentId: string): Promi
           rungs.push({ level: 'L3', ok: false, detail: 'AI 응답 형식이 올바르지 않아 채택하지 않았습니다' })
         }
       } else {
-        rungs.push({ level: 'L3', ok: false, detail: `AI 판정 실패: ${res.error}` })
+        rungs.push({ level: 'L3', ok: false, detail: `AI 판정 실패: ${res && !res.ok ? res.error : ''}` })
       }
     } else {
       rungs.push({ level: 'L3', ok: false, detail: 'AI 키가 없어 2차 판정을 건너뛰었습니다' })
@@ -317,7 +333,7 @@ export async function runClassify(workspaceId: string, contentId: string): Promi
   }
 
   await adminClient.from('ci_contents')
-    .update(buildClassifyUpdate(verdict, rungs))
+    .update(buildClassifyUpdate(verdict, rungs, aiMemo))
     .eq('id', contentId)
 
   return { ok: true }
@@ -333,7 +349,7 @@ export async function runClassify(workspaceId: string, contentId: string): Promi
  *   지금: **판단이 갈릴 때만** pending. 근거가 약한 것은 '추정'으로 쓰고 넘어간다.
  */
 function buildClassifyUpdate(
-  verdict: ClassifyVerdict, rungs: BasisRung[],
+  verdict: ClassifyVerdict, rungs: BasisRung[], aiMemo: ClassifyAiMemo | null = null,
 ): Record<string, unknown> {
   return {
     topic_id: verdict.topicId,
@@ -352,6 +368,7 @@ function buildClassifyUpdate(
       decidedBy: verdict.source,
       needsHuman: verdict.needsHuman,
       at: new Date().toISOString(),
+      ...(aiMemo ? { [AI_MEMO_FIELD]: aiMemo } : {}),
     },
   }
 }
