@@ -1,6 +1,6 @@
 # PLAN newAX: AI 호출을 무료 등급 안으로
 플랜 ID: P0030
-플랜 버전: v0.2.2
+플랜 버전: v0.2.3
 상태: 진행중
 지시: iv_0069
 목표 버전: v0.11.95
@@ -426,6 +426,18 @@
 - pnpm typecheck, lint 통과, 전체 시험 통과
 의존: I17a
 
+### I17c 사용량 화면 위 카드가 늘 0 을 보이던 것
+상태: 통과
+모드: 경량
+범위: apps/web/app/api/admin/ai-usage/summary/route.ts, apps/web/app/admin/ai-usage/AiUsageDashboard.tsx (못 읽음 표시, 착수 뒤 추가), apps/web/lib/ai/token-summary.ts (신규), apps/web/lib/ai/token-summary.test.ts (신규), apps/web/package.json
+감사 기준:
+- 보안: 새 저장 없음, 새 창구 없음, 기존 관리자 확인(profiles.role admin) 뒤에만 서비스롤로 읽음, 오류 응답에 내부 구조를 싣지 않음
+- 카드 셋(오늘, 이번 달, 누적)이 psql 의 ai_token_logs 합과 같음, 오늘과 이번 달은 KST 경계 (단위 시험과 운영 실측)
+- 읽기 실패를 0 으로 돌려주지 않음 (오류 응답), 코드에 PostgREST 집계 .sum() 이 0곳 (가드)
+- typecheck 0, 전체 시험 통과
+의존: 없음
+범위 메모: I17 실측 때 발견. total_tokens.sum() 을 PostgREST 가 막아 PGRST123 이 나는데 오류를 안 읽어 늘 0 이었다. 실측 2026-10-29 오늘 75,331, 이번 달 1,579,163 (임계치 1,000,000 초과인데 경고가 안 떴다), 누적 11,770,121
+
 ### I17 실브라우저에서 트렌드 화면과 사용량 화면을 확인한다
 상태: 대기
 모드: 경량
@@ -513,3 +525,4 @@ output-limit·usage-query·deploy-env·provider-key-source·discover-prompt·gem
 - v0.2.0 (2026-09-20) 사용자 개입(ins_0042 상한 이름 안 맞는 거 고쳐줘)으로 I19 추가. 착수 전에 재어 보니 어긋남이 crm 하나가 아니라 창구 41 중 32 가 상한이 아예 없었다 — 게이트가 모르면 통과라 그 32 는 무제한이다. 이름을 하나 고치는 대신 앞자리를 타고 올라가는 규칙과 받아 주는 줄로 구조를 고친다 (iv_0042)
 - v0.2.1 (2026-10-29) I18 실측(하루 95.6건)에서 나온 원인 넷을 항목으로 추가(I20 Claude 생각 설정, I21 채팅 대체 후보 능력표, I22 분류 재질문, I23 거절 줄 셈) 하고 I18 셈에서 거절 줄과 trading(jev, P0072 사용자 지시)을 따로 적게 고침 (audit:I18)
 - v0.2.2 (2026-10-29) I17 착수 때 누르기 전 숫자를 그리는 화면이 없음을 발견, I17a 조회 창구와 I17b 화면을 앞에 넣고 0건 기준을 단추 비활성에서 안내로 고침 (공식 계산은 AI 없이 돎) (audit:I17)
+- v0.2.3 (2026-10-29) I17 실측에서 사용량 화면 위 카드가 늘 0 인 결함 발견, I17c 추가 (audit:I17)

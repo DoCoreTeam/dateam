@@ -101,6 +101,8 @@ export default function AiUsageDashboard({
 
   const [editing, setEditing] = useState<FeatureUsage | null>(null)
   const [summary, setSummary] = useState<Summary | null>(null)
+  // 못 읽은 것을 0 으로 보이지 않는다 — 집계가 막혀 카드가 늘 0 이던 전례(P0030 I17c)
+  const [summaryFailed, setSummaryFailed] = useState(false)
   const [features, setFeatures] = useState<FeatureRow[]>([])
   const [users, setUsers] = useState<UserRow[]>([])
   const [daily, setDaily] = useState<DailyRow[]>([])
@@ -136,7 +138,9 @@ export default function AiUsageDashboard({
         fetch(`/api/admin/ai-usage/daily?days=${days}`).then(r => r.json()),
         fetch(`/api/admin/ai-usage/logs?page=${logPage}&limit=${logSize}`).then(r => r.json()),
       ])
-      setSummary(s)
+      const summaryOk = typeof s?.today_tokens === 'number'
+      setSummary(summaryOk ? s : null)
+      setSummaryFailed(!summaryOk)
       setFeatures(Array.isArray(f) ? f : [])
       setUsers(Array.isArray(u) ? u : [])
       setDaily(Array.isArray(d) ? d : [])
@@ -340,7 +344,7 @@ export default function AiUsageDashboard({
             <Activity size={16} color="var(--brand)" />
             <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', fontWeight: 500 }}>오늘 사용량</span>
           </div>
-          <div style={{ fontSize: 'var(--fs-3xl)', fontWeight: 700, color: 'var(--text)' }}>{fmt(summary?.today_tokens ?? 0)}</div>
+          <div style={{ fontSize: 'var(--fs-3xl)', fontWeight: 700, color: 'var(--text)' }}>{summaryFailed ? '못 읽음' : fmt(summary?.today_tokens ?? 0)}</div>
           <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', marginTop: 'var(--space-1)' }}>tokens</div>
         </div>
         <div className="card" style={{ padding: 'var(--space-6)' }}>
@@ -348,7 +352,7 @@ export default function AiUsageDashboard({
             <TrendingUp size={16} color="var(--brand)" />
             <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', fontWeight: 500 }}>이번 달 사용량</span>
           </div>
-          <div style={{ fontSize: 'var(--fs-3xl)', fontWeight: 700, color: summary?.threshold_exceeded ? 'var(--danger)' : 'var(--text)' }}>{fmt(summary?.month_tokens ?? 0)}</div>
+          <div style={{ fontSize: 'var(--fs-3xl)', fontWeight: 700, color: summary?.threshold_exceeded ? 'var(--danger)' : 'var(--text)' }}>{summaryFailed ? '못 읽음' : fmt(summary?.month_tokens ?? 0)}</div>
           <div style={{ marginTop: 'var(--space-2)' }}>
             <div style={{ height: '6px', background: 'var(--color-border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${Math.min(summary?.month_usage_pct ?? 0, 100)}%`, background: (summary?.month_usage_pct ?? 0) >= 100 ? 'var(--danger)' : 'var(--brand)', borderRadius: 'var(--radius)', transition: 'width 0.3s' }} />
@@ -361,7 +365,7 @@ export default function AiUsageDashboard({
             <Database size={16} color="var(--brand)" />
             <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', fontWeight: 500 }}>누적 사용량</span>
           </div>
-          <div style={{ fontSize: 'var(--fs-3xl)', fontWeight: 700, color: 'var(--text)' }}>{fmt(summary?.total_tokens ?? 0)}</div>
+          <div style={{ fontSize: 'var(--fs-3xl)', fontWeight: 700, color: 'var(--text)' }}>{summaryFailed ? '못 읽음' : fmt(summary?.total_tokens ?? 0)}</div>
           <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-faint)', marginTop: 'var(--space-1)' }}>전체 누적 tokens</div>
         </div>
       </div>
