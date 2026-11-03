@@ -401,6 +401,12 @@ export const RFP_PROFILE = {
   aiSkippedHint: '설정에서 공급자의 문서 등급을 조건부 공개까지 열면 회사 이름·기술·협력사도 자동으로 채워집니다',
   draftUpload: '회사소개서 올리기',
   draftHint: '회사소개서·사업자등록증·실적표를 올리면 대부분 채워집니다',
+  draftErrorTooLarge: (name: string, limitMb: number) =>
+    limitMb > 0 ? `${name} 파일이 ${limitMb}MB 를 넘어 올리지 못했습니다` : '파일이 너무 커서 올리지 못했습니다',
+  draftErrorTooMany: (limit: number) => `한 번에 ${limit}개까지 올릴 수 있습니다`,
+  draftErrorEmpty: (name: string) => `${name} 파일이 비어 있습니다`,
+  draftErrorUnreadable: '올린 문서에서 글을 읽지 못했습니다',
+  draftErrorUpload: '파일을 올리지 못했습니다. 잠시 후 다시 올려 주세요',
   confirm: '확인하고 저장',
   companyName: '회사 이름',
   businessNumber: '사업자등록번호',

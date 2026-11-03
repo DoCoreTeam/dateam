@@ -1,0 +1,79 @@
+# PLAN newAX: 회사소개서가 4.5MB 를 넘어도 프로필 초안이 만들어진다
+플랜 ID: P0175
+플랜 버전: v0.1.1
+상태: 진행중
+지시: ins_0428
+목표 버전: v0.11.96
+푸시: 즉시
+작성: 2026-11-03
+시작 커밋: ce047d90
+
+## 목표
+- 회사 프로필 화면에서 4.5MB 넘는 회사소개서를 올려도 초안이 채워진다
+- 올리기가 실패하면 진행 표시가 멈추고 왜 실패했는지 화면이 말한다
+
+## 범위 밖
+- 케이스 첨부 올리기(UploadPanel)의 같은 4.5MB 벽, 같은 방식으로 다음 플랜에서 옮김
+- CLI 의 큰 파일 직접 올리기, CLI 는 지금처럼 4.5MB 이하 여러 부분 올리기를 씀
+
+## 완료 정의
+- pnpm typecheck, pnpm test, pnpm build 통과
+- 운영에서 6MB 회사소개서로 초안이 만들어짐 (실브라우저)
+- 사용자 노출 문자열은 전부 lib 문구 파일 키 사용
+
+## 참조
+- 원인 실측 2026-11-03: 6MB 본문 POST /api/rfp/profile/draft 가 Vercel 에서 413 FUNCTION_PAYLOAD_TOO_LARGE text/plain, 함수까지 안 감
+- 화면은 res.json() 이 던져 「문제가 생겼어요」, waiting 을 안 지워 진행 표시가 계속 돎
+- supabase/migrations/250_rfp_storage.sql 버킷 rfp-docs 쓰기는 서버만, 클라이언트 직접 쓰기 정책을 안 엶 → 서버가 서명한 올리기 주소만 씀
+
+## 항목
+
+### I01 서명 올리기 주소 창구와 초안 창구의 보관함 경로 입력
+상태: 통과
+모드: 경량
+범위: apps/web/app/api/rfp/profile/draft/upload/route.ts (신규), apps/web/app/api/rfp/profile/draft/route.ts, apps/web/lib/rfp/db/draft-upload.ts (신규), apps/web/lib/rfp/db/draft-upload.test.ts (신규), apps/web/package.json, apps/web/components/rfp/ProfileEditor.tsx, apps/web/lib/rfp/terms.ts
+감사 기준:
+- 보안: 두 창구 모두 requireMemberApi 를 부르고 미인증 401, 경로는 서버가 {org}/profile-draft/{uuid}.bin 로만 정하고 초안 창구는 내 조직 접두가 아닌 경로를 400 으로 거절 (시험 단정)
+- 보안: 서비스롤은 사람 확인 뒤에만 쓰고 읽은 임시 원문은 처리 뒤 지움
+- node --test draft-upload.test.ts 통과, 크기 상한 넘는 요청은 주소를 안 줌
+- 실패하면 진행 표시가 사라지고 이유별 문구가 뜸 (본문이 JSON 이 아니어도), route-census 의 설명 없는 창구 11개 그대로
+- 보안: 브라우저는 서버가 준 서명 주소로만 올리고 보관함 쓰기 정책은 그대로 (마이그레이션 변경 없음)
+의존: 없음
+
+### I02 기능 정의와 생성물
+상태: 대기
+모드: 경량
+범위: apps/web/lib/actions/defs/rfp.ts, apps/web/lib/actions/generated/, docs/cli/02-기능대응표.md, apps/web/public/openapi.json
+감사 기준:
+- node scripts/cli-parity-check.mjs 통과
+- 대응표에 rfp.profile.draft-upload 줄이 CLI됨
+- 보안: 새 정의 scope 가 write 이고 관문이 같은 인증을 지남
+의존: I01
+
+### I03 화면이 보관함으로 바로 올리고 실패를 말한다
+상태: 취소 (I01 에 합침, 창구만 먼저 넣으면 route-census 가 화면에 안 꽂힌 창구로 세어 중간이 빨갛다)
+모드: 경량
+범위: apps/web/components/rfp/ProfileEditor.tsx, apps/web/lib/rfp/terms.ts
+감사 기준:
+- 보안: 브라우저는 서버가 준 서명 주소로만 올리고 보관함 쓰기 정책은 그대로 (pg_policies 에 rfp-docs insert 정책 0)
+- 실패하면 진행 표시가 사라지고 이유별 문구가 뜸 (본문이 JSON 이 아니어도)
+- pnpm typecheck 통과
+의존: I01
+
+### I04 운영 실브라우저 확인
+상태: 대기
+모드: 경량
+범위: 없음 (확인만)
+감사 기준:
+- 보안: 해당 없음 근거 코드 변경 없음
+- 배포 뒤 teamda.vercel.app/rfp/profile 에서 6MB 넘는 PDF 를 올려 초안 저장 버전이 오르고 오류 띠가 없음
+- 보관함 profile-draft 아래 임시 원문이 남지 않음
+의존: I02
+
+## 종합 감사
+- (전 항목 통과 후 기록)
+
+## 변경 이력
+- v0.1.0 (2026-11-03) 최초 작성 (ins_0428)
+- v0.1.1 (2026-11-03) I03 을 I01 에 합침, 창구와 화면 배선이 같은 커밋이어야 집계 가드가 중간에 안 빨개짐
+- v0.1.1 (2026-11-03) I03 을 I01 에 합침, 창구만 먼저 넣으면 route-census 가 빨갛다 (audit:I01)

@@ -26,6 +26,8 @@ import WaitProgress from '@/components/ui/WaitProgress'
 import { useElapsedMs } from '@/components/ui/useElapsedMs'
 import { waitProgress } from '@/lib/ui/wait-progress'
 import { WAIT } from '@/lib/terms/wait'
+import { createClient } from '@/lib/supabase/client'
+import { readDraftFailure, type DraftFailure } from '@/lib/rfp/db/draft-upload'
 
 export interface ProfileBasic {
   companyName: string
@@ -107,17 +109,16 @@ export default function ProfileEditor({
     setBusy(true)
     setWaiting({ from: Date.now(), doing: WAIT.profileDraft })
     try {
-      const form = new FormData()
-      for (const f of Array.from(files)) form.append('file', f)
-      const res = await fetch('/api/rfp/profile/draft', { method: 'POST', body: form })
-      const body = await res.json()
-      if (!res.ok) { setError(RFP_COMMON.error); return }
-      apply(body.profile, body.missing ?? [])
+      const result = await draftFromFiles(Array.from(files))
+      if (!result.ok) { setError(failureText(result.failure)); return }
+      apply(result.body.profile, result.body.missing ?? [])
       // 왜 덜 채워졌는지 화면이 말한다 — 조용히 넘어가면 사용자는 기능이 고장 났다고 본다
-setWaiting(null); setAiSkipped(body.aiSkipped ?? null)
+      setAiSkipped(result.body.aiSkipped ?? null)
     } catch {
       setError(RFP_COMMON.error)
     } finally {
+      // 실패해도 진행 표시를 내린다 — 안 내리면 실패한 뒤에도 계속 도는 것처럼 보인다
+      setWaiting(null)
       setBusy(false)
     }
   }, [apply])
@@ -408,4 +409,51 @@ function TextField({ label, value, onChange, numeric, date }: TextFieldProps) {
       )}
     </div>
   )
+}
+
+/**
+ * 원문은 보관함에 바로 올리고 초안 창구에는 자리만 넘긴다.
+ * 함수는 4.5MB 넘는 본문을 못 받는다 — 회사소개서는 대개 그보다 크다
+ */
+async function draftFromFiles(files: File[]): Promise<
+  { ok: true; body: any } | { ok: false; failure: DraftFailure }
+> {
+  const ask = await postJson('/api/rfp/profile/draft/upload', {
+    files: files.map((f) => ({ name: f.name, size: f.size })),
+  })
+  if (!ask.ok) return ask
+
+  const { bucket, uploads } = ask.body as { bucket: string; uploads: { name: string; path: string; token: string }[] }
+  const storage = createClient().storage.from(bucket)
+  for (const [i, u] of uploads.entries()) {
+    const { error } = await storage.uploadToSignedUrl(u.path, u.token, files[i])
+    if (error) return { ok: false, failure: { kind: 'upload_failed' } }
+  }
+
+  return postJson('/api/rfp/profile/draft', {
+    files: uploads.map((u) => ({ name: u.name, path: u.path })),
+  })
+}
+
+/** 본문이 JSON 이 아니어도(413 text/plain) 던지지 않고 실패 갈래로 돌려준다 */
+async function postJson(url: string, payload: unknown): Promise<
+  { ok: true; body: any } | { ok: false; failure: DraftFailure }
+> {
+  const res = await fetch(url, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  })
+  const body = await res.json().catch(() => null)
+  if (!res.ok) return { ok: false, failure: readDraftFailure(res.status, body) }
+  return { ok: true, body }
+}
+
+function failureText(f: DraftFailure): string {
+  switch (f.kind) {
+    case 'too_large': return RFP_PROFILE.draftErrorTooLarge(f.name, f.limitMb)
+    case 'too_many': return RFP_PROFILE.draftErrorTooMany(f.limit)
+    case 'empty': return RFP_PROFILE.draftErrorEmpty(f.name)
+    case 'unreadable': return RFP_PROFILE.draftErrorUnreadable
+    case 'upload_failed': return RFP_PROFILE.draftErrorUpload
+    default: return RFP_COMMON.error
+  }
 }

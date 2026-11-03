@@ -33,56 +33,52 @@ import { getAvailableProviders } from '@/lib/ai-chat/registry'
 import { createAdminClient } from '@/lib/supabase/server'
 import { saveProfile, missingForAssessment } from '@/lib/rfp/db/profile'
 import { checkFileSize } from '@/lib/rfp/db/files'
+import { getBytes, RFP_BUCKET } from '@/lib/rfp/db/storage'
+import { readDraftRefs, MAX_DRAFT_FILES } from '@/lib/rfp/db/draft-upload'
 import type { IrDocument } from '@/lib/rfp/ir/types'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120
 
-/** 한 번에 올릴 수 있는 문서 수 — 회사소개서·등록증·실적표면 충분하다 */
-const MAX_FILES = 5
-
 export async function POST(req: NextRequest) {
   const gate = await requireMemberApi()
   if (gate.error) return gate.error
 
-  let form: FormData
-  try {
-    form = await req.formData()
-  } catch {
-    return NextResponse.json({ error: '요청 본문을 읽지 못했습니다' }, { status: 400 })
-  }
+  const db = await createClient()
+  const { data: orgId } = await (db as any).rpc('rfp_default_org')
+  if (!orgId) return NextResponse.json({ error: '조직을 찾지 못했습니다' }, { status: 403 })
 
-  const files = form.getAll('file').filter((f): f is File => f instanceof File)
-  if (files.length === 0) return NextResponse.json({ error: 'missing_file' }, { status: 400 })
-  if (files.length > MAX_FILES) {
-    return NextResponse.json({ error: 'too_many_files', limit: MAX_FILES }, { status: 400 })
-  }
+  const input = await readInput(req, String(orgId))
+  if (!input.ok) return NextResponse.json(input.body, { status: 400 })
 
   const docs: IrDocument[] = []
   const failed: { name: string; reason: string }[] = []
-  let caseBytes = 0
+  try {
+    let caseBytes = 0
+    for (const file of input.files) {
+      const bytes = await file.read()
+      const size = checkFileSize({ sizeBytes: bytes.byteLength, caseBytes, fileName: file.name })
+      if (!size.ok) {
+        failed.push({ name: file.name, reason: size.reason })
+        continue
+      }
+      caseBytes += bytes.byteLength
 
-  for (const file of files) {
-    const size = checkFileSize({ sizeBytes: file.size, caseBytes, fileName: file.name })
-    if (!size.ok) {
-      failed.push({ name: file.name, reason: size.reason })
-      continue
+      const parsed = await parseFile({ fileId: `draft-${file.name}`, fileName: file.name, bytes })
+      if (parsed.ok) docs.push(parsed.doc)
+      else failed.push({ name: file.name, reason: parsed.reason })
     }
-    caseBytes += file.size
-
-    const bytes = new Uint8Array(await file.arrayBuffer())
-    const parsed = await parseFile({ fileId: `draft-${file.name}`, fileName: file.name, bytes })
-    if (parsed.ok) docs.push(parsed.doc)
-    else failed.push({ name: file.name, reason: parsed.reason })
+  } catch (e) {
+    console.error('[rfp] 초안 원문 읽기 실패', e)
+    return NextResponse.json({ error: 'upload_not_found' }, { status: 400 })
+  } finally {
+    // 보관함에 올린 임시 원문은 읽고 나면 지운다 — 초안은 값만 남기고 원문은 안 남긴다
+    await input.cleanup()
   }
 
   if (docs.length === 0) {
     return NextResponse.json({ error: 'no_readable_file', failed }, { status: 422 })
   }
-
-  const db = await createClient()
-  const { data: orgId } = await (db as any).rpc('rfp_default_org')
-  if (!orgId) return NextResponse.json({ error: '조직을 찾지 못했습니다' }, { status: 403 })
 
   const draft = draftProfile(docs, 1)
 
@@ -188,6 +184,57 @@ export async function POST(req: NextRequest) {
     // AI 를 건너뛰었으면 그 사실을 말한다 — 조용히 건너뛰면 「왜 비지」를 설명 못 한다
     aiSkipped,
   }, { status: 201 })
+}
+
+interface DraftInputFile { name: string; read(): Promise<Uint8Array> }
+
+type DraftInput =
+  | { ok: true; files: DraftInputFile[]; cleanup(): Promise<void> }
+  | { ok: false; body: Record<string, unknown> }
+
+/**
+ * 원문을 받는 길은 둘이다.
+ *
+ * - JSON `{ files: [{ name, path }] }`: 화면이 보관함에 먼저 올린 자리. 4.5MB 넘는 문서는 이 길뿐이다
+ * - multipart `file`: CLI 와 작은 문서. 함수 본문 상한(4.5MB) 안에서만 닿는다
+ *
+ * 경로는 그 조직의 초안 자리만 받는다 — 아니면 남의 조직 원문 경로를 넣어 읽게 할 수 있다
+ */
+async function readInput(req: NextRequest, orgId: string): Promise<DraftInput> {
+  const isJson = (req.headers.get('content-type') ?? '').includes('application/json')
+  if (isJson) {
+    let refs
+    try {
+      refs = readDraftRefs(orgId, ((await req.json()) as { files?: unknown }).files)
+    } catch {
+      refs = null
+    }
+    if (!refs) return { ok: false, body: { error: 'invalid_upload_ref' } }
+    const admin = createAdminClient()
+    return {
+      ok: true,
+      files: refs.map((r) => ({ name: r.name, read: () => getBytes(admin as any, r.path) })),
+      async cleanup() {
+        const { error } = await admin.storage.from(RFP_BUCKET).remove(refs.map((r) => r.path))
+        if (error) console.error('[rfp] 초안 임시 원문 지우기 실패', error)
+      },
+    }
+  }
+
+  let form: FormData
+  try {
+    form = await req.formData()
+  } catch {
+    return { ok: false, body: { error: '요청 본문을 읽지 못했습니다' } }
+  }
+  const files = form.getAll('file').filter((f): f is File => f instanceof File)
+  if (files.length === 0) return { ok: false, body: { error: 'missing_file' } }
+  if (files.length > MAX_DRAFT_FILES) return { ok: false, body: { error: 'too_many_files', limit: MAX_DRAFT_FILES } }
+  return {
+    ok: true,
+    files: files.map((f) => ({ name: f.name, read: async () => new Uint8Array(await f.arrayBuffer()) })),
+    cleanup: async () => {},
+  }
 }
 
 /**
