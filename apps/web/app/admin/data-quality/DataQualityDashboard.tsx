@@ -215,8 +215,8 @@ export default function DataQualityDashboard() {
           )}
 
           <div style={{ marginTop: 'var(--space-3)', fontSize: 'var(--fs-xs)' }}>
-            <a href="/pricing/gpu?tab=review" style={{ color: 'var(--brand)' }}>→ 검토 대기 탭에서 전체 관리</a>
-            {drill === 'anomaly' && <a href="/pricing/gpu?tab=board" style={{ color: 'var(--brand)', marginLeft: 'var(--space-4)' }}>→ 가격표에서 확인</a>}
+            <a href="/pricing/gpu/manage?tab=review" style={{ color: 'var(--brand)' }}>→ 검토 대기 탭에서 전체 관리</a>
+            {drill === 'anomaly' && <a href="/pricing/gpu/manage?tab=board" style={{ color: 'var(--brand)', marginLeft: 'var(--space-4)' }}>→ 가격표에서 확인</a>}
           </div>
         </div>
       )}

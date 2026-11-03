@@ -204,7 +204,7 @@ export const NOT_A_SURFACE: Readonly<Record<string, string>> = {
   '/change-password': '첫 로그인 비밀번호 변경, 로그인 직후 강제 경유라 막으면 들어올 길이 사라진다',
   '/offline': '네트워크가 끊겼을 때 서비스워커가 보여 주는 화면, 서버 판정이 닿지 않는다',
   '/api-access': '외부인이 API 사용을 신청하는 공개 양식, 사내 사용자 기준으로 막을 대상이 아니다',
-  '/intake': '/pricing/gpu?tab=intake 로 보내기만 하는 옛 주소, 도착지 표면이 판정한다',
+  '/intake': '/pricing/gpu/manage?tab=intake 로 보내기만 하는 옛 주소, 도착지 표면이 판정한다',
   '/ralph': '/pricing/gpu 로 보내기만 하는 옛 주소, 도착지 표면이 판정한다',
   '/approvals/[id]': 'CLI 가 202 와 함께 준 주소로 키 주인이 들어와 승인하는 화면, 그 요청의 주인이나 관리자인지를 화면과 결정 액션이 판정한다 (P0158 I08)',
 }

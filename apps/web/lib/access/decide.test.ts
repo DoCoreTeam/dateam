@@ -87,6 +87,8 @@ test('키와 주소에 중복이 없다', () => {
 
 test('주소는 긴 쪽이 이긴다 — /pricing 아래 둘이 안 섞인다', () => {
   assert.equal(surfaceOf('/pricing/gpu')?.key, 'pricing.gpu')
+  // 옛 탭 화면은 /pricing/gpu/manage 로 옮겼다, 같은 표면이 판정한다
+  assert.equal(surfaceOf('/pricing/gpu/manage')?.key, 'pricing.gpu')
   assert.equal(surfaceOf('/pricing/catalog?tab=intake'.split('?')[0])?.key, 'pricing.catalog')
   assert.equal(surfaceOf('/crm/deals/123')?.key, 'crm')
   assert.equal(surfaceOf('/login'), null)

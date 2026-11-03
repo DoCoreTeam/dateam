@@ -307,7 +307,7 @@ function ModelResolveModal({ modelName, message, busy, onPick, onClose }: {
       onClose={onClose}
       maxWidth={520}
       footer={
-        <button className="gpu-btn" onClick={() => { window.location.href = `/pricing/gpu?tab=specs&newModel=${encodeURIComponent(modelName)}` }}>
+        <button className="gpu-btn" onClick={() => { window.location.href = `/pricing/gpu/manage?tab=specs&newModel=${encodeURIComponent(modelName)}` }}>
           <Plus size={14} /> 정말 새 모델이면: 스펙 관리에서 등록
         </button>
       }
@@ -744,7 +744,7 @@ function ReviewCard({ item, onDone, allSuppliers, selected, onToggleSelect, krwP
               <button type="button" className="gpu-btn gpu-btn-primary" style={{ fontSize: 12 }}
                 onClick={() => {
                   const q = heldInfo.code === 'no_variant' && heldInfo.gpuCount ? `&count=${heldInfo.gpuCount}` : ''
-                  window.location.href = `/pricing/gpu?tab=specs&newModel=${encodeURIComponent(heldInfo.modelName)}${q}`
+                  window.location.href = `/pricing/gpu/manage?tab=specs&newModel=${encodeURIComponent(heldInfo.modelName)}${q}`
                 }}>
                 <Plus size={13} /> {heldInfo.code === 'no_variant' ? '스펙 관리에서 구성 추가' : '스펙 관리에서 모델 등록'}
               </button>

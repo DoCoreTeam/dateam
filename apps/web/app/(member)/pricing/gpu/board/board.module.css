@@ -1,0 +1,116 @@
+/* GPU 한 장 화면 — 열 수는 폭으로만 정한다 (lib/gpu/board.ts supplierSlotCount) */
+
+.basis {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.basisLink {
+  margin-left: auto;
+  color: var(--brand);
+  font-weight: 600;
+  text-decoration: none;
+}
+.basisLink:hover { text-decoration: underline; }
+.basisLink:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+.wrap {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) repeat(var(--slots), minmax(0, 1fr)) minmax(0, 0.8fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--border);
+}
+.row:first-child { border-top: none; }
+.row:hover:not(.head) { background: var(--surface-bg); }
+
+.head {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  background: var(--surface-bg);
+}
+
+.model { min-width: 0; }
+.modelName { font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
+.modelMem { color: var(--text-muted); font-size: var(--fs-xs); }
+
+.sell { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text); }
+.sellBasis { display: block; color: var(--text-muted); font-size: var(--fs-xs); font-weight: 400; }
+
+.slot { min-width: 0; font-size: var(--fs-sm); }
+.slotPrice { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text); }
+.slotVendor {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.slotEmpty { color: var(--text-muted); }
+
+.tag {
+  display: inline-block;
+  margin-left: var(--space-1);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--surface-bg);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+.tagQuote { color: var(--brand); }
+
+.date { color: var(--text-muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+
+.open {
+  justify-self: end;
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color var(--duration-fast, 150ms), background var(--duration-fast, 150ms);
+}
+.open:hover { border-color: var(--brand); background: var(--surface-bg); }
+.open:active { transform: translateY(1px); }
+.open:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* 좁은 폭: 판매가와 일자는 모델 칸 아래로 내린다 */
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) repeat(var(--slots), minmax(0, 1fr)) auto;
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+  .sell, .date, .headSell, .headDate { display: none; }
+  .mobileSell { display: block; }
+}
+@media (min-width: 641px) {
+  .mobileSell { display: none; }
+}
+
+/* 상세 창 */
+.pHeading { margin: 0 0 var(--space-2); font-size: var(--fs-sm); font-weight: 700; color: var(--text); }
+.pVendor { font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.pNum { font-variant-numeric: tabular-nums; white-space: nowrap; }

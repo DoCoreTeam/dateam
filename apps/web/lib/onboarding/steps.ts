@@ -95,7 +95,7 @@ const MAIN_SEQUENCE: OnboardingSequence = {
     },
     {
       key: 'gpu-prices',
-      route: '/pricing/gpu',
+      route: '/pricing/gpu/manage',
       routeQuery: 'tab=board',
       element: '.gpu-pricing-root',
       title: 'GPU 가격표를 확인해요',
@@ -106,7 +106,7 @@ const MAIN_SEQUENCE: OnboardingSequence = {
     },
     {
       key: 'done',
-      route: '/pricing/gpu',
+      route: '/pricing/gpu/manage',
       title: '준비 완료 🎉',
       description:
         '핵심 화면을 모두 둘러봤어요. 더 궁금한 기능은 사이드바의 "온보딩 다시 하기"로 언제든 다시 볼 수 있습니다.',
@@ -137,11 +137,11 @@ const AI_SEQUENCE: OnboardingSequence = {
 /** P2 — GPU 가격 확인 선택형 시퀀스. */
 const GPU_SEQUENCE: OnboardingSequence = {
   key: 'gpu',
-  entryRoute: '/pricing/gpu?tab=board',
+  entryRoute: '/pricing/gpu/manage?tab=board',
   steps: [
     {
       key: 'gpu-prices',
-      route: '/pricing/gpu',
+      route: '/pricing/gpu/manage',
       routeQuery: 'tab=board',
       element: '.gpu-pricing-root',
       title: 'GPU 가격표를 확인해요',

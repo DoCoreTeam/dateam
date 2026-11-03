@@ -1,0 +1,46 @@
+// GPU 한 장 화면(/pricing/gpu) 문구 — 있는 말은 GPU_TERMS 에서 가져온다
+import { GPU_TERMS } from './terms.ts'
+import { ACTION } from '../terms/action.ts'
+
+export const BOARD_COPY = {
+  title: 'GPU 관리',
+  eyebrow: '가격정책',
+  basis: (fxKrw: string, fxDate: string | null) =>
+    `원화 · 1장 1시간 · 부가세 별도 · 환율 ${fxKrw}${fxDate ? ` (${fxDate} 수출입은행)` : ''}`,
+  manageLink: '견적 입력과 검토',
+  colModel: GPU_TERMS.model,
+  colSell: GPU_TERMS.sellPrice,
+  colVendor: (rank: number) => `${rank}위`,
+  colLatest: '최근 일자',
+  openAll: (n: number) => `전체 ${n}곳`,
+  openEmpty: '열기',
+  sellByMargin: (pct: number) => `최저가 +${pct}%`,
+  sellByStrategic: '전략가',
+  noPrice: '가격 없음',
+  kindQuote: '견적',
+  kindMarket: '시세',
+  unknownUnit: '단위 모름',
+  emptyTitle: '등록된 GPU 모델이 없습니다',
+  emptyDesc: '견적 입력과 검토 화면에서 모델과 견적을 넣으면 여기에 줄이 생깁니다',
+  loadFailed: GPU_TERMS.loadFailed,
+  // 상세 창
+  panelSell: '판매가 계산',
+  panelSellMargin: (cheapest: string, pct: number, sell: string) => `최저가 ${cheapest} × (1 + ${pct}%) = ${sell}`,
+  panelSellStrategic: (sell: string) => `전략가 ${sell} 를 씁니다`,
+  panelSellNone: '공급사 가격이 없어 판매가를 정할 수 없습니다',
+  strategicLabel: '전략가 (1장 1시간, 원)',
+  strategicHint: (n: number) => `이 줄의 상품 ${n}개에 장수만큼 곱해 저장합니다`,
+  strategicSave: GPU_TERMS.save,
+  strategicClear: `전략가 ${ACTION.delete}`,
+  strategicFailed: '저장하지 못했습니다. 관리자만 바꿀 수 있습니다',
+  panelOffers: (n: number) => `공급사 값 ${n}건`,
+  thVendor: GPU_TERMS.supplier,
+  thKrw: '1장 1시간',
+  thOriginal: '원래 금액',
+  thTerm: '약정',
+  thKind: '구분',
+  thDate: '일자',
+  thSource: '출처',
+  sourceLink: '열기',
+  offersEmpty: '이 모델에 들어온 공급사 값이 없습니다',
+} as const

@@ -16,15 +16,15 @@ export interface FabAction {
 // ── GPU 관리(/pricing/gpu) 전용 컨텍스트 액션 ──
 //   클릭 = 해당 탭 전환 + (등록계열은) 생성 모달 자동 오픈(?create=1). GpuPricingClient가 해석.
 const GPU_ACTIONS: FabAction[] = [
-  { key: 'gpu-intake', label: '가격·견적 입력', href: '/pricing/gpu?tab=intake', icon: Boxes, match: '/pricing/gpu' },
-  { key: 'gpu-supplier', label: '공급사 등록', href: '/pricing/gpu?tab=suppliers&create=1', icon: Building2, match: '/pricing/gpu' },
-  { key: 'gpu-competitor', label: '경쟁사 등록', href: '/pricing/gpu?tab=competitors&create=1', icon: Users, match: '/pricing/gpu' },
-  { key: 'gpu-market', label: '시장가·매핑 등록', href: '/pricing/gpu?tab=market&create=1', icon: BarChart3, match: '/pricing/gpu' },
+  { key: 'gpu-intake', label: '가격·견적 입력', href: '/pricing/gpu/manage?tab=intake', icon: Boxes, match: '/pricing/gpu' },
+  { key: 'gpu-supplier', label: '공급사 등록', href: '/pricing/gpu/manage?tab=suppliers&create=1', icon: Building2, match: '/pricing/gpu' },
+  { key: 'gpu-competitor', label: '경쟁사 등록', href: '/pricing/gpu/manage?tab=competitors&create=1', icon: Users, match: '/pricing/gpu' },
+  { key: 'gpu-market', label: '시장가·매핑 등록', href: '/pricing/gpu/manage?tab=market&create=1', icon: BarChart3, match: '/pricing/gpu' },
 ]
 
 // ── 통합입력(GPU 가격·견적) — 비-GPU 페이지에서도 어디서나 시작 가능 ──
 export const INTAKE_ACTION: FabAction = {
-  key: 'intake', label: '가격·견적 입력', href: '/pricing/gpu?tab=intake', icon: Boxes, match: '/pricing/gpu',
+  key: 'intake', label: '가격·견적 입력', href: '/pricing/gpu/manage?tab=intake', icon: Boxes, match: '/pricing/gpu',
 }
 
 // ── 글로벌 빠른 추가 (기타 페이지) ──

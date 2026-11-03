@@ -441,7 +441,7 @@ export default function SpecsTab() {
       setAddOpen({ name: nm, count: cnt && Number(cnt) > 0 ? cnt : undefined })
       const sp = new URLSearchParams(Array.from(searchParams.entries()))
       sp.delete('newModel'); sp.delete('count')
-      router.replace(`/pricing/gpu?${sp.toString()}`)
+      router.replace(`/pricing/gpu/manage?${sp.toString()}`)
     }
   }, [searchParams, router])
   const [bulkGen, setBulkGen] = useState(false)
