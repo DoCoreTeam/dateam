@@ -26,7 +26,7 @@ export const BOARD_COPY = {
   // 상세 창
   panelSell: '판매가 계산',
   panelSellMargin: (cheapest: string, pct: number, sell: string) => `최저가 ${cheapest} × (1 + ${pct}%) = ${sell}`,
-  panelSellStrategic: (sell: string) => `전략가 ${sell} 를 씁니다`,
+  panelSellStrategic: (sell: string) => `전략가 ${sell} 그대로`,
   panelSellNone: '공급사 가격이 없어 판매가를 정할 수 없습니다',
   strategicLabel: '전략가 (1장 1시간, 원)',
   strategicHint: (n: number) => `이 줄의 상품 ${n}개에 장수만큼 곱해 저장합니다`,

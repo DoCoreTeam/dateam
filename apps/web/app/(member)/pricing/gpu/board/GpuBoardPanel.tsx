@@ -17,7 +17,9 @@ const PANEL_WIDTH_PX = 720
 function originalText(o: BoardOffer): string {
   if (o.original_amount == null) return '-'
   const amount = o.original_amount.toLocaleString('ko-KR', { maximumFractionDigits: 4 })
-  return [amount, o.original_currency, o.original_unit].filter(Boolean).join(' ')
+  // 단위가 통화를 이미 담으면(USD/hr) 통화를 또 적지 않는다
+  const unitHasCurrency = !!o.original_currency && !!o.original_unit?.includes(o.original_currency)
+  return [amount, unitHasCurrency ? null : o.original_currency, o.original_unit].filter(Boolean).join(' ')
 }
 
 // 순서는 board.ts 가 이미 정했다 — 정렬 없는 고정 목록이라 URL 상태를 만들지 않고 표 렌더러만 쓴다
