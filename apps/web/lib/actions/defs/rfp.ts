@@ -38,6 +38,7 @@ export const RFP_DEFS: ActionDef[] = [
   { op: "POST /api/rfp/intake/notice-url", name: "rfp.intake.notice-url", scope: "write", cli: "rfp intake notice-url" },
   { op: "POST /api/rfp/orgs", name: "rfp.org.create", scope: "write", cli: "rfp org create" },
   { op: "POST /api/rfp/profile/draft", name: "rfp.profile.draft", scope: "write", cli: "rfp profile draft" },
+  { op: "POST /api/rfp/profile/draft/upload", name: "rfp.profile.draft-upload", scope: "write", cli: "rfp profile draft-upload" },
   { op: "POST /api/rfp/radar", name: "rfp.radar.create", scope: "write", cli: "rfp radar create" },
   { op: "POST /api/rfp/radar/rules", name: "rfp.radar.rules-add", scope: "write", cli: "rfp radar rules-add" },
   { op: "POST /api/rfp/radar/rules/draft", name: "rfp.radar.rules-draft", scope: "write", cli: "rfp radar rules-draft" },

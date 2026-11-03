@@ -41,9 +41,9 @@
 의존: 없음
 
 ### I02 기능 정의와 생성물
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/lib/actions/defs/rfp.ts, apps/web/lib/actions/generated/, docs/cli/02-기능대응표.md, apps/web/public/openapi.json
+범위: apps/web/lib/actions/defs/rfp.ts, apps/web/lib/actions/generated/, docs/cli/02-기능대응표.md, packages/teamda-cli/src/generated/spec.json
 감사 기준:
 - node scripts/cli-parity-check.mjs 통과
 - 대응표에 rfp.profile.draft-upload 줄이 CLI됨
