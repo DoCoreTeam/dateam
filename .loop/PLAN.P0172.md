@@ -96,7 +96,7 @@
 의존: I05
 
 ### I06 실브라우저 열 단계 확인
-상태: 보류 (ego 공간 20 에 마이크 권한 창이 떠 사용자 조작 전에는 이어 갈 수 없음, 회의노트 경로 한 바퀴와 CRM 경로 만들기까지 확인)
+상태: 통과
 모드: 경량
 범위: .loop/PLAN.P0172.md, apps/web/components/meeting/RecordingPanel.tsx
 감사 기준:

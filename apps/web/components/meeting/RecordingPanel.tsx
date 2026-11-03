@@ -113,7 +113,7 @@ export default function RecordingPanel({ noteId, title, href, onTranscribed }: P
       recState: rec.state, otherRecording: Boolean(busyWithOther),
     })
     try { window.sessionStorage.setItem(key, '1') } catch { /* 위와 같다 */ }
-    window.history.replaceState(window.history.state, '', stripAutoRecordParam(window.location.href))
+    window.history.replaceState(null, '', stripAutoRecordParam(window.location.href))
     if (go) void startRecording()
   }, [noteId, rec.supported, rec.state, busyWithOther, startRecording])
 
