@@ -1,0 +1,291 @@
+// GPU 한 장 화면 계산 SSOT — 모델마다 어디가 제일 싸고 얼마에 팔면 되나
+//
+// 줄 = 모델명 + 장당 메모리, 금액 = 원화 1장 1시간 (부가세 별도, 원본에 구분 근거 없음)
+// 출처 = 확정 견적(cost) + 경쟁사 시세, 같은 공급사에 둘 다 있으면 견적
+// 공급사 칸 수는 폭으로만 정해진다 (supplierSlotCount), 공급사 수는 열 정의에 닿지 않는다
+// 화면(/pricing/gpu)과 창구(GET /api/pricing/gpu/board, teamda gpu board list)가 이 파일 하나를 지난다
+
+import { normalizeTerm, termLabel } from './term.ts'
+
+export interface BoardProductIn {
+  id: string
+  model_name: string
+  memory: string | null
+  gpu_count: number | null
+  strategic_price_krw: number | string | null
+}
+
+export interface BoardQuoteIn {
+  id: string
+  product_id: string
+  supplier_name: string | null
+  unit_price_usd: number | string | null
+  per_gpu_usd: number | string | null
+  gpu_count: number | null
+  original_currency: string | null
+  original_price: number | string | null
+  original_unit: string | null
+  term: string | null
+  received_at: string | null
+  created_at: string | null
+  price_type: string | null
+  source_format: string | null
+}
+
+export interface BoardMarketIn {
+  id: string
+  product_id: string
+  competitor_name: string | null
+  price_usd: number | string | null
+  obs_currency: string | null
+  obs_amount: number | string | null
+  obs_gpu_count: number | null
+  obs_pricing_unit: string | null
+  observed_at: string | null
+  recorded_at: string | null
+  source_url: string | null
+}
+
+export interface BoardInput {
+  products: BoardProductIn[]
+  quotes: BoardQuoteIn[]
+  market: BoardMarketIn[]
+  margin_pct: number
+  usd_krw: number
+  fx_date: string | null
+}
+
+export type OfferKind = 'quote' | 'market'
+
+export interface BoardOffer {
+  id: string
+  vendor: string
+  kind: OfferKind
+  /** 원화 1장 1시간. null = 단위 모름 (순위 밖) */
+  krw: number | null
+  original_amount: number | null
+  original_currency: string | null
+  original_unit: string | null
+  gpu_count: number
+  term: string
+  term_label: string
+  date: string | null
+  source_url: string | null
+}
+
+export type SellBasis = 'strategic' | 'margin'
+
+export interface BoardRow {
+  key: string
+  model: string
+  memory_per_gpu_gb: number | null
+  products: Array<{ id: string; gpu_count: number; strategic_price_krw: number | null }>
+  /** 공급사마다 가장 싼 값 하나, 싼 순 (같으면 최근 것 먼저). 표 칸은 이 앞에서 N개 */
+  vendors: BoardOffer[]
+  /** 그 줄의 값 전부, 싼 순, 단위 모름은 맨 아래. 상세 창 */
+  offers: BoardOffer[]
+  cheapest_krw: number | null
+  sell_krw: number | null
+  sell_basis: SellBasis | null
+  latest_date: string | null
+}
+
+export interface Board {
+  rows: BoardRow[]
+  margin_pct: number
+  usd_krw: number
+  fx_date: string | null
+}
+
+/** 표 고정 열(모델, 판매가, 최근 일자, 단추)이 차지하는 폭 */
+export const BOARD_FIXED_WIDTH_PX = 520
+/** 공급사 칸 하나의 최소 폭 */
+export const BOARD_SLOT_MIN_PX = 150
+
+/** 표 폭으로 공급사 칸 수를 정한다. 공급사 수는 받지 않는다 */
+export function supplierSlotCount(tableWidthPx: number): number {
+  const free = tableWidthPx - BOARD_FIXED_WIDTH_PX
+  return Math.max(1, Math.floor(free / BOARD_SLOT_MIN_PX))
+}
+
+function num(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
+/** 장당 메모리 GB — memory 칸은 구성 총 메모리라 장수로 나눈다 (pricing.ts propKeyOf 와 같은 셈) */
+export function memoryPerGpuGb(memory: string | null, gpuCount: number | null): number | null {
+  const total = parseFloat((memory ?? '').replace(/[^0-9.]/g, ''))
+  if (!Number.isFinite(total) || total <= 0) return null
+  const count = Math.max(1, Number(gpuCount) || 1)
+  return Math.round((total / count) * 10) / 10
+}
+
+export function rowKeyOf(p: Pick<BoardProductIn, 'model_name' | 'memory' | 'gpu_count'>): string {
+  return `${p.model_name.trim()}|${memoryPerGpuGb(p.memory, p.gpu_count) ?? ''}`
+}
+
+/** 공급사 이름 비교용 — 「konst tech」와 「Konsttech」를 같은 곳으로 본다 */
+export function vendorKeyOf(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9가-힣]/g, '')
+}
+
+const isKrwHourly = (currency: string | null, unit: string | null) =>
+  (currency ?? '').toUpperCase() === 'KRW' && /hr|hour|시간/i.test(unit ?? '')
+
+function quoteKrw(q: BoardQuoteIn, usdKrw: number): number | null {
+  if (!q.original_unit && !q.original_currency) return null
+  const count = Math.max(1, Number(q.gpu_count) || 1)
+  const original = num(q.original_price)
+  if (isKrwHourly(q.original_currency, q.original_unit) && original != null) {
+    return Math.round(original / count)
+  }
+  const perGpu = num(q.per_gpu_usd) ?? (num(q.unit_price_usd) != null ? (num(q.unit_price_usd) as number) / count : null)
+  return perGpu == null ? null : Math.round(perGpu * usdKrw)
+}
+
+function marketKrw(m: BoardMarketIn, usdKrw: number): number | null {
+  if (!m.obs_pricing_unit) return null
+  const amount = num(m.obs_amount)
+  const count = Math.max(1, Number(m.obs_gpu_count) || 1)
+  if (isKrwHourly(m.obs_currency, m.obs_pricing_unit) && amount != null) {
+    return Math.round(amount / count)
+  }
+  const usd = num(m.price_usd)
+  return usd == null ? null : Math.round(usd * usdKrw)
+}
+
+function quoteOffer(q: BoardQuoteIn, usdKrw: number): BoardOffer {
+  const term = normalizeTerm(q.term)
+  return {
+    id: q.id,
+    vendor: q.supplier_name?.trim() || '',
+    kind: 'quote',
+    krw: quoteKrw(q, usdKrw),
+    original_amount: num(q.original_price),
+    original_currency: q.original_currency,
+    original_unit: q.original_unit,
+    gpu_count: Math.max(1, Number(q.gpu_count) || 1),
+    term,
+    term_label: termLabel(term),
+    date: q.received_at ?? q.created_at,
+    source_url: null,
+  }
+}
+
+function marketOffer(m: BoardMarketIn, usdKrw: number): BoardOffer {
+  return {
+    id: m.id,
+    vendor: m.competitor_name?.trim() || '',
+    kind: 'market',
+    krw: marketKrw(m, usdKrw),
+    original_amount: num(m.obs_amount),
+    original_currency: m.obs_currency,
+    original_unit: m.obs_pricing_unit,
+    gpu_count: Math.max(1, Number(m.obs_gpu_count) || 1),
+    term: 'on_demand',
+    term_label: termLabel('on_demand'),
+    date: m.observed_at ?? m.recorded_at,
+    source_url: m.source_url,
+  }
+}
+
+/** 싼 순, 같으면 최근 것 먼저, 단위 모름은 맨 아래 */
+export function compareOffers(a: BoardOffer, b: BoardOffer): number {
+  if (a.krw == null && b.krw == null) return (b.date ?? '').localeCompare(a.date ?? '')
+  if (a.krw == null) return 1
+  if (b.krw == null) return -1
+  if (a.krw !== b.krw) return a.krw - b.krw
+  return (b.date ?? '').localeCompare(a.date ?? '')
+}
+
+/** 같은 공급사에 견적이 있으면 그 공급사의 시세를 뺀다 */
+function preferQuotes(offers: BoardOffer[]): BoardOffer[] {
+  const quoted = new Set(offers.filter((o) => o.kind === 'quote').map((o) => vendorKeyOf(o.vendor)))
+  return offers.filter((o) => o.kind === 'quote' || !quoted.has(vendorKeyOf(o.vendor)))
+}
+
+/** 공급사마다 가장 싼 값 하나 (단위 모름은 칸에 안 올림) */
+function bestPerVendor(sorted: BoardOffer[]): BoardOffer[] {
+  const seen = new Set<string>()
+  const out: BoardOffer[] = []
+  for (const o of sorted) {
+    if (o.krw == null) continue
+    const k = vendorKeyOf(o.vendor)
+    if (seen.has(k)) continue
+    seen.add(k)
+    out.push(o)
+  }
+  return out
+}
+
+/** 판매가 — 전략가(구성 총액)를 장수로 나눈 1장 값이 먼저, 장수가 적은 상품의 값을 쓴다 */
+export function sellPriceOf(
+  products: BoardRow['products'],
+  cheapestKrw: number | null,
+  marginPct: number,
+): { sell_krw: number | null; sell_basis: SellBasis | null } {
+  const strategic = products
+    .filter((p) => p.strategic_price_krw != null && p.strategic_price_krw > 0)
+    .sort((a, b) => a.gpu_count - b.gpu_count)[0]
+  if (strategic) {
+    return { sell_krw: Math.round((strategic.strategic_price_krw as number) / strategic.gpu_count), sell_basis: 'strategic' }
+  }
+  if (cheapestKrw == null) return { sell_krw: null, sell_basis: null }
+  return { sell_krw: Math.round(cheapestKrw * (1 + marginPct / 100)), sell_basis: 'margin' }
+}
+
+function latestOf(offers: BoardOffer[]): string | null {
+  return offers.reduce<string | null>((acc, o) => (o.date && (!acc || o.date > acc) ? o.date : acc), null)
+}
+
+export function buildBoard(input: BoardInput): Board {
+  const usdKrw = input.usd_krw
+  const keyByProduct = new Map<string, string>()
+  const rowsByKey = new Map<string, { model: string; mem: number | null; products: BoardRow['products']; offers: BoardOffer[] }>()
+
+  for (const p of input.products) {
+    const key = rowKeyOf(p)
+    keyByProduct.set(p.id, key)
+    const row = rowsByKey.get(key) ?? { model: p.model_name.trim(), mem: memoryPerGpuGb(p.memory, p.gpu_count), products: [], offers: [] }
+    row.products.push({ id: p.id, gpu_count: Math.max(1, Number(p.gpu_count) || 1), strategic_price_krw: num(p.strategic_price_krw) })
+    rowsByKey.set(key, row)
+  }
+
+  // 공시가(list)는 원가가 아니고, market_link 견적은 시세를 베낀 것이라 시세와 겹친다
+  for (const q of input.quotes) {
+    if (q.price_type === 'list' || q.source_format === 'market_link') continue
+    const row = rowsByKey.get(keyByProduct.get(q.product_id) ?? '')
+    if (row) row.offers.push(quoteOffer(q, usdKrw))
+  }
+  for (const m of input.market) {
+    const row = rowsByKey.get(keyByProduct.get(m.product_id) ?? '')
+    if (row) row.offers.push(marketOffer(m, usdKrw))
+  }
+
+  const rows: BoardRow[] = [...rowsByKey.entries()].map(([key, r]) => {
+    const offers = preferQuotes(r.offers).sort(compareOffers)
+    const vendors = bestPerVendor(offers)
+    const cheapest = vendors[0]?.krw ?? null
+    return {
+      key,
+      model: r.model,
+      memory_per_gpu_gb: r.mem,
+      products: r.products,
+      vendors,
+      offers,
+      cheapest_krw: cheapest,
+      ...sellPriceOf(r.products, cheapest, input.margin_pct),
+      latest_date: latestOf(offers),
+    }
+  })
+
+  rows.sort((a, b) => a.model.localeCompare(b.model, 'en', { numeric: true }) || (a.memory_per_gpu_gb ?? 0) - (b.memory_per_gpu_gb ?? 0))
+  return { rows, margin_pct: input.margin_pct, usd_krw: usdKrw, fx_date: input.fx_date }
+}
+
+/** 전략가 1장 값을 그 줄 상품마다 구성 총액으로 편다 (기존 창구는 상품 단위 총액을 받는다) */
+export function strategicItemsFor(row: Pick<BoardRow, 'products'>, perGpuKrw: number): Array<{ product_id: string; strategic_price_krw: number }> {
+  return row.products.map((p) => ({ product_id: p.id, strategic_price_krw: Math.round(perGpuKrw * p.gpu_count) }))
+}
