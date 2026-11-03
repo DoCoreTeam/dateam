@@ -21,7 +21,7 @@ import {
   SYNC_STATUS_META, SYNC_STATUS_ORDER, type SyncStatusKey,
   stuckRecordingLabel, UPLOAD_NOW_LABEL, ADOPT_FAILED_DETAIL,
 } from './ui/sync-status.ts'
-import { summarizeLocalWaiting } from './sync-parts.ts'
+import { summarizeLocalWaiting, uploadOnePart } from './sync-parts.ts'
 import { STATUS_COLORS } from '../tokens/status-colors.ts'
 
 const STORE = readFileSync(new URL('./blob-store.ts', import.meta.url), 'utf8')
@@ -57,6 +57,30 @@ test('★ 기기에 먼저 쓰고 나서 올린다 — 순서가 뒤집히면 �
   assert.ok(putAt > 0, '로컬 보관을 안 부른다')
   assert.ok(uploadAt > 0, '업로드를 안 부른다')
   assert.ok(putAt < uploadAt, '업로드가 로컬 보관보다 먼저다 — 실패하면 그 구간이 사라진다')
+})
+
+test('★ 같은 구간을 동시에 여러 번 올려도 요청은 한 번이다 — 겹치면 502 와 주인 없는 파일이 남는다', async () => {
+  const realFetch = globalThis.fetch
+  let calls = 0
+  let release: () => void = () => {}
+  const gate = new Promise<void>((r) => { release = r })
+  globalThis.fetch = (async () => {
+    calls += 1
+    await gate
+    return new Response('{}', { status: 200 })
+  }) as typeof fetch
+  try {
+    const blob = new Blob(['x'])
+    const jobs = [uploadOnePart('n1', 0, 3, blob), uploadOnePart('n1', 0, 3, blob), uploadOnePart('n1', 0, 3, blob)]
+    const other = uploadOnePart('n1', 1, 3, blob)
+    release()
+    await Promise.all([...jobs, other])
+    assert.equal(calls, 2, '구간 0 은 한 번, 구간 1 은 따로 한 번이어야 한다')
+    await uploadOnePart('n1', 0, 3, blob)
+    assert.equal(calls, 3, '끝난 구간은 다시 부르면 다시 올린다 (실패 뒤 재시도 길)')
+  } finally {
+    globalThis.fetch = realFetch
+  }
 })
 
 test('★ 올린 뒤에만 지운다 — 실패했는데 지우면 그게 유실이다', () => {

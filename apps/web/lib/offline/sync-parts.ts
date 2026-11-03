@@ -42,8 +42,28 @@ export function summarizeLocalWaiting(
   return { count: local.length, totalSec: local.reduce((sum, p) => sum + (Number(p.durationSec) || 0), 0) }
 }
 
+/**
+ * 지금 올라가는 중인 구간. 같은 구간을 또 부르면 새 요청 대신 그 약속을 돌려준다
+ *
+ * 녹음 중 경로는 기기에 먼저 쓰고 올린다. 그 사이 연결 줄이 기기 목록을 훑으면 같은 구간을 또 올렸다.
+ * 실측 2026-11-03: 녹음을 끝내자 구간 0 이 세 번 동시에 나가 둘이 502(행 중복)를 받았고,
+ * 화면에 「올리지 못함」이 떴고 드라이브에는 아무도 못 찾는 파일 둘이 남았다
+ */
+const inFlight = new Map<string, Promise<void>>()
+
 /** 구간 하나 올리기 — 녹음 중 경로와 복구 경로가 **같은 요청**을 쓴다 */
-export async function uploadOnePart(
+export function uploadOnePart(
+  noteId: string, partIdx: number, durationSec: number, blob: Blob,
+): Promise<void> {
+  const key = `${noteId}:${partIdx}`
+  const running = inFlight.get(key)
+  if (running) return running
+  const job = postPart(noteId, partIdx, durationSec, blob).finally(() => inFlight.delete(key))
+  inFlight.set(key, job)
+  return job
+}
+
+async function postPart(
   noteId: string, partIdx: number, durationSec: number, blob: Blob,
 ): Promise<void> {
   const form = new FormData()
