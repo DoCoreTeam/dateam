@@ -36,6 +36,31 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.98',
+    date: '2026-11-03',
+    title: '어디서 「녹음 시작」을 눌러도 회의가 바로 시작돼요',
+    items: [
+      {
+        kind: 'improve',
+        emoji: '🎙️',
+        headline: '녹음 시작 한 번이면 미팅과 회의 기록이 함께 열려요',
+        detail: '회의노트, 딜, 캘린더 어디서 눌러도 미팅과 회의노트가 만들어지고, 회의 기록 칸이 열린 채로 녹음이 바로 돌아요. 딜 화면에서 시작하면 그 딜에 붙어요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '📝',
+        headline: '연결이 없어도 녹음하면서 기록을 적을 수 있어요',
+        detail: '연결이 끊긴 채 녹음을 시작하면 녹음 바 아래에 기록 칸이 열려요. 적은 글은 이 기기에 남았다가 연결되면 회의노트 본문으로 올라가요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '📤',
+        headline: '녹음을 끝낼 때 「올리지 못함」이 잘못 뜨던 것을 고쳤어요',
+        detail: '같은 녹음 구간을 한꺼번에 여러 번 올리다 일부가 실패로 보였어요. 이제 한 구간은 한 번만 올라가요.',
+      },
+    ],
+  },
+  {
     version: '0.11.93',
     date: '2026-10-27',
     title: 'teamda 0.1.2 에서 설정 명령과 GPU 견적 계산이 돌아요',
