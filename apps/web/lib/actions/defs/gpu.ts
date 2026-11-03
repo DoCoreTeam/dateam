@@ -5,6 +5,7 @@ import type { ActionDef } from '../types.ts'
 export const GPU_DEFS: ActionDef[] = [
   { op: "GET /api/pricing/gpu/audit", name: "gpu.audit.list", scope: "read", cli: "gpu audit list" },
   { op: "GET /api/pricing/gpu/availability", name: "gpu.availability.list", scope: "read", cli: "gpu availability list" },
+  { op: "GET /api/pricing/gpu/board", name: "gpu.board.list", scope: "read", cli: "gpu board list", summary: "GPU 한 장 화면, 모델마다 공급사 값 전부(원화 1장 1시간)와 판매가" },
   { op: "GET /api/pricing/gpu/cockpit", name: "gpu.cockpit.list", scope: "read", cli: "gpu cockpit list" },
   { op: "GET /api/pricing/gpu/competitors", name: "gpu.competitor.list", scope: "read", cli: "gpu competitor list" },
   { op: "GET /api/pricing/gpu/direct-prices", name: "gpu.direct-price.list", scope: "read", cli: "gpu direct-price list" },

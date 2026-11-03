@@ -60,7 +60,7 @@
 의존: 없음
 
 ### I02 조회 창구와 CLI
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/api/pricing/gpu/board/route.ts (신규), apps/web/lib/actions/defs/gpu.ts, 생성물(openapi.json, CLI), docs/cli/02-기능대응표.md, apps/web/lib/gpu/board-parity.test.ts (신규)
 감사 기준:

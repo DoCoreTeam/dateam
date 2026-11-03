@@ -44856,6 +44856,44 @@
     "x-query-complete": true
    }
   },
+  "/pricing/gpu/board": {
+   "get": {
+    "operationId": "gpu.board.list",
+    "summary": "GPU 한 장 화면, 모델마다 공급사 값 전부(원화 1장 1시간)와 판매가",
+    "tags": [
+     "gpu"
+    ],
+    "x-cli": "gpu board list",
+    "x-scope": "read",
+    "x-kind": "route",
+    "x-internal": "/api/pricing/gpu/board",
+    "parameters": [],
+    "responses": {
+     "200": {
+      "description": "성공, data 는 화면이 받는 값과 같음"
+     },
+     "202": {
+      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-query-complete": true
+   }
+  },
   "/pricing/gpu/cockpit": {
    "get": {
     "operationId": "gpu.cockpit.list",
@@ -59628,5 +59666,5 @@
    }
   }
  },
- "x-spec-hash": "bd1595cb1a26a27a"
+ "x-spec-hash": "290a8ffafca45eb4"
 }
