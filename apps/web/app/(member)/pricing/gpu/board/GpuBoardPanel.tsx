@@ -9,6 +9,7 @@ import SlidePanel from '@/components/ui/SlidePanel'
 import ListSurface from '@/components/ui/list/ListSurface'
 import type { ColumnDef } from '@/components/ui/list/types'
 import { resolveListQuery } from '@/lib/ui/list-query'
+import StrategicEditor from './StrategicEditor'
 import s from './board.module.css'
 
 const PANEL_WIDTH_PX = 720
@@ -52,10 +53,13 @@ export function OfferTable({ offers }: { offers: BoardOffer[] }) {
   )
 }
 
-export default function GpuBoardPanel({ row, onClose }: { row: BoardRow; onClose: () => void }) {
+export default function GpuBoardPanel({ row, marginPct, isAdmin, onClose, onSaved }: {
+  row: BoardRow; marginPct: number; isAdmin: boolean; onClose: () => void; onSaved: () => void
+}) {
   const mem = row.memory_per_gpu_gb == null ? '' : ` ${row.memory_per_gpu_gb}GB`
   return (
     <SlidePanel isOpen onClose={onClose} title={`${row.model}${mem}`} width={PANEL_WIDTH_PX}>
+      <StrategicEditor key={`${row.key}:${row.sell_basis}:${row.sell_krw}`} row={row} marginPct={marginPct} isAdmin={isAdmin} onSaved={onSaved} />
       <h3 className={s.pHeading}>{C.panelOffers(row.offers.length)}</h3>
       <OfferTable offers={row.offers} />
     </SlidePanel>

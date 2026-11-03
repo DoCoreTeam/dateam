@@ -114,3 +114,10 @@
 .pHeading { margin: 0 0 var(--space-2); font-size: var(--fs-sm); font-weight: 700; color: var(--text); }
 .pVendor { font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
 .pNum { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pSection { margin-bottom: var(--space-5); padding-bottom: var(--space-4); border-bottom: 1px solid var(--border); }
+.pSellLine { margin: 0 0 var(--space-3); color: var(--text); font-variant-numeric: tabular-nums; }
+.pStrategic { display: grid; gap: var(--space-2); }
+.pLabel { display: grid; gap: var(--space-1); font-size: var(--fs-sm); color: var(--text-muted); max-width: 280px; }
+.pHint { margin: 0; color: var(--text-muted); font-size: var(--fs-xs); }
+.pActions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.pError { margin: 0; color: var(--danger); font-size: var(--fs-sm); }

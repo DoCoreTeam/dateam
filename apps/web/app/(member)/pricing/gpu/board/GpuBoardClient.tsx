@@ -14,6 +14,7 @@ import PageHeader from '@/components/ui/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
+import MarginControl from '@/components/pricing/gpu/MarginControl'
 import GpuBoardPanel from './GpuBoardPanel'
 import s from './board.module.css'
 
@@ -104,7 +105,7 @@ function BoardTable({ board, slots, onOpen }: { board: Board; slots: number; onO
   )
 }
 
-export default function GpuBoardClient({ isAdmin: _isAdmin }: { isAdmin: boolean }) {
+export default function GpuBoardClient({ isAdmin }: { isAdmin: boolean }) {
   const { data, error, isLoading, mutate } = useSWR<Board>(BOARD_API, fetcher)
   const { ref, slots } = useSlotCount()
   const [openKey, setOpenKey] = useState<string | null>(null)
@@ -115,6 +116,7 @@ export default function GpuBoardClient({ isAdmin: _isAdmin }: { isAdmin: boolean
       <PageHeader className="page-header--compact" eyebrow={C.eyebrow} title={C.title} />
       <div className={s.basis}>
         {data && <span>{C.basis(fmtKRW(data.usd_krw), data.fx_date)}</span>}
+        {data && <MarginControl marginPct={data.margin_pct} isAdmin={isAdmin} onSaved={() => void mutate()} />}
         <Link href={MANAGE_HREF} className={s.basisLink}>{C.manageLink}</Link>
       </div>
       <div ref={ref} className={s.wrap} style={{ '--slots': slots } as CSSProperties}>
@@ -129,7 +131,8 @@ export default function GpuBoardClient({ isAdmin: _isAdmin }: { isAdmin: boolean
         )}
       </div>
       {openRow && (
-        <GpuBoardPanel row={openRow} onClose={() => setOpenKey(null)} />
+        <GpuBoardPanel row={openRow} marginPct={data?.margin_pct ?? 0} isAdmin={isAdmin}
+          onClose={() => setOpenKey(null)} onSaved={() => void mutate()} />
       )}
     </div>
   )
