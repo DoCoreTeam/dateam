@@ -36,6 +36,32 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.101',
+    date: '2026-11-03',
+    title: 'GPU 관리가 한 장에서 「어디가 제일 싸고 얼마에 팔면 되는지」를 보여 줘요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📊',
+        headline: '모델마다 제일 싼 공급사와 판매가를 한 줄에서 봐요',
+        detail: '받은 견적과 경쟁사 시세를 원화 1장 1시간으로 맞춰 싼 순으로 세워요. 화면이 넓으면 공급사 칸이 늘고, 줄 끝 단추를 누르면 그 모델의 공급사 전부가 창 하나에 나와요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🏷️',
+        headline: '마진과 전략가를 그 자리에서 고쳐요',
+        detail: '위쪽 마진을 바꾸면 판매가가 바로 바뀌고, 상세 창에서 전략가를 넣거나 삭제할 수 있어요. 견적 입력과 검토는 위쪽 링크로 그대로 가요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '⌨️',
+        headline: 'teamda gpu board list 로 같은 표를 받아요',
+        detail: 'CLI 와 API 에서 화면과 같은 값(공급사 값 전부와 판매가)을 받을 수 있어요.',
+        developer: true,
+      },
+    ],
+  },
+  {
     version: '0.11.98',
     date: '2026-11-03',
     title: '어디서 「녹음 시작」을 눌러도 회의가 바로 시작돼요',
