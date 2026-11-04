@@ -39,7 +39,7 @@
 의존: 없음
 
 ### I02 약정 표기와 업체명 표기를 정리한다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/gpu/term.ts, apps/web/lib/gpu/term.test.ts, apps/web/lib/gpu/board.ts, apps/web/lib/gpu/board.test.ts
 감사 기준:
@@ -49,7 +49,7 @@
 의존: 없음
 
 ### I03 화면 구조: 안내, 읽는 법, 칸 위계, 값 있는 모델 먼저, 고정 머리줄, 줄 단추, 모바일 카드
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/(member)/pricing/gpu/board/GpuBoardClient.tsx, apps/web/app/(member)/pricing/gpu/board/board.module.css, apps/web/lib/gpu/board-copy.ts, apps/web/app/(member)/pricing/gpu/board/EntryPanel.tsx
 감사 기준:

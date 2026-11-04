@@ -1,119 +1,160 @@
-/* GPU 한 장 화면 — 열 수는 폭으로만 정한다 (lib/gpu/board.ts supplierSlotCount) */
+/* GPU 한 장 화면 — 열 수는 폭으로만 정한다 (lib/gpu/board.ts supplierSlotCount)
+   글자: 표 안은 14px 이상(--fs-base), 금액은 크게, 업체와 표기는 한 단계 작게 (14px 밑으로 안 내림)
+   강조색은 --brand 하나, 상태색은 판단에 필요한 곳(미반영, 적정판매가 밑)에만 */
 
-.basis {
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  margin: 0 0 var(--space-4);
+  color: var(--text);
+  font-size: var(--fs-base);
+}
+.stepsLabel { color: var(--text-muted); margin-right: var(--space-1); }
+.stepArrow { color: var(--text-faint); margin-right: var(--space-2); }
+
+.toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2) var(--space-4);
-  margin-bottom: var(--space-3);
-  color: var(--text-muted);
-  font-size: var(--fs-sm);
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-2);
 }
-
-.basisLink {
+.manageLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-h);
   margin-left: auto;
   color: var(--brand);
+  font-size: var(--fs-base);
   font-weight: 600;
   text-decoration: none;
 }
-.basisLink:hover { text-decoration: underline; }
-.basisLink:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: var(--radius-sm); }
+.manageLink:hover { text-decoration: underline; }
+.manageLink:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
+.basis { margin: 0 0 var(--space-5); color: var(--text-muted); font-size: var(--fs-base); }
+
+.readHow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-3);
+  font-size: var(--fs-base);
+  color: var(--text);
+}
+.readHow p { margin: 0; flex: 1 1 320px; min-width: 0; }
+
+/* clip 은 스크롤 상자를 만들지 않는다 — hidden 이면 머리줄의 sticky 가 죽는다 */
 .wrap {
   width: 100%;
   min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  overflow: hidden;
+  border-top: var(--hairline) solid var(--border-subtle);
+  overflow: clip;
 }
 
 .row {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.7fr) repeat(var(--slots), minmax(0, 1fr)) minmax(0, 0.8fr) auto;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(0, 0.8fr) repeat(var(--slots), minmax(0, 1fr)) 8.5rem;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--border);
+  column-gap: var(--space-5);
+  padding: var(--space-3) var(--space-2);
+  border-bottom: var(--hairline) solid var(--border);
+  font-size: var(--fs-base);
 }
-.row:first-child { border-top: none; }
 .row:hover:not(.head) { background: var(--surface-bg); }
+.rowEmpty { opacity: 0.55; }
+.rowEmpty:hover, .rowEmpty:focus-within { opacity: 1; }
 
-.head {
+.row.head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+  background: var(--color-surface);
+  border-bottom-color: var(--border-subtle);
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-base);
   font-weight: 600;
-  background: var(--surface-bg);
 }
 
-.model { min-width: 0; }
-.modelName { font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
-.modelMem { color: var(--text-muted); font-size: var(--fs-xs); }
+.model { display: flex; flex-direction: column; min-width: 0; }
+.modelName { font-size: var(--fs-md); font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
+.modelMem { color: var(--text-muted); font-size: var(--fs-base); }
 
-.sell { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text); }
-.sellBasis { display: block; color: var(--text-muted); font-size: var(--fs-xs); font-weight: 400; }
-
-.slot { min-width: 0; font-size: var(--fs-sm); }
-.slotPrice { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text); }
-.slotVendor {
+.num { text-align: right; font-variant-numeric: tabular-nums; min-width: 0; }
+.num > * { display: block; }
+.price { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text); }
+.priceLead { font-variant-numeric: tabular-nums; font-size: var(--fs-lg); font-weight: 700; color: var(--text); }
+.sub {
   display: block;
   color: var(--text-muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-base);
+  font-weight: 400;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.slotEmpty { color: var(--text-muted); }
-
-.tag {
-  display: inline-block;
-  margin-left: var(--space-1);
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-sm);
-  background: var(--surface-bg);
-  color: var(--text-muted);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-}
-.tagQuote { color: var(--brand); }
-.tagOk { color: var(--success); }
-.tagWarn { color: var(--warning); }
-
-.gap { font-weight: 600; }
-.gapAbove { color: var(--text); }
+.subLine { display: flex; flex-wrap: wrap; column-gap: var(--space-1); min-width: 0; color: var(--text-muted); font-size: var(--fs-base); }
+.vendor { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note { flex: none; color: var(--brand); white-space: nowrap; }
+.muted { color: var(--text-muted); }
+.ok { color: var(--success); }
+.warn { color: var(--warning); white-space: normal; }
 .gapBelow { color: var(--danger); }
 
-.date { color: var(--text-muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+.slot { display: flex; flex-direction: column; min-width: 0; padding-left: var(--space-3); border-left: var(--hairline) solid var(--border); }
+.slot .price { font-size: var(--fs-md); }
+.slotHead { padding-left: var(--space-3); }
 
-.open {
-  justify-self: end;
-  min-height: 32px;
+.actionCell { justify-self: end; }
+.action {
+  min-height: var(--control-h);
   padding: 0 var(--space-3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
+  border: var(--hairline) solid var(--border-subtle);
+  border-radius: var(--radius);
+  background: var(--color-surface);
   color: var(--text);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-base);
+  font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
-  transition: border-color var(--duration-fast, 150ms), background var(--duration-fast, 150ms);
+  transition: border-color var(--duration-fast), color var(--duration-fast);
 }
-.open:hover { border-color: var(--brand); background: var(--surface-bg); }
-.open:active { transform: translateY(1px); }
-.open:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.action:hover { border-color: var(--brand); color: var(--brand); }
+.action:active { transform: translateY(1px); }
+.action:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
-/* 좁은 폭: 판매가는 모델 칸 아래로 내리고 적정판매가 차이 일자는 상세 창에서 본다 */
-@media (max-width: 640px) {
-  .row {
-    grid-template-columns: minmax(0, 1fr) repeat(var(--slots), minmax(0, 1fr)) auto;
-    gap: var(--space-2);
-    padding: var(--space-3);
-  }
-  .sell, .date, .headSell, .headDate { display: none; }
-  .mobileSell { display: block; }
+/* 상세 창과 연결 창이 함께 쓰는 것 */
+.basisLink { color: var(--brand); font-weight: 600; text-decoration: none; }
+.basisLink:hover { text-decoration: underline; }
+.sell { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--text); }
+.slotEmpty { color: var(--text-muted); }
+.date { color: var(--text-muted); font-size: var(--fs-base); font-variant-numeric: tabular-nums; }
+.tag { color: var(--text-muted); font-size: var(--fs-base); font-weight: 500; }
+.tagQuote { color: var(--brand); }
+
+/* 좁은 폭: 표 대신 카드 */
+.cards { display: none; margin: 0; padding: 0; list-style: none; }
+.card {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+  border-bottom: var(--hairline) solid var(--border);
 }
-@media (min-width: 641px) {
-  .mobileSell { display: none; }
+.cardHead { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
+.cardFacts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3); margin: 0; }
+.cardFacts dt { color: var(--text-muted); font-size: var(--fs-base); }
+.cardFacts dd { margin: 0; min-width: 0; }
+.card .action { width: 100%; }
+
+@media (max-width: 640px) {
+  .table { display: none; }
+  .cards { display: block; }
 }
 
 /* 상세 창 */
@@ -124,7 +165,7 @@
 .pSellLine { margin: 0 0 var(--space-3); color: var(--text); font-variant-numeric: tabular-nums; }
 .pStrategic { display: grid; gap: var(--space-2); }
 .pLabel { display: grid; gap: var(--space-1); font-size: var(--fs-sm); color: var(--text-muted); max-width: 280px; }
-.pHint { margin: 0; color: var(--text-muted); font-size: var(--fs-xs); }
+.pHint { margin: 0; color: var(--text-muted); font-size: var(--fs-base); }
 .pActions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .pError { margin: 0; color: var(--danger); font-size: var(--fs-sm); }
 
@@ -138,7 +179,7 @@
   gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
   border-top: 1px solid var(--border);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-base);
 }
 .gRow:first-child { border-top: none; }
 .gLink { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
@@ -172,3 +213,12 @@
   .eRow > :nth-child(3), .eRow > :nth-child(4), .eRow > :nth-child(11) { grid-column: 1 / -1; }
   .eMsg { grid-column: 1 / -1; }
 }
+
+/* 마진 조절은 공용 부품이라 이 화면에서만 누르는 곳을 44px 로 키운다 */
+.toolbar :global(.gpu-margin-ctrl), .toolbar :global(.gpu-margin-ctrl-lbl) { font-size: var(--fs-base); }
+.toolbar :global(.gpu-margin-preset),
+.toolbar :global(.gpu-margin-stepper) button,
+.toolbar :global(.gpu-margin-input) { min-height: var(--control-h); min-width: var(--control-h); font-size: var(--fs-base); }
+
+/* 한국어는 낱말 중간에서 줄을 바꾸지 않는다 */
+.keep, .steps, .readHow, .basis { word-break: keep-all; overflow-wrap: anywhere; }

@@ -37,6 +37,12 @@ interface Draft {
   source: string
 }
 
+/** 표의 「시세 추가」가 그 모델을 미리 채워 연다 */
+export interface EntryPreset {
+  kind: 'quote' | 'market'
+  product_id: string
+}
+
 interface SaveResult {
   confirmed: number
   pending: number
@@ -124,15 +130,15 @@ function DraftRow({ d, line, errors, labelOf, search, busy, onChange, onRemove }
 
 const ENTRY_FIELD_ORDER: EntryField[] = ['kind', 'vendor', 'product_id', 'amount', 'currency', 'basis', 'period', 'term', 'received_on', 'source']
 
-export default function EntryPanel({ board, isAdmin, onClose, onSaved }: {
-  board: Board | undefined; isAdmin: boolean; onClose: () => void; onSaved: () => void
+export default function EntryPanel({ board, isAdmin, preset, onClose, onSaved }: {
+  board: Board | undefined; isAdmin: boolean; preset?: EntryPreset; onClose: () => void; onSaved: () => void
 }) {
   const today = kstTodayKey()
   const options = useMemo(() => productOptions(board), [board])
   const labelOf = useMemo(() => new Map(options.map((o) => [o.id, o.label])), [options])
   const search = useMemo(() => searchOf(options), [options])
   const vendors = useMemo(() => [...new Set((board?.rows ?? []).flatMap((r) => r.offers.map((o) => o.vendor)).filter(Boolean))].sort(), [board])
-  const [drafts, setDrafts] = useState<Draft[]>(() => [blankDraft(today)])
+  const [drafts, setDrafts] = useState<Draft[]>(() => [{ ...blankDraft(today), ...preset }])
   const [errors, setErrors] = useState<EntryError[]>([])
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
