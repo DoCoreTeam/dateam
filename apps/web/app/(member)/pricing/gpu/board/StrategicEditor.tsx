@@ -1,6 +1,6 @@
 'use client'
 
-// 상세 창의 적정판매가 계산과 목표 판매가 넣기 지우기
+// 상세 창의 판매가와 적정판매가 계산, 목표 판매가 넣기 지우기
 // 쓰기는 기존 관리자 창구만 부른다: 넣기 POST strategic-price/bulk, 지우기 PATCH strategic-price (null)
 // 서버도 requireAdminApi 로 막는다, 단추를 감추는 것은 보조일 뿐이다
 
@@ -66,6 +66,7 @@ export default function StrategicEditor({ row, marginPct, isAdmin, onSaved }: {
   return (
     <section className={s.pSection}>
       <h3 className={s.pHeading}>{C.panelFair}</h3>
+      <p className={s.pSellLine}>{row.sale_krw != null && row.sale_ser != null ? C.panelSale(fmtKRW(row.sale_krw), row.sale_ser) : C.panelSaleNone}</p>
       <p className={s.pSellLine}>{fairLine(row, marginPct)}</p>
       {isAdmin && (
         <div className={s.pStrategic}>

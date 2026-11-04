@@ -1,6 +1,6 @@
 // GPU 한 장 화면 계산 SSOT — 모델마다 어디가 제일 싸고 얼마에 팔면 되나
 //
-// 말: 원가 = 공급사 견적, 시세 = 경쟁사 값, 적정판매가 = 최저 원가 × (1 + 마진), 목표 판매가 = 우리가 정한 값(칼럼 strategic_price_krw)
+// 말: 판매가 = gcube 사이트 최대 금액, 원가 = 공급사 견적, 시세 = 경쟁사 값, 적정판매가 = 최저 원가 × (1 + 마진), 목표 판매가 = 우리가 정한 값(칼럼 strategic_price_krw)
 //
 // 줄 = 모델명 + 장당 메모리, 금액 = 원화 1장 1시간 (부가세 별도, 원본에 구분 근거 없음)
 // 출처 = 확정 견적(cost) + 경쟁사 시세, 같은 공급사에 둘 다 있으면 견적
@@ -48,8 +48,17 @@ export interface BoardMarketIn {
   source_url: string | null
 }
 
+/** gcube 사이트 상품 중 우리 모델에 이어진 것 (gcube_listings, 구성 전체 1시간 원화) */
+export interface BoardGcubeIn {
+  ser: number
+  product_id: string
+  max_krw: number | string
+  price_changed_at: string | null
+}
+
 export interface BoardInput {
   products: BoardProductIn[]
+  gcube?: BoardGcubeIn[]
   quotes: BoardQuoteIn[]
   market: BoardMarketIn[]
   margin_pct: number
@@ -79,7 +88,7 @@ export interface BoardRow {
   key: string
   model: string
   memory_per_gpu_gb: number | null
-  products: Array<{ id: string; gpu_count: number; strategic_price_krw: number | null }>
+  products: Array<{ id: string; gpu_count: number; strategic_price_krw: number | null; gcube: { ser: number; max_krw: number; price_changed_at: string | null } | null }>
   /** 공급사마다 가장 싼 값 하나, 싼 순 (같으면 최근 것 먼저). 표 칸은 이 앞에서 N개 */
   vendors: BoardOffer[]
   /** 그 줄의 값 전부, 싼 순, 단위 모름은 맨 아래. 상세 창 */
@@ -89,6 +98,13 @@ export interface BoardRow {
   fair_krw: number | null
   /** 목표 판매가 1장 값 (전략가 구성 총액 ÷ 장수, 장수가 적은 상품 것), 없으면 null */
   target_krw: number | null
+  /** 판매가 1장 값 = 이어진 gcube 상품 최대 금액 ÷ 장수 (장수가 적은 상품 것), gcube 미연결이면 null */
+  sale_krw: number | null
+  sale_ser: number | null
+  /** 차이 = 판매가 - 적정판매가, 어느 하나가 없으면 null */
+  gap_krw: number | null
+  /** 목표 판매가가 gcube 판매가와 같은가 (같은 상품의 구성 총액끼리 비교), 비교할 것이 없으면 null */
+  reflected: boolean | null
   latest_date: string | null
 }
 
@@ -99,8 +115,8 @@ export interface Board {
   fx_date: string | null
 }
 
-/** 표 고정 열(모델, 적정판매가, 최근 일자, 단추)이 차지하는 폭 */
-export const BOARD_FIXED_WIDTH_PX = 520
+/** 표 고정 열(모델, 판매가, 적정판매가, 차이, 최근 일자, 단추)이 차지하는 폭 */
+export const BOARD_FIXED_WIDTH_PX = 760
 /** 공급사 칸 하나의 최소 폭 */
 export const BOARD_SLOT_MIN_PX = 150
 
@@ -235,6 +251,20 @@ export function targetPriceOf(products: BoardRow['products']): number | null {
   return set ? Math.round((set.strategic_price_krw as number) / set.gpu_count) : null
 }
 
+/** 판매가 — 이어진 gcube 상품 중 장수가 적은 것, 반영은 그 상품의 목표 판매가 총액과 gcube 최대 금액이 같은가 */
+export function saleOf(products: BoardRow['products'], fairKrw: number | null): Pick<BoardRow, 'sale_krw' | 'sale_ser' | 'gap_krw' | 'reflected'> {
+  const linked = products.filter((p) => p.gcube).sort((a, b) => a.gpu_count - b.gpu_count)[0]
+  if (!linked?.gcube) return { sale_krw: null, sale_ser: null, gap_krw: null, reflected: null }
+  const sale = Math.round(linked.gcube.max_krw / linked.gpu_count)
+  const targeted = products.filter((p) => p.gcube && p.strategic_price_krw != null && p.strategic_price_krw > 0)
+  return {
+    sale_krw: sale,
+    sale_ser: linked.gcube.ser,
+    gap_krw: fairKrw == null ? null : sale - fairKrw,
+    reflected: targeted.length === 0 ? null : targeted.every((p) => Math.round(p.strategic_price_krw as number) === Math.round(p.gcube!.max_krw)),
+  }
+}
+
 /** gcube 는 우리 판매 창구다, 그 값은 원가가 아니라 판매가다 */
 export const OWN_SALES_VENDOR_KEY = 'gcube'
 
@@ -245,13 +275,17 @@ function latestOf(offers: BoardOffer[]): string | null {
 export function buildBoard(input: BoardInput): Board {
   const usdKrw = input.usd_krw
   const keyByProduct = new Map<string, string>()
+  const gcubeByProduct = new Map((input.gcube ?? []).flatMap((g) => {
+    const max = num(g.max_krw)
+    return max == null ? [] : [[g.product_id, { ser: g.ser, max_krw: max, price_changed_at: g.price_changed_at }] as const]
+  }))
   const rowsByKey = new Map<string, { model: string; mem: number | null; products: BoardRow['products']; offers: BoardOffer[] }>()
 
   for (const p of input.products) {
     const key = rowKeyOf(p)
     keyByProduct.set(p.id, key)
     const row = rowsByKey.get(key) ?? { model: p.model_name.trim(), mem: memoryPerGpuGb(p.memory, p.gpu_count), products: [], offers: [] }
-    row.products.push({ id: p.id, gpu_count: Math.max(1, Number(p.gpu_count) || 1), strategic_price_krw: num(p.strategic_price_krw) })
+    row.products.push({ id: p.id, gpu_count: Math.max(1, Number(p.gpu_count) || 1), strategic_price_krw: num(p.strategic_price_krw), gcube: gcubeByProduct.get(p.id) ?? null })
     rowsByKey.set(key, row)
   }
 
@@ -272,6 +306,7 @@ export function buildBoard(input: BoardInput): Board {
     const offers = preferQuotes(r.offers).sort(compareOffers)
     const vendors = bestPerVendor(offers)
     const cheapest = vendors[0]?.krw ?? null
+    const fair = fairPriceOf(cheapest, input.margin_pct)
     return {
       key,
       model: r.model,
@@ -280,8 +315,9 @@ export function buildBoard(input: BoardInput): Board {
       vendors,
       offers,
       cheapest_krw: cheapest,
-      fair_krw: fairPriceOf(cheapest, input.margin_pct),
+      fair_krw: fair,
       target_krw: targetPriceOf(r.products),
+      ...saleOf(r.products, fair),
       latest_date: latestOf(offers),
     }
   })

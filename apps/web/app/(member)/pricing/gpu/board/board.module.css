@@ -30,7 +30,7 @@
 
 .row {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) repeat(var(--slots), minmax(0, 1fr)) minmax(0, 0.8fr) auto;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.7fr) repeat(var(--slots), minmax(0, 1fr)) minmax(0, 0.8fr) auto;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
@@ -76,6 +76,12 @@
   font-weight: 500;
 }
 .tagQuote { color: var(--brand); }
+.tagOk { color: var(--success); }
+.tagWarn { color: var(--warning); }
+
+.gap { font-weight: 600; }
+.gapAbove { color: var(--text); }
+.gapBelow { color: var(--danger); }
 
 .date { color: var(--text-muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
 
@@ -96,7 +102,7 @@
 .open:active { transform: translateY(1px); }
 .open:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
-/* 좁은 폭: 판매가와 일자는 모델 칸 아래로 내린다 */
+/* 좁은 폭: 판매가는 모델 칸 아래로 내리고 적정판매가 차이 일자는 상세 창에서 본다 */
 @media (max-width: 640px) {
   .row {
     grid-template-columns: minmax(0, 1fr) repeat(var(--slots), minmax(0, 1fr)) auto;

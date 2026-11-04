@@ -1,7 +1,7 @@
 // GPU 한 장 화면 데이터 읽기 — 창구(GET /api/pricing/gpu/board)가 부르고 계산은 board.ts 가 한다
 // 사용자 클라이언트를 받는다, RLS 를 그대로 지난다 (서비스롤 안 씀)
 
-import { buildBoard, type Board, type BoardMarketIn, type BoardProductIn, type BoardQuoteIn } from './board.ts'
+import { buildBoard, type Board, type BoardGcubeIn, type BoardMarketIn, type BoardProductIn, type BoardQuoteIn } from './board.ts'
 
 const PAGE_SIZE = 1000
 const DEFAULT_MARGIN_PCT = 18
@@ -83,7 +83,7 @@ function toMarketIn(rows: MarketRow[], mappings: MappingRow[]): BoardMarketIn[] 
 }
 
 export async function getGpuBoard(db: Db): Promise<Board> {
-  const [productsRes, quotesRes, mappingsRes, settingsRes, fxRes, marketRows] = await Promise.all([
+  const [productsRes, quotesRes, mappingsRes, settingsRes, fxRes, marketRows, gcubeRes] = await Promise.all([
     db.from('gpu_products')
       .select('id, model_name, memory, gpu_count, strategic_price_krw')
       .is('deleted_at', null)
@@ -96,8 +96,9 @@ export async function getGpuBoard(db: Db): Promise<Board> {
     db.from('pricing_settings').select('margin_pct').eq('id', 1).single(),
     db.from('fx_rates').select('usd_krw, rate_date').order('rate_date', { ascending: false }).limit(1).single(),
     readAllMarket(db),
+    db.from('gcube_listings').select('ser, product_id, max_krw, price_changed_at').not('product_id', 'is', null),
   ])
-  for (const res of [productsRes, quotesRes, mappingsRes]) {
+  for (const res of [productsRes, quotesRes, mappingsRes, gcubeRes]) {
     if (res.error) throw res.error
   }
 
@@ -108,6 +109,7 @@ export async function getGpuBoard(db: Db): Promise<Board> {
 
   return buildBoard({
     products: (productsRes.data ?? []) as BoardProductIn[],
+    gcube: (gcubeRes.data ?? []) as BoardGcubeIn[],
     quotes,
     market: toMarketIn(latestPerMapping(marketRows), (mappingsRes.data ?? []) as MappingRow[]),
     margin_pct: Number(settingsRes.data?.margin_pct ?? DEFAULT_MARGIN_PCT),

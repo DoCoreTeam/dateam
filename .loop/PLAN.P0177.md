@@ -69,7 +69,7 @@
 의존: I02
 
 ### I04 표에 판매가, 적정판매가, 차이, 반영을 싣는다
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/gpu/board.ts, apps/web/lib/gpu/board-data.ts, apps/web/lib/gpu/board.test.ts, apps/web/app/(member)/pricing/gpu/board/ 
 감사 기준:

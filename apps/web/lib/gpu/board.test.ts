@@ -137,6 +137,36 @@ test('장당 메모리가 다르면 다른 줄', () => {
 })
 
 test('목표 판매가 1장 값을 상품마다 장수만큼 편다', () => {
-  const items = strategicItemsFor({ products: [{ id: 'a', gpu_count: 1, strategic_price_krw: null }, { id: 'b', gpu_count: 8, strategic_price_krw: null }] }, 1500)
+  const items = strategicItemsFor({ products: [{ id: 'a', gpu_count: 1, strategic_price_krw: null, gcube: null }, { id: 'b', gpu_count: 8, strategic_price_krw: null, gcube: null }] }, 1500)
   assert.deepEqual(items, [{ product_id: 'a', strategic_price_krw: 1500 }, { product_id: 'b', strategic_price_krw: 12000 }])
+})
+
+test('판매가는 이어진 gcube 최대 금액 ÷ 장수, 장수가 적은 상품 것', () => {
+  const board = buildBoard(input({
+    products: [product('p1', 1, '80GB'), product('p8', 8, '640GB')],
+    market: [market('a', 'A', 5)],
+    gcube: [{ ser: 2, product_id: 'p8', max_krw: '73600.00', price_changed_at: '2026-11-04' }, { ser: 1, product_id: 'p1', max_krw: 9200, price_changed_at: '2026-11-04' }],
+  }))
+  const r = board.rows[0]
+  assert.deepEqual([r.sale_krw, r.sale_ser], [9200, 1])
+  assert.equal(r.fair_krw, 8400) // 5 × 1400 × 1.2
+  assert.equal(r.gap_krw, 800)
+  assert.equal(r.reflected, null) // 목표가 없으면 반영 표시 없음
+})
+
+test('gcube 미연결이면 판매가와 차이가 없다', () => {
+  const r = buildBoard(input({ market: [market('a', 'A', 1)] })).rows[0]
+  assert.deepEqual([r.sale_krw, r.gap_krw, r.reflected], [null, null, null])
+})
+
+test('반영은 같은 상품의 목표 판매가 총액과 gcube 최대 금액이 같을 때', () => {
+  const gcube = [{ ser: 1, product_id: 'p1', max_krw: 9200, price_changed_at: null }]
+  const same = buildBoard(input({ products: [product('p1', 1, '80GB', 9200)], gcube })).rows[0]
+  assert.equal(same.reflected, true)
+  const diff = buildBoard(input({ products: [product('p1', 1, '80GB', 9000)], gcube })).rows[0]
+  assert.equal(diff.reflected, false)
+  assert.equal(diff.target_krw, 9000)
+  // 목표는 있는데 그 상품이 gcube 에 안 이어졌으면 비교할 것이 없다
+  const other = buildBoard(input({ products: [product('p1', 1, '80GB'), product('p8', 8, '640GB', 70000)], gcube })).rows[0]
+  assert.equal(other.reflected, null)
 })

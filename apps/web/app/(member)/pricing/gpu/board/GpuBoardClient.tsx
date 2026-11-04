@@ -1,6 +1,6 @@
 'use client'
 
-// GPU 한 장 화면 — 모델마다 어디가 제일 싸고 그래서 얼마가 적정한지
+// GPU 한 장 화면 — 모델마다 gcube 판매가, 적정판매가, 그 차이, 그리고 어디가 제일 싼지
 // 공급사 칸 수는 표 폭으로만 정한다 (supplierSlotCount), 공급사 전부는 줄 끝 단추의 창에서 본다
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
@@ -60,10 +60,39 @@ function FairCell({ row, marginPct }: { row: BoardRow; marginPct: number }) {
   return (
     <>
       {row.fair_krw == null ? <span className={s.slotEmpty}>{C.noPrice}</span> : fmtKRW(row.fair_krw)}
+      <span className={s.sellBasis}>{C.fairByMargin(marginPct)}</span>
+    </>
+  )
+}
+
+function SaleCell({ row }: { row: BoardRow }) {
+  if (row.sale_krw == null) {
+    return (
+      <>
+        <span className={s.slotEmpty}>-</span>
+        <span className={s.sellBasis}>{C.saleNotLinked}</span>
+      </>
+    )
+  }
+  return (
+    <>
+      {fmtKRW(row.sale_krw)}
       <span className={s.sellBasis}>
-        {row.target_krw != null ? C.targetShort(fmtKRW(row.target_krw)) : C.fairByMargin(marginPct)}
+        {row.reflected === true ? <span className={`${s.tag} ${s.tagOk}`}>{C.reflected}</span>
+          : row.reflected === false && row.target_krw != null ? <span className={`${s.tag} ${s.tagWarn}`}>{C.notReflected(fmtKRW(row.target_krw))}</span>
+          : C.saleGcube}
       </span>
     </>
+  )
+}
+
+function GapCell({ row }: { row: BoardRow }) {
+  if (row.gap_krw == null) return <span className={s.slotEmpty}>-</span>
+  const sign = row.gap_krw > 0 ? '+' : row.gap_krw < 0 ? '-' : ''
+  return (
+    <span className={row.gap_krw < 0 ? s.gapBelow : s.gapAbove} title={C.gapTitle}>
+      {sign}{fmtKRW(Math.abs(row.gap_krw))}
+    </span>
   )
 }
 
@@ -76,9 +105,11 @@ function BoardRowView({ row, slots, marginPct, onOpen }: {
       <div className={s.model} role="cell">
         <div className={s.modelName}>{row.model}</div>
         <div className={s.modelMem}>{memLabel(row.memory_per_gpu_gb)}</div>
-        <div className={`${s.sell} ${s.mobileSell}`}><FairCell row={row} marginPct={marginPct} /></div>
+        <div className={`${s.sell} ${s.mobileSell}`}><SaleCell row={row} /></div>
       </div>
+      <div className={s.sell} role="cell"><SaleCell row={row} /></div>
       <div className={s.sell} role="cell"><FairCell row={row} marginPct={marginPct} /></div>
+      <div className={`${s.sell} ${s.gap}`} role="cell"><GapCell row={row} /></div>
       {cells.map((o, i) => <SlotCell key={o?.id ?? `empty-${i}`} offer={o} />)}
       <div className={s.date} role="cell">{row.latest_date?.slice(0, 10) ?? '-'}</div>
       <button type="button" className={s.open} onClick={onOpen}>
@@ -93,7 +124,9 @@ function BoardTable({ board, slots, onOpen }: { board: Board; slots: number; onO
     <div role="table" aria-label={C.title}>
       <div className={`${s.row} ${s.head}`} role="row">
         <div role="columnheader">{C.colModel}</div>
+        <div className={s.headSell} role="columnheader">{C.colSale}</div>
         <div className={s.headSell} role="columnheader">{C.colFair}</div>
+        <div className={s.headSell} role="columnheader">{C.colGap}</div>
         {Array.from({ length: slots }, (_, i) => <div key={i} role="columnheader">{C.colVendor(i + 1)}</div>)}
         <div className={s.headDate} role="columnheader">{C.colLatest}</div>
         <div role="columnheader" aria-hidden />
