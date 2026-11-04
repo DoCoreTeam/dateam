@@ -222,7 +222,7 @@ export default function GpuBoardClient({ isAdmin }: { isAdmin: boolean }) {
   const onAdd = (row: BoardRow) => setEntry({ preset: presetOf(row) })
 
   return (
-    <div className="page-inner">
+    <div className={`page-inner ${s.board}`}>
       <PageHeader className="page-header--compact" eyebrow={C.eyebrow} title={C.title} description={C.description} descClassName={s.keep} />
       <p className={s.steps}>
         <span className={s.stepsLabel}>{C.stepsLabel}</span>
