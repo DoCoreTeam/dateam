@@ -1,6 +1,6 @@
 # PLAN newAX: GPU 새 화면에서 판매가를 보고 견적을 넣는다
 플랜 ID: P0177
-플랜 버전: v0.1.1
+플랜 버전: v0.1.2
 상태: 진행중
 지시: ins_0448
 목표 버전: v0.11.102
@@ -46,14 +46,14 @@
 의존: 없음
 
 ### I02 gcube 상품 표와 사이트 읽기
-상태: 대기
+상태: 통과
 모드: 중량
-범위: supabase/migrations/324_gcube_listings.sql (신규), apps/web/lib/gpu/gcube-site.ts (신규), apps/web/lib/gpu/gcube-site.test.ts (신규), apps/web/package.json
+범위: supabase/migrations/324_gcube_listings.sql (신규), apps/web/lib/gpu/gcube-site.ts (신규), apps/web/lib/gpu/gcube-site.test.ts (신규), apps/web/lib/gpu/__fixtures__/gcube-gpuprices-2026-11-03.json (신규), apps/web/package.json
 감사 기준:
 - 마이그레이션: gcube_listings(ser 유일, gpu_name, product_code, gpu_count, vram_gb, cpu, memory_gb, base_krw, usage_krw, max_krw, product_id, suggested_product_id, fetched_at, price_changed_at), product_id 부분 유일 인덱스
 - 보안: 같은 마이그레이션에서 RLS 켬, 읽기 authenticated, 쓰기 정책 없음(서비스롤 경로만), rls-baseline.test.ts 통과
 - gcube-site.test.ts: 저장한 실페이지(scratchpad gcube.html 발췌 픽스처)에서 156건, ser 유일, max = price + usagePrice
-- 보안: 사이트 응답은 safe-fetch 로 받고 숫자 아닌 값, 음수, 1억 초과 줄은 버린다 (시험 단정)
+- 보안: 숫자 아닌 값, 음수, 1억 초과, 원화 아님, 장수 밖 줄은 버린다 (시험 단정), 받기(safe-fetch)는 I03 창구에서
 의존: I01
 
 ### I03 가져오기와 연결 창구 (웹과 CLI)
@@ -63,7 +63,7 @@
 감사 기준:
 - POST /api/pricing/gpu/gcube/fetch (gpu.gcube.fetch): 관리자만, 156건 upsert, 바뀐 금액만 price_changed_at 갱신, 연결 제안(모델 정규화 + 장수 + 장당 메모리 일치가 하나일 때만) 채움
 - GET /api/pricing/gpu/gcube (gpu.gcube.list), PATCH /api/pricing/gpu/gcube/link (gpu.gcube.link): 연결과 해제, 같은 상품 두 번 연결은 409
-- 보안: 비로그인 401, 일반 회원 fetch·link 403 (api-auth-surface.test.ts 통과), 서비스롤 쓰기 위에 requireAdminApi
+- 보안: 사이트는 safe-fetch 로 받는다(SSRF), 비로그인 401, 일반 회원 fetch·link 403 (api-auth-surface.test.ts 통과), 서비스롤 쓰기 위에 requireAdminApi
 - pnpm gen 류 생성기로 openapi.json 과 CLI 표가 갱신되고 parity.test.ts 통과
 의존: I02
 
@@ -129,3 +129,4 @@
 - v0.1.0 (2026-11-03) 최초 작성 (ins_0448)
 - v0.1.0 (2026-11-04) 기획 승인 뒤 범위를 판매가와 정해진 칸 입력으로 다시 씀 (ins_0456)
 - v0.1.1 (2026-11-04) I01 범위에 board 화면 셋 추가, 판매가 칸을 적정판매가와 목표 판매가로 가르면 화면이 따라와야 함 (audit:I01)
+- v0.1.2 (2026-11-04) I02 픽스처 범위 추가, safe-fetch 기준을 받는 자리인 I03 으로 옮김 (audit:I02)
