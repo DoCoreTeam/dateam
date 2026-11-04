@@ -36,6 +36,44 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.102',
+    date: '2026-11-04',
+    title: 'GPU 관리에서 gcube 판매가를 보고, 견적을 바로 넣어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🧾',
+        headline: '판매가, 적정판매가, 차이를 한 줄에서 봐요',
+        detail: '판매가는 gcube 사이트에 걸린 금액이고, 적정판매가는 최저 원가에 마진을 붙인 값이에요. 둘의 차이와 목표 판매가가 사이트에 반영됐는지도 함께 보여요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '🔗',
+        headline: 'gcube 판매가를 단추 하나로 가져와요',
+        detail: '「gcube 연결」에서 사이트 상품을 상품 번호로 받아 우리 모델과 한 번 이어 두면, 그다음부터는 가져오기만 누르면 판매가가 표에 붙어요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '✍️',
+        headline: '견적과 시세를 정해진 칸으로 여러 줄 넣어요',
+        detail: '「견적 넣기」에서 공급사, 모델, 금액, 통화, 기준, 기간, 약정을 고르면 1장 1시간으로 맞춰 바로 표에 반영돼요. 엑셀에서 여러 줄을 복사해 붙여 넣어도 칸으로 나뉘어요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '🛠️',
+        headline: 'gcube 금액이 원가로 잡히던 것과 하루 앞당겨 보이던 날짜를 고쳤어요',
+        detail: 'gcube 는 우리 판매 창구라 그 금액을 원가 순위에서 뺐어요. 오전 9시 전에 받은 견적의 날짜가 전날로 보이던 것도 바로잡았어요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '⌨️',
+        headline: 'teamda gpu gcube 와 gpu entry create 로 같은 일을 해요',
+        detail: 'CLI 와 API 에서 gcube 판매가 가져오기, 상품 연결, 정해진 칸 입력을 화면과 똑같이 할 수 있어요.',
+        developer: true,
+      },
+    ],
+  },
+  {
     version: '0.11.101',
     date: '2026-11-03',
     title: 'GPU 관리가 한 장에서 「어디가 제일 싸고 얼마에 팔면 되는지」를 보여 줘요',

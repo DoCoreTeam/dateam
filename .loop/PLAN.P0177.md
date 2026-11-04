@@ -115,7 +115,7 @@
 의존: I06
 
 ### I08 문서, 업데이트 내역, 실브라우저
-상태: 대기
+상태: 통과
 모드: 경량
 범위: docs/cli/02-기능대응표.md, apps/web/lib/changelog/entries.ts
 감사 기준:
