@@ -12,6 +12,7 @@ import { fmtKRW } from '@/lib/gpu/format-price'
 import { mailtoHref, type Inquiry, type InquiryChannel } from '@/lib/gpu/inquiry'
 import { BOARD_COPY as C } from '@/lib/gpu/board-copy'
 import SlidePanel from '@/components/ui/SlidePanel'
+import ContactLink from '@/components/ui/ContactLink'
 import ErrorState from '@/components/ui/ErrorState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
 import s from './board.module.css'
@@ -73,14 +74,18 @@ function InquiryBody({ inquiry, isAdmin }: { inquiry: Inquiry; isAdmin: boolean 
             {inquiry.contacts.map((c, i) => (
               <li key={`${c.name}-${i}`} className={s.iContact}>
                 <span className={s.pVendor}>{c.name}{c.title && <span className={s.tag}> {c.title}</span>}</span>
-                <span className={s.pActions}>
-                  {c.email && (
-                    <a className={s.action} href={mailtoHref(c.email, inquiry.subject, inquiry.body)} onClick={() => void record('mail')}>{C.inquiryMail}</a>
-                  )}
-                  {c.phone && (
-                    <a className={s.action} href={`tel:${c.phone.replace(/[^0-9+]/g, '')}`} onClick={() => void record('phone')}>{C.inquiryCall}</a>
-                  )}
-                </span>
+                {/* 번호와 주소는 공용 부품이 그리고(걸기 복사), 누르면 그 길로 문의한 것으로 남긴다 */}
+                {c.phone && (
+                  <span onClickCapture={(e) => { if ((e.target as HTMLElement).closest('a')) void record('phone') }}>
+                    <ContactLink kind="phone" value={c.phone} />
+                  </span>
+                )}
+                {c.email && (
+                  <span className={s.pActions}>
+                    <ContactLink kind="email" value={c.email} />
+                    <a className={`${s.action} ${s.actionLead}`} href={mailtoHref(c.email, inquiry.subject, inquiry.body)} onClick={() => void record('mail')}>{C.inquiryMail}</a>
+                  </span>
+                )}
               </li>
             ))}
           </ul>

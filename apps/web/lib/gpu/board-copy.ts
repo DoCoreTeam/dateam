@@ -35,7 +35,6 @@ export const BOARD_COPY = {
   inquiryLead: (model: string, price: string) => `${model}에서 가장 싼 값(${price})을 낸 공급사입니다`,
   inquiryContacts: '담당자',
   inquiryMail: '메일 쓰기',
-  inquiryCall: '전화 걸기',
   inquiryNoContactCrm: '이 공급사에 연락할 담당자가 없습니다. CRM 회사 화면에서 담당자를 넣으면 여기에 보입니다',
   inquiryNoContactAdmin: '이 공급사에 연락할 담당자가 없습니다. 공급사 관리에서 담당자를 넣으면 여기에 보입니다',
   inquiryNoContactMember: '이 공급사에 연락할 담당자가 없습니다. 아래 누리집의 문의 창구를 쓰거나 관리자에게 담당자 등록을 요청합니다',

@@ -36,6 +36,38 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.104',
+    date: '2026-11-05',
+    title: 'GPU 관리에서 가장 싼 공급사에 바로 문의할 수 있어요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '✉️',
+        headline: '줄마다 「문의하기」가 생겼어요',
+        detail: '누르면 그 모델에서 가장 싼 값을 낸 공급사의 담당자 메일과 전화, 누리집, 바로 보낼 수 있는 문의 글이 열려요. 메일을 쓰거나 글을 복사하면 GPU 이력에 「문의 발송」으로 남아요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '🧰',
+        headline: '문의하기는 teamda 명령으로도 돼요',
+        detail: 'teamda gpu inquiry get 으로 문의할 곳과 글을 받고, teamda gpu inquiry create 로 문의한 사실을 남겨요.',
+        developer: true,
+      },
+      {
+        kind: 'improve',
+        emoji: '📌',
+        headline: '표를 옆으로 밀어도 모델명과 단추가 제자리에 있어요',
+        detail: '화면이 좁아 표가 옆으로 밀릴 때 모델명 열과 단추 열은 그대로 있고, 더 볼 것이 있는 쪽 가장자리에 그림자가 보여요. 머리줄도 내려가도 위에 붙어 있어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🎨',
+        headline: 'GPU 관리의 강조색이 청록 하나로 맞춰졌어요',
+        detail: '단추, 링크, 고른 마진이 모두 같은 청록으로 보이고, 글자는 바탕과 충분히 대비돼 읽기 쉬워요.',
+      },
+    ],
+  },
+  {
     version: '0.11.103',
     date: '2026-11-04',
     title: '깨져 보이던 화면의 선과 배경이 돌아오고, GPU 관리가 읽기 쉬워졌어요',
