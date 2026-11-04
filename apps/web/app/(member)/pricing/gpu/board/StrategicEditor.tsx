@@ -1,6 +1,6 @@
 'use client'
 
-// 상세 창의 판매가 계산과 전략가 넣기 지우기
+// 상세 창의 적정판매가 계산과 목표 판매가 넣기 지우기
 // 쓰기는 기존 관리자 창구만 부른다: 넣기 POST strategic-price/bulk, 지우기 PATCH strategic-price (null)
 // 서버도 requireAdminApi 로 막는다, 단추를 감추는 것은 보조일 뿐이다
 
@@ -14,10 +14,9 @@ import s from './board.module.css'
 const BULK_API = '/api/pricing/gpu/strategic-price/bulk'
 const ONE_API = '/api/pricing/gpu/strategic-price'
 
-function sellLine(row: BoardRow, marginPct: number): string {
-  if (row.sell_krw == null) return C.panelSellNone
-  if (row.sell_basis === 'strategic') return C.panelSellStrategic(fmtKRW(row.sell_krw))
-  return C.panelSellMargin(fmtKRW(row.cheapest_krw), marginPct, fmtKRW(row.sell_krw))
+function fairLine(row: BoardRow, marginPct: number): string {
+  if (row.fair_krw == null) return C.panelFairNone
+  return C.panelFairMargin(fmtKRW(row.cheapest_krw), marginPct, fmtKRW(row.fair_krw))
 }
 
 async function saveStrategic(row: BoardRow, perGpuKrw: number): Promise<boolean> {
@@ -42,7 +41,7 @@ async function clearStrategic(row: BoardRow): Promise<boolean> {
 export default function StrategicEditor({ row, marginPct, isAdmin, onSaved }: {
   row: BoardRow; marginPct: number; isAdmin: boolean; onSaved: () => void
 }) {
-  const current = row.sell_basis === 'strategic' && row.sell_krw != null ? String(row.sell_krw) : ''
+  const current = row.target_krw != null ? String(row.target_krw) : ''
   const [digits, setDigits] = useState(current)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -66,8 +65,8 @@ export default function StrategicEditor({ row, marginPct, isAdmin, onSaved }: {
 
   return (
     <section className={s.pSection}>
-      <h3 className={s.pHeading}>{C.panelSell}</h3>
-      <p className={s.pSellLine}>{sellLine(row, marginPct)}</p>
+      <h3 className={s.pHeading}>{C.panelFair}</h3>
+      <p className={s.pSellLine}>{fairLine(row, marginPct)}</p>
       {isAdmin && (
         <div className={s.pStrategic}>
           <label className={s.pLabel}>

@@ -95,21 +95,40 @@ test('공시가(list)와 시세를 베낀 견적(market_link)은 공급사 값�
     quotes: [quote('l', 'gcube', 0.1, { price_type: 'list' }), quote('ml', 'Z', 0.2, { source_format: 'market_link' })],
   }))
   assert.equal(board.rows[0].offers.length, 0)
-  assert.equal(board.rows[0].sell_krw, null)
+  assert.equal(board.rows[0].fair_krw, null)
 })
 
-test('판매가는 전략가 ÷ 장수가 먼저, 없으면 최저가 × (1+마진)', () => {
+test('gcube 견적은 cost 로 들어와도 원가가 아니다 (우리 판매가)', () => {
+  const board = buildBoard(input({
+    quotes: [
+      quote('g', 'gcube', 17.1, { original_currency: 'KRW', original_price: 23940, original_unit: 'KRW/hr', price_type: 'cost', source_format: 'own' }),
+      quote('g2', 'GCube ', 0.3, { price_type: 'cost' }),
+      quote('s', 'S', 1),
+    ],
+  }))
+  assert.deepEqual(board.rows[0].offers.map((o) => o.id), ['s'])
+  assert.equal(board.rows[0].cheapest_krw, 1400)
+})
+
+test('원화 시간당 시세 10,500 은 다시 환산하지 않는다', () => {
+  const board = buildBoard(input({
+    market: [market('e', 'Elice Cloud', 7.421, '2026-11-01', { obs_currency: 'KRW', obs_amount: 10500, obs_pricing_unit: 'hour' })],
+  }))
+  assert.equal(board.rows[0].offers[0].krw, 10500)
+})
+
+test('적정판매가는 언제나 최저 원가 × (1+마진), 목표 판매가는 구성 총액 ÷ 장수로 따로 선다', () => {
   const plain = buildBoard(input({ market: [market('a', 'A', 1)] }))
-  assert.equal(plain.rows[0].sell_krw, 1680)
-  assert.equal(plain.rows[0].sell_basis, 'margin')
+  assert.equal(plain.rows[0].fair_krw, 1680)
+  assert.equal(plain.rows[0].target_krw, null)
 
   const withStrategic = buildBoard(input({
     products: [product('p1', 1, '80GB'), product('p4', 4, '320GB', 8000)],
     market: [market('a', 'A', 1)],
   }))
   assert.equal(withStrategic.rows.length, 1) // 장당 80GB 로 한 줄
-  assert.equal(withStrategic.rows[0].sell_krw, 2000)
-  assert.equal(withStrategic.rows[0].sell_basis, 'strategic')
+  assert.equal(withStrategic.rows[0].target_krw, 2000)
+  assert.equal(withStrategic.rows[0].fair_krw, 1680) // 목표가 있어도 적정판매가는 그대로
 })
 
 test('장당 메모리가 다르면 다른 줄', () => {
@@ -117,7 +136,7 @@ test('장당 메모리가 다르면 다른 줄', () => {
   assert.equal(board.rows.length, 2)
 })
 
-test('전략가 1장 값을 상품마다 장수만큼 편다', () => {
+test('목표 판매가 1장 값을 상품마다 장수만큼 편다', () => {
   const items = strategicItemsFor({ products: [{ id: 'a', gpu_count: 1, strategic_price_krw: null }, { id: 'b', gpu_count: 8, strategic_price_krw: null }] }, 1500)
   assert.deepEqual(items, [{ product_id: 'a', strategic_price_krw: 1500 }, { product_id: 'b', strategic_price_krw: 12000 }])
 })

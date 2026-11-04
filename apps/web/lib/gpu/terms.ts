@@ -17,7 +17,12 @@ export const GPU_TERMS = {
 
   // 가격 개념
   supplyCost: '공급원가',        // 우리가 매입하는 원가
-  sellPrice: '판매가',           // 마진 적용 후 우리 판매가
+  sellPrice: '판매가',           // gcube 사이트에 실제로 걸린 금액 (최대 금액 = 기본 + 이용요금)
+  fairPrice: '적정판매가',       // 최저 원가 × (1 + 마진)
+  targetPrice: '목표 판매가',    // 우리가 정해 gcube 에 걸 금액 (칼럼 strategic_price_krw, 옛말 전략가)
+  priceGap: '차이',              // 판매가 - 적정판매가
+  reflected: '반영',             // 목표 판매가 = 판매가
+  notReflected: '미반영',
   margin: '마진',
   marketPrice: '시장가',         // 경쟁사 시장 가격
   listPrice: '공시가',           // 경쟁사 공시 판매가(원가 아님)

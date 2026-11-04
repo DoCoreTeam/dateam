@@ -1,6 +1,6 @@
 'use client'
 
-// GPU 한 장 화면 — 모델마다 어디가 제일 싸고 그래서 얼마에 팔면 되는지
+// GPU 한 장 화면 — 모델마다 어디가 제일 싸고 그래서 얼마가 적정한지
 // 공급사 칸 수는 표 폭으로만 정한다 (supplierSlotCount), 공급사 전부는 줄 끝 단추의 창에서 본다
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
@@ -55,13 +55,12 @@ function SlotCell({ offer }: { offer: BoardOffer | undefined }) {
   )
 }
 
-function SellCell({ row, marginPct }: { row: BoardRow; marginPct: number }) {
-  if (row.sell_krw == null) return <span className={s.slotEmpty}>{C.noPrice}</span>
+function FairCell({ row, marginPct }: { row: BoardRow; marginPct: number }) {
   return (
     <>
-      {fmtKRW(row.sell_krw)}
+      {row.fair_krw == null ? <span className={s.slotEmpty}>{C.noPrice}</span> : fmtKRW(row.fair_krw)}
       <span className={s.sellBasis}>
-        {row.sell_basis === 'strategic' ? C.sellByStrategic : C.sellByMargin(marginPct)}
+        {row.target_krw != null ? C.targetShort(fmtKRW(row.target_krw)) : C.fairByMargin(marginPct)}
       </span>
     </>
   )
@@ -76,9 +75,9 @@ function BoardRowView({ row, slots, marginPct, onOpen }: {
       <div className={s.model} role="cell">
         <div className={s.modelName}>{row.model}</div>
         <div className={s.modelMem}>{memLabel(row.memory_per_gpu_gb)}</div>
-        <div className={`${s.sell} ${s.mobileSell}`}><SellCell row={row} marginPct={marginPct} /></div>
+        <div className={`${s.sell} ${s.mobileSell}`}><FairCell row={row} marginPct={marginPct} /></div>
       </div>
-      <div className={s.sell} role="cell"><SellCell row={row} marginPct={marginPct} /></div>
+      <div className={s.sell} role="cell"><FairCell row={row} marginPct={marginPct} /></div>
       {cells.map((o, i) => <SlotCell key={o?.id ?? `empty-${i}`} offer={o} />)}
       <div className={s.date} role="cell">{row.latest_date?.slice(0, 10) ?? '-'}</div>
       <button type="button" className={s.open} onClick={onOpen}>
@@ -93,7 +92,7 @@ function BoardTable({ board, slots, onOpen }: { board: Board; slots: number; onO
     <div role="table" aria-label={C.title}>
       <div className={`${s.row} ${s.head}`} role="row">
         <div role="columnheader">{C.colModel}</div>
-        <div className={s.headSell} role="columnheader">{C.colSell}</div>
+        <div className={s.headSell} role="columnheader">{C.colFair}</div>
         {Array.from({ length: slots }, (_, i) => <div key={i} role="columnheader">{C.colVendor(i + 1)}</div>)}
         <div className={s.headDate} role="columnheader">{C.colLatest}</div>
         <div role="columnheader" aria-hidden />

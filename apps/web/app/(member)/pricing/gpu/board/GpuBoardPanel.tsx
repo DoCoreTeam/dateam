@@ -61,7 +61,7 @@ export default function GpuBoardPanel({ row, marginPct, isAdmin, onClose, onSave
   const mem = row.memory_per_gpu_gb == null ? '' : ` ${row.memory_per_gpu_gb}GB`
   return (
     <SlidePanel isOpen onClose={onClose} title={`${row.model}${mem}`} width={PANEL_WIDTH_PX}>
-      <StrategicEditor key={`${row.key}:${row.sell_basis}:${row.sell_krw}`} row={row} marginPct={marginPct} isAdmin={isAdmin} onSaved={onSaved} />
+      <StrategicEditor key={`${row.key}:${row.target_krw}`} row={row} marginPct={marginPct} isAdmin={isAdmin} onSaved={onSaved} />
       <h3 className={s.pHeading}>{C.panelOffers(row.offers.length)}</h3>
       <OfferTable offers={row.offers} />
     </SlidePanel>

@@ -1,5 +1,7 @@
 // GPU 한 장 화면 계산 SSOT — 모델마다 어디가 제일 싸고 얼마에 팔면 되나
 //
+// 말: 원가 = 공급사 견적, 시세 = 경쟁사 값, 적정판매가 = 최저 원가 × (1 + 마진), 목표 판매가 = 우리가 정한 값(칼럼 strategic_price_krw)
+//
 // 줄 = 모델명 + 장당 메모리, 금액 = 원화 1장 1시간 (부가세 별도, 원본에 구분 근거 없음)
 // 출처 = 확정 견적(cost) + 경쟁사 시세, 같은 공급사에 둘 다 있으면 견적
 // 공급사 칸 수는 폭으로만 정해진다 (supplierSlotCount), 공급사 수는 열 정의에 닿지 않는다
@@ -73,8 +75,6 @@ export interface BoardOffer {
   source_url: string | null
 }
 
-export type SellBasis = 'strategic' | 'margin'
-
 export interface BoardRow {
   key: string
   model: string
@@ -85,8 +85,10 @@ export interface BoardRow {
   /** 그 줄의 값 전부, 싼 순, 단위 모름은 맨 아래. 상세 창 */
   offers: BoardOffer[]
   cheapest_krw: number | null
-  sell_krw: number | null
-  sell_basis: SellBasis | null
+  /** 적정판매가 = 최저 원가 × (1 + 마진), 원가가 없으면 null */
+  fair_krw: number | null
+  /** 목표 판매가 1장 값 (전략가 구성 총액 ÷ 장수, 장수가 적은 상품 것), 없으면 null */
+  target_krw: number | null
   latest_date: string | null
 }
 
@@ -97,7 +99,7 @@ export interface Board {
   fx_date: string | null
 }
 
-/** 표 고정 열(모델, 판매가, 최근 일자, 단추)이 차지하는 폭 */
+/** 표 고정 열(모델, 적정판매가, 최근 일자, 단추)이 차지하는 폭 */
 export const BOARD_FIXED_WIDTH_PX = 520
 /** 공급사 칸 하나의 최소 폭 */
 export const BOARD_SLOT_MIN_PX = 150
@@ -220,21 +222,21 @@ function bestPerVendor(sorted: BoardOffer[]): BoardOffer[] {
   return out
 }
 
-/** 판매가 — 전략가(구성 총액)를 장수로 나눈 1장 값이 먼저, 장수가 적은 상품의 값을 쓴다 */
-export function sellPriceOf(
-  products: BoardRow['products'],
-  cheapestKrw: number | null,
-  marginPct: number,
-): { sell_krw: number | null; sell_basis: SellBasis | null } {
-  const strategic = products
+/** 적정판매가 — 최저 원가에 마진을 붙인 값 */
+export function fairPriceOf(cheapestKrw: number | null, marginPct: number): number | null {
+  return cheapestKrw == null ? null : Math.round(cheapestKrw * (1 + marginPct / 100))
+}
+
+/** 목표 판매가 1장 값 — 구성 총액을 장수로 나눈다, 장수가 적은 상품의 값을 쓴다 */
+export function targetPriceOf(products: BoardRow['products']): number | null {
+  const set = products
     .filter((p) => p.strategic_price_krw != null && p.strategic_price_krw > 0)
     .sort((a, b) => a.gpu_count - b.gpu_count)[0]
-  if (strategic) {
-    return { sell_krw: Math.round((strategic.strategic_price_krw as number) / strategic.gpu_count), sell_basis: 'strategic' }
-  }
-  if (cheapestKrw == null) return { sell_krw: null, sell_basis: null }
-  return { sell_krw: Math.round(cheapestKrw * (1 + marginPct / 100)), sell_basis: 'margin' }
+  return set ? Math.round((set.strategic_price_krw as number) / set.gpu_count) : null
 }
+
+/** gcube 는 우리 판매 창구다, 그 값은 원가가 아니라 판매가다 */
+export const OWN_SALES_VENDOR_KEY = 'gcube'
 
 function latestOf(offers: BoardOffer[]): string | null {
   return offers.reduce<string | null>((acc, o) => (o.date && (!acc || o.date > acc) ? o.date : acc), null)
@@ -254,8 +256,10 @@ export function buildBoard(input: BoardInput): Board {
   }
 
   // 공시가(list)는 원가가 아니고, market_link 견적은 시세를 베낀 것이라 시세와 겹친다
+  // gcube 견적은 종류와 무관하게 우리 판매가라 원가에서 뺀다 (실측 cost 4건, A100 1장 23,940 이 8장 값)
   for (const q of input.quotes) {
     if (q.price_type === 'list' || q.source_format === 'market_link') continue
+    if (vendorKeyOf(q.supplier_name ?? '') === OWN_SALES_VENDOR_KEY) continue
     const row = rowsByKey.get(keyByProduct.get(q.product_id) ?? '')
     if (row) row.offers.push(quoteOffer(q, usdKrw))
   }
@@ -276,7 +280,8 @@ export function buildBoard(input: BoardInput): Board {
       vendors,
       offers,
       cheapest_krw: cheapest,
-      ...sellPriceOf(r.products, cheapest, input.margin_pct),
+      fair_krw: fairPriceOf(cheapest, input.margin_pct),
+      target_krw: targetPriceOf(r.products),
       latest_date: latestOf(offers),
     }
   })
@@ -285,7 +290,7 @@ export function buildBoard(input: BoardInput): Board {
   return { rows, margin_pct: input.margin_pct, usd_krw: usdKrw, fx_date: input.fx_date }
 }
 
-/** 전략가 1장 값을 그 줄 상품마다 구성 총액으로 편다 (기존 창구는 상품 단위 총액을 받는다) */
+/** 목표 판매가 1장 값을 그 줄 상품마다 구성 총액으로 편다 (기존 창구는 상품 단위 총액을 받는다) */
 export function strategicItemsFor(row: Pick<BoardRow, 'products'>, perGpuKrw: number): Array<{ product_id: string; strategic_price_krw: number }> {
   return row.products.map((p) => ({ product_id: p.id, strategic_price_krw: Math.round(perGpuKrw * p.gpu_count) }))
 }
