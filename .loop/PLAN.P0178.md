@@ -60,7 +60,7 @@
 의존: I01, I02
 
 ### I04 업데이트 내역과 실브라우저 기록
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/changelog/entries.ts
 감사 기준:

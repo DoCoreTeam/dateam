@@ -36,6 +36,43 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.103',
+    date: '2026-11-04',
+    title: '깨져 보이던 화면의 선과 배경이 돌아오고, GPU 관리가 읽기 쉬워졌어요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🧱',
+        headline: '표의 줄, 배경, 단추 테두리가 다시 보여요',
+        detail: 'GPU 관리, 영업 CRM 일부 창, AI 트레이딩 패널, RFP 분석기에서 표 줄과 카드 배경, 단추 테두리가 빠져 정렬이 무너져 보이던 문제를 고쳤어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🧭',
+        headline: 'GPU 관리가 무엇을 보는 화면인지 위에서 알려 줘요',
+        detail: '맨 위 한 줄 설명과 보는 순서, 표 위의 읽는 법이 생겼어요. 1위부터는 공급사마다 가장 싼 1장 1시간 값을 낮은 순으로 놓은 것이에요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🔎',
+        headline: '값 있는 모델만 먼저 보여요',
+        detail: '값이 없는 모델은 「전체 보기」를 누르면 옅게 펼쳐지고, 그 줄의 「시세 추가」를 누르면 그 모델이 채워진 입력 창이 열려요. 칸 안에서는 금액이 가장 크게 보여요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '📱',
+        headline: '휴대폰에서는 모델별 카드로 보여요',
+        detail: '좁은 화면에서는 표 대신 모델명, 가장 싼 값과 업체, 판매가, 단추 하나가 담긴 카드로 보여요. 옆으로 밀지 않아도 돼요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '🏷️',
+        headline: '약정과 업체 이름이 알아보기 쉽게 바뀌었어요',
+        detail: '12monthterm 같은 영어 이어쓰기는 1년 약정, 30일처럼 보이고, SoftBank와 ソフトバンク처럼 같은 회사의 다른 표기는 한 이름으로 보여요.',
+      },
+    ],
+  },
+  {
     version: '0.11.102',
     date: '2026-11-04',
     title: 'GPU 관리에서 gcube 판매가를 보고, 견적을 바로 넣어요',
