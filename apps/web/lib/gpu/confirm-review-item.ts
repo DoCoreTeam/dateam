@@ -116,6 +116,8 @@ export async function confirmReviewItem(
       // 원본 통화 보존(표시 SSOT) — staging→market_prices로 원본 통화/금액 전달.
       original_currency: typeof merged.original_currency === 'string' ? merged.original_currency : null,
       original_price: typeof merged.original_price === 'number' ? merged.original_price : null,
+      // 정해진 칸 입력(lib/gpu/entry.ts)은 관측 원본(금액 통화 기간 장수)을 싣는다, 빠지면 표에서 「단위 모름」이 된다
+      ...(merged.obs && typeof merged.obs === 'object' ? { obs: merged.obs as CompetitorPriceItem['obs'] } : {}),
     }
     if (!compItem.competitor_name || !compItem.model_name || compItem.price_usd == null || !Number.isFinite(compItem.price_usd) || compItem.price_usd <= 0) {
       return { ok: false, status: 422, error: '경쟁사·모델·가격을 특정할 수 없어 확정할 수 없습니다.' }
@@ -258,7 +260,8 @@ export async function confirmReviewItem(
     source_market_price_id: typeof merged.source_market_price_id === 'string' ? merged.source_market_price_id : null,
     ai_confidence: item.overall_confidence,
     status: 'confirmed',
-    received_at: item.created_at,
+    // 정해진 칸 입력은 받은 날을 따로 준다, 없으면 검토 항목이 만들어진 때
+    received_at: typeof merged.received_at === 'string' ? merged.received_at : item.created_at,
     registered_by: actorName,
     confirmed_by: actorName,
     confirmed_at: now,

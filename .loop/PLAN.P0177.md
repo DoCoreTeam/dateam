@@ -1,6 +1,6 @@
 # PLAN newAX: GPU 새 화면에서 판매가를 보고 견적을 넣는다
 플랜 ID: P0177
-플랜 버전: v0.1.3
+플랜 버전: v0.1.4
 상태: 진행중
 지시: ins_0448
 목표 버전: v0.11.102
@@ -91,18 +91,20 @@
 의존: I04
 
 ### I06 정해진 칸 입력 창구 (웹과 CLI)
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/lib/gpu/entry.ts (신규), apps/web/lib/gpu/entry.test.ts (신규), apps/web/app/api/pricing/gpu/entries/ (신규), apps/web/lib/actions/defs/gpu.ts, apps/web/lib/actions/generated/
+범위: apps/web/lib/gpu/entry.ts (신규), apps/web/lib/gpu/entry.test.ts (신규), apps/web/lib/gpu/entry-store.ts (신규), apps/web/app/api/pricing/gpu/entries/ (신규), apps/web/lib/gpu/confirm-review-item.ts (시세 관측 원본과 받은 날 넘김), apps/web/lib/gpu/board.ts (원래 금액 먼저, 한국 날짜), apps/web/lib/gpu/board.test.ts, apps/web/lib/gpu/gcube-parity.test.ts, apps/web/lib/ui/picker-standard.test.ts (정해진 목록 사유), apps/web/lib/actions/defs/gpu.ts, apps/web/lib/actions/generated/, packages/teamda-cli/src/generated/spec.json, docs/cli/02-기능대응표.md, apps/web/package.json, I07 범위(EntryPanel.tsx productOptions.ts 신규, GcubeLinkPanel.tsx, GpuBoardClient.tsx, board.module.css, board-copy.ts)
 감사 기준:
 - entry.test.ts: 칸 검증(종류, 공급사, 모델, 장수 1~64, 금액 > 0, 통화 KRW USD JPY, 기준 1장 또는 구성 전체, 기간 시간 월 분, 약정 목록, 받은 날), 틀린 줄은 줄 번호와 칸 이름으로 돌려줌
 - entry.test.ts: 엑셀에서 붙인 탭 구분 글을 칸으로 나눈다 (머리줄 있음 없음 둘 다)
 - POST /api/pricing/gpu/entries (gpu.entry.create): 견적은 review_items 를 만들고 관리자면 confirmReviewItem(productId 지정)으로 바로 확정, 일반 회원은 확정 대기로 남김, 시세는 saveCompetitorPrices
 - 보안: 비로그인 401, 한 번에 200줄 상한, 서버에서 다시 검증, 공급사 새 이름은 관리자만 만든다
+- board.test.ts: 여러 장 구성 견적은 원래 금액에서 1장 값을 낸다 (per_gpu_usd 두 번 나눔 회피), 일자는 한국 날짜
+- route-census 11 그대로 (I07 화면을 합친 까닭)
 의존: I01
 
 ### I07 입력 창 화면
-상태: 대기
+상태: 취소 (I06 에 합침, 창구만 먼저 두면 route-census 가드가 깨짐)
 모드: 경량
 범위: apps/web/app/(member)/pricing/gpu/board/EntryDialog.tsx (신규), apps/web/app/(member)/pricing/gpu/board/GpuBoardClient.tsx, apps/web/app/(member)/pricing/gpu/board/board.module.css, apps/web/lib/gpu/board-copy.ts
 감사 기준:
@@ -121,7 +123,7 @@
 - entries.ts 맨 위 v0.11.102 블록
 - F-10: ego-browser 로 관리자 가져오기, 연결, 입력 저장, 표 반영 확인, 일반 회원(f10-nocrm) 단추 없음과 403 확인, 시험 데이터는 id 로 되돌림
 - 보안: 해당 없음 (문서와 확인)
-의존: I03, I07
+의존: I03, I06
 
 ## 종합 감사
 - (전 항목 통과 후 기록)
@@ -132,3 +134,4 @@
 - v0.1.1 (2026-11-04) I01 범위에 board 화면 셋 추가, 판매가 칸을 적정판매가와 목표 판매가로 가르면 화면이 따라와야 함 (audit:I01)
 - v0.1.2 (2026-11-04) I02 픽스처 범위 추가, safe-fetch 기준을 받는 자리인 I03 으로 옮김 (audit:I02)
 - v0.1.3 (2026-11-04) I05 를 I03 에 합침, 창구만 먼저 두면 route-census 가드가 깨짐, I03 범위에 저장 모듈과 생성물과 CLI spec 추가 (audit:I03)
+- v0.1.4 (2026-11-04) I07 을 I06 에 합침, 원래 금액 먼저 읽기와 한국 날짜 고침을 I06 범위에 더함 (실측: per_gpu_usd 가 1장 값을 장수로 또 나눔, 11-01 이 10-31 로 보임) (audit:I06)

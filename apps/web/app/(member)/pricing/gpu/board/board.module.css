@@ -148,3 +148,27 @@
   .gRow > :nth-child(2), .gRow > :nth-child(3) { display: none; }
   .gLink { grid-column: 1 / -1; }
 }
+
+/* 입력 창 */
+.ePaste { width: 100%; margin: var(--space-3) 0; resize: vertical; }
+.eTable { display: grid; gap: var(--space-2); }
+.eRow {
+  display: grid;
+  /* 고정 목록 칸은 가장 긴 값이 들어가는 폭으로 고정, 글 칸(공급사 모델 출처)만 늘어난다 */
+  grid-template-columns: 24px 84px minmax(0, 1fr) minmax(0, 2.2fr) 104px 72px 104px 72px 112px 144px minmax(0, 0.8fr) 32px;
+  align-items: center;
+  gap: var(--space-2);
+}
+.eRow.head { padding: var(--space-1) 0; background: none; }
+.eRow > :global(.input-field) { min-width: 0; width: 100%; }
+.eLine { color: var(--text-muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; text-align: right; }
+.eNum { text-align: right; font-variant-numeric: tabular-nums; }
+.eBad, .eBad :global(button) { border-color: var(--danger) !important; box-shadow: 0 0 0 1px var(--danger); border-radius: var(--radius-md); }
+.eMsg { grid-column: 2 / -1; }
+@media (max-width: 900px) {
+  .eRow { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-bottom: var(--space-3); border-bottom: 1px solid var(--border); }
+  .eRow.head { display: none; }
+  .eLine { grid-column: 1 / -1; text-align: left; }
+  .eRow > :nth-child(3), .eRow > :nth-child(4), .eRow > :nth-child(11) { grid-column: 1 / -1; }
+  .eMsg { grid-column: 1 / -1; }
+}

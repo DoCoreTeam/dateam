@@ -102,6 +102,7 @@ export const GPU_DEFS: ActionDef[] = [
   { op: "POST /api/pricing/gpu/review/commit", name: "gpu.review.commit", scope: "approve", cli: "gpu review commit" },
   { op: "POST /api/pricing/gpu/review/stream", name: "gpu.review.stream", scope: "write", cli: "gpu review stream" },
   { op: "POST /api/pricing/gpu/specs/generate", name: "gpu.spec.generate", scope: "admin", cli: "gpu spec generate" },
+  { op: "POST /api/pricing/gpu/entries", name: "gpu.entry.create", scope: "write", cli: "gpu entry create", summary: "견적과 시세를 정해진 칸으로 여러 줄 넣음, 관리자는 바로 확정 일반 회원은 확정 대기" },
   { op: "POST /api/pricing/gpu/gcube/fetch", name: "gpu.gcube.fetch", scope: "admin", cli: "gpu gcube fetch", summary: "gcube 사이트 판매가를 지금 가져와 상품 번호(ser)로 덮어씀" },
   { op: "PATCH /api/pricing/gpu/gcube/link", name: "gpu.gcube.link", scope: "admin", cli: "gpu gcube link", summary: "gcube 상품과 우리 모델을 잇거나 풂, 모델 하나에 상품 하나" },
   { op: "POST /api/pricing/gpu/strategic-price/bulk", name: "gpu.strategic-price.bulk", scope: "admin", cli: "gpu strategic-price bulk" },

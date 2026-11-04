@@ -57,6 +57,17 @@ const CONVERTED = ['app/admin/access/AccessClient.tsx']
  * 여기 적는 것은 **앞으로도 드롭다운일 자리**다.
  */
 const WHY_SELECT: Readonly<Record<string, string>> = {
+  // GPU 정해진 칸 입력(P0177) — 칸 값은 코드가 정한 닫힌 목록이다
+  'app/(member)/pricing/gpu/board/EntryPanel.tsx#ENTRY_KINDS':
+    '입력 종류 둘(견적 시세)은 lib/gpu/entry.ts 가 정한다. 자라는 목록이 아니다',
+  'app/(member)/pricing/gpu/board/EntryPanel.tsx#ENTRY_CURRENCIES':
+    '받는 통화 둘(원 달러)은 환율 표가 아는 것만이다(lib/gpu/entry.ts). 자라는 목록이 아니다',
+  'app/(member)/pricing/gpu/board/EntryPanel.tsx#ENTRY_BASES':
+    '금액 기준 둘(1장 구성 전체)은 lib/gpu/entry.ts 가 정한다. 자라는 목록이 아니다',
+  'app/(member)/pricing/gpu/board/EntryPanel.tsx#ENTRY_PERIODS':
+    '기간 셋(시간 월 분)은 lib/gpu/entry.ts 가 정한다. 자라는 목록이 아니다',
+  'app/(member)/pricing/gpu/board/EntryPanel.tsx#ENTRY_TERMS':
+    '약정 여덟은 lib/gpu/entry.ts 가 정한 표준값이다. 자라는 목록이 아니다',
   // 가격 기준(P0135) — 코드가 정한 닫힌 목록이거나 한 제품 안에서 다 펼쳐진 목록이다
   'app/(crm)/crm/products/PriceProductCreateModal.tsx#BUSINESS_TYPE_ORDER':
     '기본 사업 유형 여덟은 코드가 정한다(lib/terms/ledger.ts). 자라는 목록이 아니다',

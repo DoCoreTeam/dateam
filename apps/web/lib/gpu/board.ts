@@ -8,6 +8,7 @@
 // 화면(/pricing/gpu)과 창구(GET /api/pricing/gpu/board, teamda gpu board list)가 이 파일 하나를 지난다
 
 import { normalizeTerm, termLabel } from './term.ts'
+import { kstDateKey } from '../datetime/kst.ts'
 
 export interface BoardProductIn {
   id: string
@@ -152,12 +153,23 @@ export function vendorKeyOf(name: string): string {
 const isKrwHourly = (currency: string | null, unit: string | null) =>
   (currency ?? '').toUpperCase() === 'KRW' && /hr|hour|시간/i.test(unit ?? '')
 
+const isHourly = (unit: string | null) => /hr|hour|시간/i.test(unit ?? '')
+/** 단위에 GPU 가 적혀 있으면(USD/GPU·hr) 1장 값, 아니면(KRW/hr) 구성 전체 값 */
+const isPerGpuUnit = (unit: string | null) => /gpu|장당/i.test(unit ?? '')
+
+/**
+ * 견적 원화 1장 1시간 — 원래 금액을 먼저 읽는다
+ * unit_price_usd 는 확정 경로가 1장 값을 넣는데 per_gpu_usd 는 그것을 장수로 또 나눈다 (여러 장 구성에서 틀림)
+ * 그래서 시간당 원래 금액이 있으면 그것을, 없을 때만 per_gpu_usd 를 쓴다
+ */
 function quoteKrw(q: BoardQuoteIn, usdKrw: number): number | null {
   if (!q.original_unit && !q.original_currency) return null
   const count = Math.max(1, Number(q.gpu_count) || 1)
   const original = num(q.original_price)
-  if (isKrwHourly(q.original_currency, q.original_unit) && original != null) {
-    return Math.round(original / count)
+  const currency = (q.original_currency ?? '').toUpperCase()
+  if (original != null && isHourly(q.original_unit) && (currency === 'KRW' || currency === 'USD')) {
+    const perGpu = isPerGpuUnit(q.original_unit) ? original : original / count
+    return Math.round(currency === 'KRW' ? perGpu : perGpu * usdKrw)
   }
   const perGpu = num(q.per_gpu_usd) ?? (num(q.unit_price_usd) != null ? (num(q.unit_price_usd) as number) / count : null)
   return perGpu == null ? null : Math.round(perGpu * usdKrw)
@@ -174,6 +186,11 @@ function marketKrw(m: BoardMarketIn, usdKrw: number): number | null {
   return usd == null ? null : Math.round(usd * usdKrw)
 }
 
+/** 일자는 한국 날짜로 (UTC 로 자르면 오전 9시 전 값이 하루 앞당겨 보인다) */
+function kstDay(v: string | null): string | null {
+  return v ? kstDateKey(v) || null : null
+}
+
 function quoteOffer(q: BoardQuoteIn, usdKrw: number): BoardOffer {
   const term = normalizeTerm(q.term)
   return {
@@ -187,7 +204,7 @@ function quoteOffer(q: BoardQuoteIn, usdKrw: number): BoardOffer {
     gpu_count: Math.max(1, Number(q.gpu_count) || 1),
     term,
     term_label: termLabel(term),
-    date: q.received_at ?? q.created_at,
+    date: kstDay(q.received_at ?? q.created_at),
     source_url: null,
   }
 }
@@ -204,7 +221,7 @@ function marketOffer(m: BoardMarketIn, usdKrw: number): BoardOffer {
     gpu_count: Math.max(1, Number(m.obs_gpu_count) || 1),
     term: 'on_demand',
     term_label: termLabel('on_demand'),
-    date: m.observed_at ?? m.recorded_at,
+    date: kstDay(m.observed_at ?? m.recorded_at),
     source_url: m.source_url,
   }
 }

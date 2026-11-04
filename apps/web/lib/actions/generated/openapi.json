@@ -56331,6 +56331,84 @@
     }
    }
   },
+  "/pricing/gpu/entries": {
+   "post": {
+    "operationId": "gpu.entry.create",
+    "summary": "견적과 시세를 정해진 칸으로 여러 줄 넣음, 관리자는 바로 확정 일반 회원은 확정 대기",
+    "tags": [
+     "gpu"
+    ],
+    "x-cli": "gpu entry create",
+    "x-scope": "write",
+    "x-kind": "route",
+    "x-internal": "/api/pricing/gpu/entries",
+    "parameters": [
+     {
+      "name": "dryRun",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "enum": [
+        "1"
+       ]
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공, data 는 화면이 받는 값과 같음"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "202": {
+      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-query-complete": true,
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "rows": {
+          "type": "array",
+          "items": {
+           "type": "object"
+          }
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "rows"
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
   "/pricing/gpu/gcube-reflected": {
    "post": {
     "operationId": "gpu.gcube-reflected.create",
@@ -59845,5 +59923,5 @@
    }
   }
  },
- "x-spec-hash": "26bdbb6e4e43e428"
+ "x-spec-hash": "98d9b303c287056e"
 }

@@ -17,6 +17,7 @@ import { SkelList } from '@/components/ui/LoadingSkeleton'
 import MarginControl from '@/components/pricing/gpu/MarginControl'
 import GpuBoardPanel from './GpuBoardPanel'
 import GcubeLinkPanel from './GcubeLinkPanel'
+import EntryPanel from './EntryPanel'
 import s from './board.module.css'
 
 export const BOARD_API = '/api/pricing/gpu/board'
@@ -143,6 +144,7 @@ export default function GpuBoardClient({ isAdmin }: { isAdmin: boolean }) {
   const { ref, slots } = useSlotCount()
   const [openKey, setOpenKey] = useState<string | null>(null)
   const [gcubeOpen, setGcubeOpen] = useState(false)
+  const [entryOpen, setEntryOpen] = useState(false)
   const openRow = data?.rows.find((r) => r.key === openKey) ?? null
 
   return (
@@ -151,6 +153,7 @@ export default function GpuBoardClient({ isAdmin }: { isAdmin: boolean }) {
       <div className={s.basis}>
         {data && <span>{C.basis(fmtKRW(data.usd_krw), data.fx_date)}</span>}
         {data && <MarginControl marginPct={data.margin_pct} isAdmin={isAdmin} onSaved={() => void mutate()} />}
+        <button type="button" className="btn-primary" onClick={() => setEntryOpen(true)}>{C.entryOpen}</button>
         <button type="button" className={s.open} onClick={() => setGcubeOpen(true)}>{C.gcubeOpen}</button>
         <Link href={MANAGE_HREF} className={s.basisLink}>{C.manageLink}</Link>
       </div>
@@ -165,6 +168,9 @@ export default function GpuBoardClient({ isAdmin }: { isAdmin: boolean }) {
           <BoardTable board={data} slots={slots} onOpen={setOpenKey} />
         )}
       </div>
+      {entryOpen && (
+        <EntryPanel board={data} isAdmin={isAdmin} onClose={() => setEntryOpen(false)} onSaved={() => void mutate()} />
+      )}
       {gcubeOpen && (
         <GcubeLinkPanel board={data} isAdmin={isAdmin} onClose={() => setGcubeOpen(false)} onChanged={() => void mutate()} />
       )}

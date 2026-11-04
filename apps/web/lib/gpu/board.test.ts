@@ -170,3 +170,23 @@ test('반영은 같은 상품의 목표 판매가 총액과 gcube 최대 금액�
   const other = buildBoard(input({ products: [product('p1', 1, '80GB'), product('p8', 8, '640GB', 70000)], gcube })).rows[0]
   assert.equal(other.reflected, null)
 })
+
+test('여러 장 구성 견적은 원래 금액에서 1장 값을 낸다 (per_gpu_usd 의 두 번 나눔을 안 탄다)', () => {
+  const board = buildBoard(input({
+    products: [product('p8', 8, '640GB')],
+    quotes: [
+      // 확정 경로는 unit_price_usd 에 1장 값 2 를 넣고 per_gpu_usd 는 2 / 8 = 0.25 가 된다
+      quote('k', 'K', 2, { product_id: 'p8', gpu_count: 8, per_gpu_usd: 0.25, original_currency: 'KRW', original_price: 22400, original_unit: 'KRW/hr' }),
+      quote('u', 'U', 2, { product_id: 'p8', gpu_count: 8, per_gpu_usd: 0.25, original_currency: 'USD', original_price: 16, original_unit: 'USD/hr' }),
+      quote('g', 'G', 2, { product_id: 'p8', gpu_count: 8, per_gpu_usd: 0.25, original_currency: 'USD', original_price: 2, original_unit: 'USD/GPU·hr' }),
+    ],
+  }))
+  const krw = Object.fromEntries(board.rows[0].offers.map((o) => [o.id, o.krw]))
+  assert.deepEqual(krw, { k: 2800, u: 2800, g: 2800 })
+})
+
+test('일자는 한국 날짜다 (11-01 0시 KST 가 10-31 로 보이지 않는다)', () => {
+  const board = buildBoard(input({ quotes: [quote('d', 'D', 1, { received_at: '2026-10-31T15:00:00+00:00' })] }))
+  assert.equal(board.rows[0].offers[0].date, '2026-11-01')
+  assert.equal(board.rows[0].latest_date, '2026-11-01')
+})

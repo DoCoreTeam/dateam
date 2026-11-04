@@ -16,7 +16,8 @@ import EmptyState from '@/components/ui/EmptyState'
 import ErrorState from '@/components/ui/ErrorState'
 import WaitProgress from '@/components/ui/WaitProgress'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
-import RecordPickerField, { type RecordOption, type RecordSearch } from '@/components/ui/RecordPicker'
+import RecordPickerField, { type RecordSearch } from '@/components/ui/RecordPicker'
+import { productOptions, searchOf } from './productOptions'
 import s from './board.module.css'
 
 export const GCUBE_API = '/api/pricing/gpu/gcube'
@@ -24,26 +25,7 @@ const FETCH_API = '/api/pricing/gpu/gcube/fetch'
 const LINK_API = '/api/pricing/gpu/gcube/link'
 const PANEL_WIDTH_PX = 860
 
-interface ProductOption { id: string; label: string }
-
-/** 모델이 늘어나는 목록이라 드롭다운 대신 찾아 고르는 창을 쓴다, 검색은 화면에 이미 있는 목록에서 */
-function searchOf(options: ProductOption[]): RecordSearch {
-  return async (query) => {
-    const q = query.toLowerCase().replace(/\s+/g, '')
-    return options
-      .filter((o) => !q || o.label.toLowerCase().replace(/\s+/g, '').includes(q))
-      .map((o): RecordOption => ({ id: o.id, name: o.label }))
-  }
-}
 type Link = { ser: number; product_id: string | null }
-
-function productOptions(board: Board | undefined): ProductOption[] {
-  if (!board) return []
-  return board.rows.flatMap((r) => r.products.map((p) => ({
-    id: p.id,
-    label: `${r.model}${r.memory_per_gpu_gb == null ? '' : ` ${r.memory_per_gpu_gb}GB`} × ${p.gpu_count}`,
-  }))).sort((a, b) => a.label.localeCompare(b.label, 'en', { numeric: true }))
-}
 
 /** 제안 먼저, 그다음 안 이은 것, 이은 것은 뒤로 */
 function rank(l: GcubeListingRow): number {
