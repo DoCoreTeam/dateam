@@ -16,6 +16,7 @@ import ErrorState from '@/components/ui/ErrorState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
 import MarginControl from '@/components/pricing/gpu/MarginControl'
 import GpuBoardPanel from './GpuBoardPanel'
+import GcubeLinkPanel from './GcubeLinkPanel'
 import s from './board.module.css'
 
 export const BOARD_API = '/api/pricing/gpu/board'
@@ -108,6 +109,7 @@ export default function GpuBoardClient({ isAdmin }: { isAdmin: boolean }) {
   const { data, error, isLoading, mutate } = useSWR<Board>(BOARD_API, fetcher)
   const { ref, slots } = useSlotCount()
   const [openKey, setOpenKey] = useState<string | null>(null)
+  const [gcubeOpen, setGcubeOpen] = useState(false)
   const openRow = data?.rows.find((r) => r.key === openKey) ?? null
 
   return (
@@ -116,6 +118,7 @@ export default function GpuBoardClient({ isAdmin }: { isAdmin: boolean }) {
       <div className={s.basis}>
         {data && <span>{C.basis(fmtKRW(data.usd_krw), data.fx_date)}</span>}
         {data && <MarginControl marginPct={data.margin_pct} isAdmin={isAdmin} onSaved={() => void mutate()} />}
+        <button type="button" className={s.open} onClick={() => setGcubeOpen(true)}>{C.gcubeOpen}</button>
         <Link href={MANAGE_HREF} className={s.basisLink}>{C.manageLink}</Link>
       </div>
       <div ref={ref} className={s.wrap} style={{ '--slots': slots } as CSSProperties}>
@@ -129,6 +132,9 @@ export default function GpuBoardClient({ isAdmin }: { isAdmin: boolean }) {
           <BoardTable board={data} slots={slots} onOpen={setOpenKey} />
         )}
       </div>
+      {gcubeOpen && (
+        <GcubeLinkPanel board={data} isAdmin={isAdmin} onClose={() => setGcubeOpen(false)} onChanged={() => void mutate()} />
+      )}
       {openRow && (
         <GpuBoardPanel row={openRow} marginPct={data?.margin_pct ?? 0} isAdmin={isAdmin}
           onClose={() => setOpenKey(null)} onSaved={() => void mutate()} />

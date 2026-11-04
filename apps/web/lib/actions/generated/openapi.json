@@ -44859,7 +44859,7 @@
   "/pricing/gpu/board": {
    "get": {
     "operationId": "gpu.board.list",
-    "summary": "GPU 한 장 화면, 모델마다 공급사 값 전부(원화 1장 1시간)와 판매가",
+    "summary": "GPU 한 장 화면, 모델마다 원가 전부(원화 1장 1시간)와 적정판매가, 목표 판매가, gcube 판매가",
     "tags": [
      "gpu"
     ],
@@ -45191,6 +45191,44 @@
       }
      }
     }
+   }
+  },
+  "/pricing/gpu/gcube": {
+   "get": {
+    "operationId": "gpu.gcube.list",
+    "summary": "gcube 사이트 상품(ser)마다 판매가와 이어진 우리 모델",
+    "tags": [
+     "gpu"
+    ],
+    "x-cli": "gpu gcube list",
+    "x-scope": "read",
+    "x-kind": "route",
+    "x-internal": "/api/pricing/gpu/gcube",
+    "parameters": [],
+    "responses": {
+     "200": {
+      "description": "성공, data 는 화면이 받는 값과 같음"
+     },
+     "202": {
+      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-query-complete": true
    }
   },
   "/pricing/gpu/gcube-check": {
@@ -49229,6 +49267,81 @@
          "position": {},
          "priceProductId": {}
         }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/pricing/gpu/gcube/link": {
+   "patch": {
+    "operationId": "gpu.gcube.link",
+    "summary": "gcube 상품과 우리 모델을 잇거나 풂, 모델 하나에 상품 하나",
+    "tags": [
+     "gpu"
+    ],
+    "x-cli": "gpu gcube link",
+    "x-scope": "admin",
+    "x-kind": "route",
+    "x-internal": "/api/pricing/gpu/gcube/link",
+    "parameters": [
+     {
+      "name": "dryRun",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "enum": [
+        "1"
+       ]
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공, data 는 화면이 받는 값과 같음"
+     },
+     "202": {
+      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-query-complete": true,
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "links": {
+          "type": "array",
+          "items": {
+           "type": "object"
+          }
+         }
+        },
+        "additionalProperties": false,
+        "required": [
+         "links"
+        ]
        }
       }
      }
@@ -56287,6 +56400,72 @@
     }
    }
   },
+  "/pricing/gpu/gcube/fetch": {
+   "post": {
+    "operationId": "gpu.gcube.fetch",
+    "summary": "gcube 사이트 판매가를 지금 가져와 상품 번호(ser)로 덮어씀",
+    "tags": [
+     "gpu"
+    ],
+    "x-cli": "gpu gcube fetch",
+    "x-scope": "admin",
+    "x-kind": "route",
+    "x-internal": "/api/pricing/gpu/gcube/fetch",
+    "parameters": [
+     {
+      "name": "dryRun",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "enum": [
+        "1"
+       ]
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공, data 는 화면이 받는 값과 같음"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "202": {
+      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-query-complete": true,
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
   "/pricing/gpu/market/catalog": {
    "post": {
     "operationId": "gpu.market.catalog",
@@ -59666,5 +59845,5 @@
    }
   }
  },
- "x-spec-hash": "290a8ffafca45eb4"
+ "x-spec-hash": "26bdbb6e4e43e428"
 }

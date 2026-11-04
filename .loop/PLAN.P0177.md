@@ -1,6 +1,6 @@
 # PLAN newAX: GPU 새 화면에서 판매가를 보고 견적을 넣는다
 플랜 ID: P0177
-플랜 버전: v0.1.2
+플랜 버전: v0.1.3
 상태: 진행중
 지시: ins_0448
 목표 버전: v0.11.102
@@ -57,14 +57,15 @@
 의존: I01
 
 ### I03 가져오기와 연결 창구 (웹과 CLI)
-상태: 대기
+상태: 통과
 모드: 중량
-범위: apps/web/lib/actions/defs/gpu.ts, apps/web/app/api/pricing/gpu/gcube/ (신규), apps/web/lib/gpu/gcube-link.ts (신규), apps/web/lib/gpu/gcube-link.test.ts (신규), apps/web/lib/actions/generated/
+범위: apps/web/lib/actions/defs/gpu.ts, apps/web/app/api/pricing/gpu/gcube/ (신규), apps/web/lib/gpu/gcube-link.ts (신규), apps/web/lib/gpu/gcube-link.test.ts (신규), apps/web/lib/gpu/gcube-store.ts (신규), apps/web/lib/gpu/gcube-parity.test.ts (신규), apps/web/lib/actions/generated/, packages/teamda-cli/src/generated/spec.json, docs/cli/02-기능대응표.md, apps/web/package.json, I05 범위(GcubeLinkPanel.tsx 신규, GpuBoardClient.tsx, board.module.css, board-copy.ts)
 감사 기준:
 - POST /api/pricing/gpu/gcube/fetch (gpu.gcube.fetch): 관리자만, 156건 upsert, 바뀐 금액만 price_changed_at 갱신, 연결 제안(모델 정규화 + 장수 + 장당 메모리 일치가 하나일 때만) 채움
 - GET /api/pricing/gpu/gcube (gpu.gcube.list), PATCH /api/pricing/gpu/gcube/link (gpu.gcube.link): 연결과 해제, 같은 상품 두 번 연결은 409
 - 보안: 사이트는 safe-fetch 로 받는다(SSRF), 비로그인 401, 일반 회원 fetch·link 403 (api-auth-surface.test.ts 통과), 서비스롤 쓰기 위에 requireAdminApi
-- pnpm gen 류 생성기로 openapi.json 과 CLI 표가 갱신되고 parity.test.ts 통과
+- scripts/cli/gen.mjs 로 openapi.json 과 CLI 표와 대응표가 갱신되고 parity.test.ts 통과
+- 창구 인구조사 가드(route-census) 11 그대로: 새 창구 셋을 같은 항목에서 연결 창에 꽂는다 (I05 를 합친 까닭)
 의존: I02
 
 ### I04 표에 판매가, 적정판매가, 차이, 반영을 싣는다
@@ -79,7 +80,7 @@
 의존: I03
 
 ### I05 gcube 연결 창
-상태: 대기
+상태: 취소 (I03 에 합침, 창구만 먼저 만들면 route-census 가드가 11 에서 13 으로 깨져 같은 항목에서 화면에 꽂음)
 모드: 경량
 범위: apps/web/app/(member)/pricing/gpu/board/GcubeLinkPanel.tsx (신규), apps/web/app/(member)/pricing/gpu/board/GpuBoardClient.tsx, apps/web/app/(member)/pricing/gpu/board/board.module.css, apps/web/lib/gpu/board-copy.ts
 감사 기준:
@@ -120,7 +121,7 @@
 - entries.ts 맨 위 v0.11.102 블록
 - F-10: ego-browser 로 관리자 가져오기, 연결, 입력 저장, 표 반영 확인, 일반 회원(f10-nocrm) 단추 없음과 403 확인, 시험 데이터는 id 로 되돌림
 - 보안: 해당 없음 (문서와 확인)
-의존: I05, I07
+의존: I03, I07
 
 ## 종합 감사
 - (전 항목 통과 후 기록)
@@ -130,3 +131,4 @@
 - v0.1.0 (2026-11-04) 기획 승인 뒤 범위를 판매가와 정해진 칸 입력으로 다시 씀 (ins_0456)
 - v0.1.1 (2026-11-04) I01 범위에 board 화면 셋 추가, 판매가 칸을 적정판매가와 목표 판매가로 가르면 화면이 따라와야 함 (audit:I01)
 - v0.1.2 (2026-11-04) I02 픽스처 범위 추가, safe-fetch 기준을 받는 자리인 I03 으로 옮김 (audit:I02)
+- v0.1.3 (2026-11-04) I05 를 I03 에 합침, 창구만 먼저 두면 route-census 가드가 깨짐, I03 범위에 저장 모듈과 생성물과 CLI spec 추가 (audit:I03)

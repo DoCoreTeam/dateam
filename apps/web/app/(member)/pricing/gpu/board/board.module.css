@@ -121,3 +121,24 @@
 .pHint { margin: 0; color: var(--text-muted); font-size: var(--fs-xs); }
 .pActions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .pError { margin: 0; color: var(--danger); font-size: var(--fs-sm); }
+
+/* gcube 연결 창 */
+.gActions { margin: var(--space-3) 0; }
+.gTable { margin-top: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; }
+.gRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.5fr) minmax(0, 0.7fr) minmax(0, 0.7fr) minmax(0, 2fr);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-sm);
+}
+.gRow:first-child { border-top: none; }
+.gLink { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
+.gLink select { max-width: 100%; }
+@media (max-width: 640px) {
+  .gRow { grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr); }
+  .gRow > :nth-child(2), .gRow > :nth-child(3) { display: none; }
+  .gLink { grid-column: 1 / -1; }
+}

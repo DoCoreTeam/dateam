@@ -5,7 +5,8 @@ import type { ActionDef } from '../types.ts'
 export const GPU_DEFS: ActionDef[] = [
   { op: "GET /api/pricing/gpu/audit", name: "gpu.audit.list", scope: "read", cli: "gpu audit list" },
   { op: "GET /api/pricing/gpu/availability", name: "gpu.availability.list", scope: "read", cli: "gpu availability list" },
-  { op: "GET /api/pricing/gpu/board", name: "gpu.board.list", scope: "read", cli: "gpu board list", summary: "GPU 한 장 화면, 모델마다 공급사 값 전부(원화 1장 1시간)와 판매가" },
+  { op: "GET /api/pricing/gpu/board", name: "gpu.board.list", scope: "read", cli: "gpu board list", summary: "GPU 한 장 화면, 모델마다 원가 전부(원화 1장 1시간)와 적정판매가, 목표 판매가, gcube 판매가" },
+  { op: "GET /api/pricing/gpu/gcube", name: "gpu.gcube.list", scope: "read", cli: "gpu gcube list", summary: "gcube 사이트 상품(ser)마다 판매가와 이어진 우리 모델" },
   { op: "GET /api/pricing/gpu/cockpit", name: "gpu.cockpit.list", scope: "read", cli: "gpu cockpit list" },
   { op: "GET /api/pricing/gpu/competitors", name: "gpu.competitor.list", scope: "read", cli: "gpu competitor list" },
   { op: "GET /api/pricing/gpu/direct-prices", name: "gpu.direct-price.list", scope: "read", cli: "gpu direct-price list" },
@@ -101,6 +102,8 @@ export const GPU_DEFS: ActionDef[] = [
   { op: "POST /api/pricing/gpu/review/commit", name: "gpu.review.commit", scope: "approve", cli: "gpu review commit" },
   { op: "POST /api/pricing/gpu/review/stream", name: "gpu.review.stream", scope: "write", cli: "gpu review stream" },
   { op: "POST /api/pricing/gpu/specs/generate", name: "gpu.spec.generate", scope: "admin", cli: "gpu spec generate" },
+  { op: "POST /api/pricing/gpu/gcube/fetch", name: "gpu.gcube.fetch", scope: "admin", cli: "gpu gcube fetch", summary: "gcube 사이트 판매가를 지금 가져와 상품 번호(ser)로 덮어씀" },
+  { op: "PATCH /api/pricing/gpu/gcube/link", name: "gpu.gcube.link", scope: "admin", cli: "gpu gcube link", summary: "gcube 상품과 우리 모델을 잇거나 풂, 모델 하나에 상품 하나" },
   { op: "POST /api/pricing/gpu/strategic-price/bulk", name: "gpu.strategic-price.bulk", scope: "admin", cli: "gpu strategic-price bulk" },
   { op: "POST /api/pricing/gpu/suppliers", name: "gpu.supplier.create", scope: "admin", cli: "gpu supplier create" },
   { op: "POST /api/pricing/gpu/suppliers/bulk", name: "gpu.supplier.bulk", scope: "admin", cli: "gpu supplier bulk" },
