@@ -75,17 +75,19 @@ function InquiryBody({ inquiry, isAdmin }: { inquiry: Inquiry; isAdmin: boolean 
               <li key={`${c.name}-${i}`} className={s.iContact}>
                 <span className={s.pVendor}>{c.name}{c.title && <span className={s.tag}> {c.title}</span>}</span>
                 {/* 번호와 주소는 공용 부품이 그리고(걸기 복사), 누르면 그 길로 문의한 것으로 남긴다 */}
-                {c.phone && (
-                  <span onClickCapture={(e) => { if ((e.target as HTMLElement).closest('a')) void record('phone') }}>
-                    <ContactLink kind="phone" value={c.phone} />
-                  </span>
-                )}
-                {c.email && (
-                  <span className={s.pActions}>
-                    <ContactLink kind="email" value={c.email} />
-                    <a className={`${s.action} ${s.actionLead}`} href={mailtoHref(c.email, inquiry.subject, inquiry.body)} onClick={() => void record('mail')}>{C.inquiryMail}</a>
-                  </span>
-                )}
+                <span className={s.iReach}>
+                  {c.phone && (
+                    <span onClickCapture={(e) => { if ((e.target as HTMLElement).closest('a')) void record('phone') }}>
+                      <ContactLink kind="phone" value={c.phone} />
+                    </span>
+                  )}
+                  {c.email && (
+                    <>
+                      <ContactLink kind="email" value={c.email} />
+                      <a className={`${s.action} ${s.actionLead}`} href={mailtoHref(c.email, inquiry.subject, inquiry.body)} onClick={() => void record('mail')}>{C.inquiryMail}</a>
+                    </>
+                  )}
+                </span>
               </li>
             ))}
           </ul>
