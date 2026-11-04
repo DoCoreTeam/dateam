@@ -20,6 +20,7 @@ import MarginControl from '@/components/pricing/gpu/MarginControl'
 import GpuBoardPanel from './GpuBoardPanel'
 import GcubeLinkPanel from './GcubeLinkPanel'
 import EntryPanel, { type EntryPreset } from './EntryPanel'
+import InquiryPanel from './InquiryPanel'
 import { useScrollEdges } from './useScrollEdges'
 import s from './board.module.css'
 
@@ -112,27 +113,36 @@ function GapCell({ row }: { row: BoardRow }) {
   )
 }
 
-/** 줄 끝 단추 — 값이 있으면 상세 창, 없으면 그 모델이 채워진 시세 입력 */
-function RowAction({ row, onOpen, onAdd }: { row: BoardRow; onOpen: () => void; onAdd: () => void }) {
+interface RowHandlers {
+  onOpen: () => void
+  onAdd: () => void
+  onInquire: () => void
+}
+
+/** 줄 끝 단추 — 원화로 읽힌 값이 있으면 가장 싼 공급사에 문의, 값이 있으면 상세 창, 없으면 그 모델이 채워진 시세 입력 */
+function RowAction({ row, onOpen, onAdd, onInquire }: { row: BoardRow } & RowHandlers) {
   if (row.offers.length === 0) {
     return <button type="button" className={s.action} onClick={onAdd}>{C.addMarket}</button>
   }
   return (
-    <button type="button" className={s.action} onClick={onOpen}>
-      {row.vendors.length > 0 ? C.openAll(row.vendors.length) : C.openDetail}
-    </button>
+    <span className={s.actions}>
+      {row.cheapest_krw != null && (
+        <button type="button" className={`${s.action} ${s.actionLead}`} onClick={onInquire}>{C.inquire}</button>
+      )}
+      <button type="button" className={s.action} onClick={onOpen}>
+        {row.vendors.length > 0 ? C.openAll(row.vendors.length) : C.openDetail}
+      </button>
+    </span>
   )
 }
 
-interface RowProps {
+interface RowProps extends RowHandlers {
   row: BoardRow
   slots: number
   marginPct: number
-  onOpen: () => void
-  onAdd: () => void
 }
 
-function BoardRowView({ row, slots, marginPct, onOpen, onAdd }: RowProps) {
+function BoardRowView({ row, slots, marginPct, ...handlers }: RowProps) {
   const cells = Array.from({ length: slots }, (_, i) => row.vendors[i])
   return (
     <div className={`${s.row} ${isEmptyRow(row) ? s.rowEmpty : ''}`} role="row">
@@ -144,14 +154,22 @@ function BoardRowView({ row, slots, marginPct, onOpen, onAdd }: RowProps) {
       <div className={s.num} role="cell"><FairCell row={row} marginPct={marginPct} /></div>
       <div className={s.num} role="cell"><GapCell row={row} /></div>
       {cells.map((o, i) => <SlotCell key={o?.id ?? `empty-${i}`} offer={o} />)}
-      <div className={s.actionCell} role="cell"><RowAction row={row} onOpen={onOpen} onAdd={onAdd} /></div>
+      <div role="cell"><RowAction row={row} {...handlers} /></div>
     </div>
   )
 }
 
-function BoardTable({ rows, slots, marginPct, onOpen, onAdd }: {
-  rows: BoardRow[]; slots: number; marginPct: number; onOpen: (key: string) => void; onAdd: (row: BoardRow) => void
-}) {
+interface ListHandlers {
+  onOpen: (key: string) => void
+  onAdd: (row: BoardRow) => void
+  onInquire: (row: BoardRow) => void
+}
+
+function handlersFor(row: BoardRow, h: ListHandlers): RowHandlers {
+  return { onOpen: () => h.onOpen(row.key), onAdd: () => h.onAdd(row), onInquire: () => h.onInquire(row) }
+}
+
+function BoardTable({ rows, slots, marginPct, ...h }: { rows: BoardRow[]; slots: number; marginPct: number } & ListHandlers) {
   const { headRef, bodyRef, edges } = useScrollEdges()
   const rowMin = { '--row-min': `${BOARD_FIXED_WIDTH_PX + slots * BOARD_SLOT_MIN_PX}px` } as CSSProperties
   return (
@@ -169,8 +187,7 @@ function BoardTable({ rows, slots, marginPct, onOpen, onAdd }: {
       </div>
       <div ref={bodyRef} className={s.bodyScroll} role="rowgroup">
         {rows.map((row) => (
-          <BoardRowView key={row.key} row={row} slots={slots} marginPct={marginPct}
-            onOpen={() => onOpen(row.key)} onAdd={() => onAdd(row)} />
+          <BoardRowView key={row.key} row={row} slots={slots} marginPct={marginPct} {...handlersFor(row, h)} />
         ))}
       </div>
     </div>
@@ -178,9 +195,7 @@ function BoardTable({ rows, slots, marginPct, onOpen, onAdd }: {
 }
 
 /** 좁은 폭 카드 — 모델명, 가장 싼 값과 그 공급사, 판매가, 단추 하나 */
-function BoardCards({ rows, onOpen, onAdd }: {
-  rows: BoardRow[]; onOpen: (key: string) => void; onAdd: (row: BoardRow) => void
-}) {
+function BoardCards({ rows, ...h }: { rows: BoardRow[] } & ListHandlers) {
   return (
     <ul className={s.cards} aria-label={C.title}>
       {rows.map((row) => {
@@ -204,7 +219,7 @@ function BoardCards({ rows, onOpen, onAdd }: {
                 <dd><SaleCell row={row} /></dd>
               </div>
             </dl>
-            <RowAction row={row} onOpen={() => onOpen(row.key)} onAdd={() => onAdd(row)} />
+            <RowAction row={row} {...handlersFor(row, h)} />
           </li>
         )
       })}
@@ -228,7 +243,12 @@ export default function GpuBoardClient({ isAdmin }: { isAdmin: boolean }) {
   const openRow = data?.rows.find((r) => r.key === openKey) ?? null
   const emptyCount = data?.rows.filter(isEmptyRow).length ?? 0
   const rows = (data?.rows ?? []).filter((r) => showAll || !isEmptyRow(r))
-  const onAdd = (row: BoardRow) => setEntry({ preset: presetOf(row) })
+  const [inquiryProduct, setInquiryProduct] = useState<string | null>(null)
+  const handlers: ListHandlers = {
+    onOpen: setOpenKey,
+    onAdd: (row) => setEntry({ preset: presetOf(row) }),
+    onInquire: (row) => setInquiryProduct(row.products[0]?.id ?? null),
+  }
 
   return (
     <div className={`page-inner ${s.board}`}>
@@ -265,8 +285,8 @@ export default function GpuBoardClient({ isAdmin }: { isAdmin: boolean }) {
           <EmptyState title={C.emptyTitle} description={C.emptyDesc} action={{ label: C.manageLink, href: MANAGE_HREF }} />
         ) : (
           <>
-            <BoardTable rows={rows} slots={slots} marginPct={data.margin_pct} onOpen={setOpenKey} onAdd={onAdd} />
-            <BoardCards rows={rows} onOpen={setOpenKey} onAdd={onAdd} />
+            <BoardTable rows={rows} slots={slots} marginPct={data.margin_pct} {...handlers} />
+            <BoardCards rows={rows} {...handlers} />
           </>
         )}
       </div>
@@ -275,6 +295,9 @@ export default function GpuBoardClient({ isAdmin }: { isAdmin: boolean }) {
       )}
       {gcubeOpen && (
         <GcubeLinkPanel board={data} isAdmin={isAdmin} onClose={() => setGcubeOpen(false)} onChanged={() => void mutate()} />
+      )}
+      {inquiryProduct && (
+        <InquiryPanel productId={inquiryProduct} isAdmin={isAdmin} onClose={() => setInquiryProduct(null)} />
       )}
       {openRow && (
         <GpuBoardPanel row={openRow} marginPct={data?.margin_pct ?? 0} isAdmin={isAdmin}

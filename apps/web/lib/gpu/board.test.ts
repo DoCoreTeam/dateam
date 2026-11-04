@@ -48,6 +48,8 @@ test('칸 수는 폭으로만 정해지고 공급사 20곳이어도 열 정의�
   assert.equal(supplierSlotCount(width), supplierSlotCount(width)) // 공급사 수를 받지 않는다
   assert.equal(supplierSlotCount(320), 1) // 좁아도 1칸은 남는다
   assert.equal(supplierSlotCount(BOARD_FIXED_WIDTH_PX + BOARD_SLOT_MIN_PX * 9), 9) // 상한 없음
+  // 1280 화면의 표 폭 932 (실측 P0179) 에 1칸이 가로 밀림 없이 들어간다
+  assert.ok(BOARD_FIXED_WIDTH_PX + BOARD_SLOT_MIN_PX <= 932)
 })
 
 test('싼 순, 같으면 최근 것 먼저', () => {

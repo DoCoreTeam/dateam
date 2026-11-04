@@ -85,9 +85,10 @@
 .row {
   display: grid;
   min-width: var(--row-min, 0);
-  grid-template-columns: minmax(10rem, 1.3fr) minmax(8rem, 1.1fr) minmax(8rem, 1.1fr) minmax(6rem, 0.8fr) repeat(var(--slots), minmax(0, 1fr)) 8.5rem;
+  grid-template-columns: minmax(9.5rem, 1.3fr) minmax(7.5rem, 1.1fr) minmax(7.5rem, 1.1fr) minmax(6.5rem, 0.8fr) repeat(var(--slots), minmax(0, 1fr)) 11.5rem;
   align-items: center;
-  column-gap: var(--space-5);
+  --col-gap: var(--space-4);
+  column-gap: var(--col-gap);
   --row-pad-y: var(--space-3);
   padding: var(--row-pad-y) var(--space-2);
   border-bottom: var(--hairline) solid var(--border);
@@ -118,8 +119,8 @@
   padding-block: var(--row-pad-y);
   background: var(--color-surface);
 }
-.row > :first-child { left: 0; flex-direction: column; margin-left: calc(-1 * var(--space-2)); padding-left: var(--space-2); margin-right: calc(-1 * var(--space-5)); padding-right: var(--space-5); }
-.row > :last-child { right: 0; align-items: center; justify-content: flex-end; margin-right: calc(-1 * var(--space-2)); padding-right: var(--space-2); margin-left: calc(-1 * var(--space-5)); padding-left: var(--space-5); }
+.row > :first-child { left: 0; flex-direction: column; margin-left: calc(-1 * var(--space-2)); padding-left: var(--space-2); margin-right: calc(-1 * var(--col-gap)); padding-right: var(--col-gap); }
+.row > :last-child { right: 0; align-items: center; justify-content: flex-end; margin-right: calc(-1 * var(--space-2)); padding-right: var(--space-2); margin-left: calc(-1 * var(--col-gap)); padding-left: var(--col-gap); }
 .row:hover:not(.head) > :first-child, .row:hover:not(.head) > :last-child { background: var(--surface-bg); }
 .table[data-more-left] .row > :first-child { box-shadow: 10px 0 10px -10px rgb(0 0 0 / 0.35); }
 .table[data-more-right] .row > :last-child { box-shadow: -10px 0 10px -10px rgb(0 0 0 / 0.35); }
@@ -169,6 +170,16 @@
 .action:hover { border-color: var(--gpu-accent); color: var(--gpu-accent); }
 .action:active { transform: translateY(1px); }
 .action:focus-visible { outline: 2px solid var(--gpu-accent); outline-offset: 2px; }
+.action { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.actionLead { border-color: var(--gpu-accent); color: var(--gpu-accent); }
+.actionLead:hover { background: var(--gpu-accent); color: var(--brand-fg); }
+.actions { display: inline-flex; gap: var(--space-2); }
+
+/* 문의 창 */
+.iContacts { display: grid; gap: var(--space-2); margin: 0 0 var(--space-3); padding: 0; list-style: none; }
+.iContact { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.iSubject { max-width: none; }
+.iDraft { width: 100%; margin: var(--space-3) 0; resize: vertical; font-size: var(--fs-base); line-height: 1.6; }
 
 /* 상세 창과 연결 창이 함께 쓰는 것 */
 .basisLink { color: var(--gpu-accent); font-weight: 600; text-decoration: none; }
@@ -191,7 +202,8 @@
 .cardFacts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3); margin: 0; }
 .cardFacts dt { color: var(--text-muted); font-size: var(--fs-base); }
 .cardFacts dd { margin: 0; min-width: 0; }
-.card .action { width: 100%; }
+.card .actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
+.card > .action { width: 100%; }
 
 @media (max-width: 640px) {
   .table { display: none; }

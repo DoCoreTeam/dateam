@@ -116,8 +116,9 @@ export interface Board {
   fx_date: string | null
 }
 
-/** 표 고정 열(모델, 판매가, 적정판매가, 차이, 최근 일자, 단추)이 차지하는 폭 */
-export const BOARD_FIXED_WIDTH_PX = 760
+/** 표 고정 열(모델 152, 판매가 120, 적정판매가 120, 차이 104, 단추 184)과 칸 사이 16 다섯, 줄 양옆 8 의 최소 합
+    board.module.css 의 .row 열 최소 폭과 같이 고친다, 1280 화면 표 폭 932 에 공급사 1칸이 가로 밀림 없이 들어간다 */
+export const BOARD_FIXED_WIDTH_PX = 776
 /** 공급사 칸 하나의 최소 폭 */
 export const BOARD_SLOT_MIN_PX = 150
 
