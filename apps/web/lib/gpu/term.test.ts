@@ -53,8 +53,19 @@ test('isOnDemand', () => {
 test('termLabel — 사람이 읽는 라벨', () => {
   assert.equal(termLabel('on_demand'), '온디맨드')
   assert.equal(termLabel('spot'), '스팟')
-  assert.equal(termLabel('reserved_6m'), '약정 6개월')
-  assert.equal(termLabel('reserved_12m'), '약정 1년')
-  assert.equal(termLabel('reserved_36m'), '약정 3년')
+  assert.equal(termLabel('reserved_6m'), '6개월 약정')
+  assert.equal(termLabel('reserved_12m'), '1년 약정')
+  assert.equal(termLabel('reserved_36m'), '3년 약정')
   assert.equal(termLabel('reserved'), '약정')
+})
+
+test('줄표와 영어 수사도 읽는다 — 원문 이어쓰기(12monthterm)가 화면에 뜨지 않게', () => {
+  assert.equal(normalizeTerm('12-month term'), 'reserved_12m')
+  assert.equal(normalizeTerm('3-month term'), 'reserved_3m')
+  assert.equal(normalizeTerm('one-year contract'), 'reserved_12m')
+  assert.equal(normalizeTerm('One year contract'), 'reserved_12m')
+  assert.equal(termLabel(normalizeTerm('12-month term')), '1년 약정')
+  assert.equal(termLabel(normalizeTerm('6-month term')), '6개월 약정')
+  assert.equal(termLabel(normalizeTerm('30 days')), '30일')
+  assert.equal(normalizeTerm('someone year'), 'someoneyear') // 낱말 일부는 수사로 안 읽는다
 })

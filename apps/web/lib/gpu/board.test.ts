@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   buildBoard,
+  vendorDisplayName,
   supplierSlotCount,
   strategicItemsFor,
   BOARD_FIXED_WIDTH_PX,
@@ -65,7 +66,7 @@ test('같은 공급사에 견적과 시세가 있으면 견적이 남는다 (이
   }))
   assert.equal(board.rows[0].offers.length, 1)
   assert.equal(board.rows[0].offers[0].kind, 'quote')
-  assert.equal(board.rows[0].offers[0].term_label, '약정 1년')
+  assert.equal(board.rows[0].offers[0].term_label, '1년 약정')
 })
 
 test('원화 시간당은 원래 원화를 장수로 나누고 그 밖은 1장 USD × 최신 환율', () => {
@@ -189,4 +190,11 @@ test('일자는 한국 날짜다 (11-01 0시 KST 가 10-31 로 보이지 않는�
   const board = buildBoard(input({ quotes: [quote('d', 'D', 1, { received_at: '2026-10-31T15:00:00+00:00' })] }))
   assert.equal(board.rows[0].offers[0].date, '2026-11-01')
   assert.equal(board.rows[0].latest_date, '2026-11-01')
+})
+
+test('같은 회사의 다른 표기는 한 이름으로 보인다', () => {
+  assert.equal(vendorDisplayName('ソフトバンク'), 'SoftBank')
+  assert.equal(vendorDisplayName(' konst tech '), 'Konsttech')
+  assert.equal(vendorDisplayName('RunPod'), 'RunPod')
+  assert.equal(vendorDisplayName(null), '')
 })

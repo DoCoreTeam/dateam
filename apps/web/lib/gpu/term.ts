@@ -3,16 +3,19 @@
 // 표준값: 'on_demand' | 'spot' | 'reserved_<N>m'(N=개월) | 'reserved'(기간불명) | 그 외 정규화 원문.
 
 /** 문자열에서 약정 개월 수 추출 — "1year"/"1년"→12, "3년"→36, "6개월"/"6month"/"6m"/"reserved_6m"→6. 없으면 null. */
+const WORD_NUM: Record<string, number> = { one: 1, two: 2, three: 3 }
+
 function extractMonths(s: string): number | null {
-  const lower = s.toLowerCase()
+  // 숫자와 단위 사이 줄표(12-month), 영어 수사(one-year)도 읽는다 — 안 읽으면 원문이 그대로 화면에 뜬다(12monthterm)
+  const lower = s.toLowerCase().replace(/\b(one|two|three)(?=[\s-]*(?:years?|yrs?)\b)/g, (w) => String(WORD_NUM[w]))
   // 연 단위 우선(년/year/yr) — \b는 한글(년)에서 안 먹으므로 미사용. 정수만.
-  const yr = lower.match(/(\d+)\s*(?:년|years?|yrs?)/)
+  const yr = lower.match(/(\d+)[\s-]*(?:년|years?|yrs?)/)
   if (yr) {
     const n = parseInt(yr[1], 10)
     if (n > 0 && n <= 10) return n * 12
   }
   // 월 단위(개월/월/month/mo).
-  const mo = lower.match(/(\d+)\s*(?:개월|months?|mos?|mo|월)/)
+  const mo = lower.match(/(\d+)[\s-]*(?:개월|months?|mos?|mo|월)/)
   if (mo) {
     const n = parseInt(mo[1], 10)
     if (n > 0 && n <= 120) return n
@@ -53,7 +56,7 @@ export function isOnDemand(term: unknown): boolean {
   return normalizeTerm(term) === 'on_demand'
 }
 
-/** 사람이 읽는 약정 라벨 — 'reserved_6m'→'약정 6개월', 'on_demand'→'온디맨드', 'spot'→'스팟'. */
+/** 사람이 읽는 약정 라벨 — 'reserved_6m'→'6개월 약정', 'on_demand'→'온디맨드', 'spot'→'스팟', '30days'→'30일'. */
 export function termLabel(term: string): string {
   if (term === 'on_demand') return '온디맨드'
   if (term === 'spot') return '스팟'
@@ -61,7 +64,10 @@ export function termLabel(term: string): string {
   const m = term.match(/^reserved_(\d+)m$/)
   if (m) {
     const n = parseInt(m[1], 10)
-    return n % 12 === 0 ? `약정 ${n / 12}년` : `약정 ${n}개월`
+    return n % 12 === 0 ? `${n / 12}년 약정` : `${n}개월 약정`
   }
+  // 일 단위는 개월로 바꾸지 않는다(30일이 1개월인지 원문이 말하지 않음), 읽을 수 있게만 적는다
+  const d = term.match(/^(\d+)days?$/)
+  if (d) return `${parseInt(d[1], 10)}일`
   return term
 }

@@ -145,6 +145,22 @@ export function rowKeyOf(p: Pick<BoardProductIn, 'model_name' | 'memory' | 'gpu_
   return `${p.model_name.trim()}|${memoryPerGpuGb(p.memory, p.gpu_count) ?? ''}`
 }
 
+/**
+ * 같은 회사가 표기만 달리 들어온 것 — 화면에는 한 이름으로 보인다 (저장된 원문은 그대로)
+ * 2026-11-04 실측: SoftBank 6건과 ソフトバンク 4건이 다른 업체처럼 섞여 보였다
+ */
+const VENDOR_DISPLAY: Record<string, string> = {
+  'ソフトバンク': 'SoftBank',
+  'konst tech': 'Konsttech',
+  '베슬AI': 'VESSL AI',
+  'NHN클라우드': 'NHN Cloud',
+}
+
+export function vendorDisplayName(name: string | null | undefined): string {
+  const trimmed = name?.trim() || ''
+  return VENDOR_DISPLAY[trimmed] ?? trimmed
+}
+
 /** 공급사 이름 비교용 — 「konst tech」와 「Konsttech」를 같은 곳으로 본다 */
 export function vendorKeyOf(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9가-힣]/g, '')
@@ -195,7 +211,7 @@ function quoteOffer(q: BoardQuoteIn, usdKrw: number): BoardOffer {
   const term = normalizeTerm(q.term)
   return {
     id: q.id,
-    vendor: q.supplier_name?.trim() || '',
+    vendor: vendorDisplayName(q.supplier_name),
     kind: 'quote',
     krw: quoteKrw(q, usdKrw),
     original_amount: num(q.original_price),
@@ -212,7 +228,7 @@ function quoteOffer(q: BoardQuoteIn, usdKrw: number): BoardOffer {
 function marketOffer(m: BoardMarketIn, usdKrw: number): BoardOffer {
   return {
     id: m.id,
-    vendor: m.competitor_name?.trim() || '',
+    vendor: vendorDisplayName(m.competitor_name),
     kind: 'market',
     krw: marketKrw(m, usdKrw),
     original_amount: num(m.obs_amount),
