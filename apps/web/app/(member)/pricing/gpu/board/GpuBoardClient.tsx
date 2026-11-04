@@ -2,6 +2,7 @@
 
 // GPU 한 장 화면 — 모델마다 gcube 판매가, 적정판매가, 그 차이, 그리고 어디가 제일 싼지
 // 공급사 칸 수는 표 폭으로만 정한다 (supplierSlotCount), 공급사 전부와 일자는 줄 끝 「자세히」 창에서 본다
+// 칸마다 최소 폭이 있어 표가 그보다 좁으면 표 몸통만 가로로 밀린다, 모델명 열과 단추 열은 제자리, 더 있는 쪽에 그림자
 // 좁은 폭(640px 이하)에서는 표 대신 모델별 카드로 그린다, 가로 스크롤을 만들지 않는다
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
@@ -9,7 +10,7 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { fmtKRW } from '@/lib/gpu/format-price'
-import { supplierSlotCount, type Board, type BoardOffer, type BoardRow } from '@/lib/gpu/board'
+import { supplierSlotCount, BOARD_FIXED_WIDTH_PX, BOARD_SLOT_MIN_PX, type Board, type BoardOffer, type BoardRow } from '@/lib/gpu/board'
 import { BOARD_COPY as C } from '@/lib/gpu/board-copy'
 import PageHeader from '@/components/ui/PageHeader'
 import EmptyState from '@/components/ui/EmptyState'
@@ -19,6 +20,7 @@ import MarginControl from '@/components/pricing/gpu/MarginControl'
 import GpuBoardPanel from './GpuBoardPanel'
 import GcubeLinkPanel from './GcubeLinkPanel'
 import EntryPanel, { type EntryPreset } from './EntryPanel'
+import { useScrollEdges } from './useScrollEdges'
 import s from './board.module.css'
 
 export const BOARD_API = '/api/pricing/gpu/board'
@@ -150,20 +152,27 @@ function BoardRowView({ row, slots, marginPct, onOpen, onAdd }: RowProps) {
 function BoardTable({ rows, slots, marginPct, onOpen, onAdd }: {
   rows: BoardRow[]; slots: number; marginPct: number; onOpen: (key: string) => void; onAdd: (row: BoardRow) => void
 }) {
+  const { headRef, bodyRef, edges } = useScrollEdges()
+  const rowMin = { '--row-min': `${BOARD_FIXED_WIDTH_PX + slots * BOARD_SLOT_MIN_PX}px` } as CSSProperties
   return (
-    <div role="table" aria-label={C.title} className={s.table}>
-      <div className={`${s.row} ${s.head}`} role="row">
-        <div role="columnheader">{C.colModel}</div>
-        <div role="columnheader" className={s.num}>{C.colSale}</div>
-        <div role="columnheader" className={s.num}>{C.colFair}</div>
-        <div role="columnheader" className={s.num}>{C.colGap}</div>
-        {Array.from({ length: slots }, (_, i) => <div key={i} role="columnheader" className={s.slotHead}>{C.colVendor(i + 1)}</div>)}
-        <div role="columnheader" aria-hidden />
+    <div role="table" aria-label={C.title} className={s.table} style={rowMin}
+      data-more-left={edges.moreLeft || undefined} data-more-right={edges.moreRight || undefined}>
+      <div ref={headRef} className={s.headScroll} role="rowgroup">
+        <div className={`${s.row} ${s.head}`} role="row">
+          <div role="columnheader">{C.colModel}</div>
+          <div role="columnheader" className={s.num}>{C.colSale}</div>
+          <div role="columnheader" className={s.num}>{C.colFair}</div>
+          <div role="columnheader" className={s.num}>{C.colGap}</div>
+          {Array.from({ length: slots }, (_, i) => <div key={i} role="columnheader" className={s.slotHead}>{C.colVendor(i + 1)}</div>)}
+          <div role="columnheader" aria-hidden />
+        </div>
       </div>
-      {rows.map((row) => (
-        <BoardRowView key={row.key} row={row} slots={slots} marginPct={marginPct}
-          onOpen={() => onOpen(row.key)} onAdd={() => onAdd(row)} />
-      ))}
+      <div ref={bodyRef} className={s.bodyScroll} role="rowgroup">
+        {rows.map((row) => (
+          <BoardRowView key={row.key} row={row} slots={slots} marginPct={marginPct}
+            onOpen={() => onOpen(row.key)} onAdd={() => onAdd(row)} />
+        ))}
+      </div>
     </div>
   )
 }

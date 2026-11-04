@@ -70,12 +70,26 @@
   overflow: clip;
 }
 
+/* 표: 머리줄 상자는 페이지에 붙고(sticky top), 몸통 상자만 가로로 밀린다, 머리줄은 useScrollEdges 가 같이 민다
+   줄 최소 폭(--row-min)은 lib/gpu/board.ts 의 고정 열 폭 + 칸 수 × 칸 최소 폭 */
+.table { position: relative; background: var(--color-surface); }
+.headScroll {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+.bodyScroll { overflow-x: auto; overscroll-behavior-x: contain; }
+
 .row {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(0, 0.8fr) repeat(var(--slots), minmax(0, 1fr)) 8.5rem;
+  min-width: var(--row-min, 0);
+  grid-template-columns: minmax(10rem, 1.3fr) minmax(8rem, 1.1fr) minmax(8rem, 1.1fr) minmax(6rem, 0.8fr) repeat(var(--slots), minmax(0, 1fr)) 8.5rem;
   align-items: center;
   column-gap: var(--space-5);
-  padding: var(--space-3) var(--space-2);
+  --row-pad-y: var(--space-3);
+  padding: var(--row-pad-y) var(--space-2);
   border-bottom: var(--hairline) solid var(--border);
   font-size: var(--fs-base);
 }
@@ -84,17 +98,31 @@
 .rowEmpty:hover, .rowEmpty:focus-within { opacity: 1; }
 
 .row.head {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding-top: var(--space-2);
-  padding-bottom: var(--space-2);
+  --row-pad-y: var(--space-2);
   background: var(--color-surface);
   border-bottom-color: var(--border-subtle);
   color: var(--text-muted);
   font-size: var(--fs-base);
   font-weight: 600;
 }
+
+/* 모델명 열과 단추 열은 가로로 밀어도 제자리, 칸 사이 틈까지 바탕을 덮어 밑으로 지나는 값이 안 비친다
+   줄 안쪽 여백(위아래 --row-pad-y, 양옆 --space-2)까지 덮도록 칸을 줄 높이로 늘리고 음수 여백으로 넓힌다 */
+.row > :first-child, .row > :last-child {
+  position: sticky;
+  z-index: 1;
+  align-self: stretch;
+  display: flex;
+  justify-content: center;
+  margin-block: calc(-1 * var(--row-pad-y));
+  padding-block: var(--row-pad-y);
+  background: var(--color-surface);
+}
+.row > :first-child { left: 0; flex-direction: column; margin-left: calc(-1 * var(--space-2)); padding-left: var(--space-2); margin-right: calc(-1 * var(--space-5)); padding-right: var(--space-5); }
+.row > :last-child { right: 0; align-items: center; justify-content: flex-end; margin-right: calc(-1 * var(--space-2)); padding-right: var(--space-2); margin-left: calc(-1 * var(--space-5)); padding-left: var(--space-5); }
+.row:hover:not(.head) > :first-child, .row:hover:not(.head) > :last-child { background: var(--surface-bg); }
+.table[data-more-left] .row > :first-child { box-shadow: 10px 0 10px -10px rgb(0 0 0 / 0.35); }
+.table[data-more-right] .row > :last-child { box-shadow: -10px 0 10px -10px rgb(0 0 0 / 0.35); }
 
 .model { display: flex; flex-direction: column; min-width: 0; }
 .modelName { font-size: var(--fs-md); font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
@@ -125,7 +153,6 @@
 .slot .price { font-size: var(--fs-md); }
 .slotHead { padding-left: var(--space-3); }
 
-.actionCell { justify-self: end; }
 .action {
   min-height: var(--control-h);
   padding: 0 var(--space-3);
