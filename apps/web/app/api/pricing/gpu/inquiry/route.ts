@@ -1,4 +1,4 @@
-// GET  /api/pricing/gpu/inquiry?product_id= — 그 상품이 든 모델의 가장 싼 공급사, 담당자 메일 전화, 누리집, 문의 글
+// GET  /api/pricing/gpu/inquiry?product_id= — 그 상품이 든 모델의 가장 싼 공급사, 담당자 메일 전화, 홈페이지, 문의 글
 // POST /api/pricing/gpu/inquiry — 문의한 사실을 이력(inquiry_sent)에 남긴다, body: { product_id, vendor, channel }
 //
 // 메일은 서버가 보내지 않는다 (화면이 메일 앱을 열거나 글을 복사한다), 계산과 글은 lib/gpu/inquiry.ts

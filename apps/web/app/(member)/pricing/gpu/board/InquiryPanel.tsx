@@ -1,7 +1,7 @@
 'use client'
 
 // 문의 창 — 모델 한 줄의 가장 싼 공급사에 묻는다 (lib/gpu/inquiry.ts)
-// 메일 쓰기, 전화 걸기, 누리집, 글 복사 중 하나를 누르면 그 사실을 GPU 이력(inquiry_sent)에 남긴다
+// 메일 쓰기, 전화 걸기, 홈페이지, 글 복사 중 하나를 누르면 그 사실을 GPU 이력(inquiry_sent)에 남긴다
 // 메일은 사용자의 메일 앱이 보낸다, 서버는 보내지 않는다
 
 import { useState } from 'react'

@@ -251,7 +251,7 @@ export default function GpuBoardClient({ isAdmin }: { isAdmin: boolean }) {
   }
 
   return (
-    <div className={`page-inner ${s.board}`}>
+    <div className="page-inner">
       <PageHeader className="page-header--compact" eyebrow={C.eyebrow} title={C.title} description={C.description} descClassName={s.keep} />
       <p className={s.steps}>
         <span className={s.stepsLabel}>{C.stepsLabel}</span>

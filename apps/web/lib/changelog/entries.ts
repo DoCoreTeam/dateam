@@ -36,6 +36,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.106',
+    date: '2026-11-05',
+    title: 'GPU 관리도 고른 테마 색을 따라요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '🎨',
+        headline: 'GPU 관리만 색이 다르던 것을 고쳤어요',
+        detail: 'GPU 관리 화면의 단추와 링크가 다른 화면처럼 고른 테마의 색으로 보여요. 테마를 바꾸면 이 화면도 함께 바뀌어요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '🏠',
+        headline: '문의 창의 낯선 말을 「홈페이지」로 바꿨어요',
+        detail: '공급사 문의 창에서 「누리집」이라고 쓰던 곳을 다른 화면처럼 「홈페이지」로 맞췄어요.',
+      },
+    ],
+  },
+  {
     version: '0.11.104',
     date: '2026-11-05',
     title: 'GPU 관리에서 가장 싼 공급사에 바로 문의할 수 있어요',
@@ -44,7 +63,7 @@ export const CHANGELOG: ChangelogNote[
         kind: 'feature',
         emoji: '✉️',
         headline: '줄마다 「문의하기」가 생겼어요',
-        detail: '누르면 그 모델에서 가장 싼 값을 낸 공급사의 담당자 메일과 전화, 누리집, 바로 보낼 수 있는 문의 글이 열려요. 메일을 쓰거나 글을 복사하면 GPU 이력에 「문의 발송」으로 남아요.',
+        detail: '누르면 그 모델에서 가장 싼 값을 낸 공급사의 담당자 메일과 전화, 홈페이지, 바로 보낼 수 있는 문의 글이 열려요. 메일을 쓰거나 글을 복사하면 GPU 이력에 「문의 발송」으로 남아요.',
       },
       {
         kind: 'feature',

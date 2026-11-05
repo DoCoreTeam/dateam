@@ -1,20 +1,7 @@
 /* GPU 한 장 화면 — 열 수는 폭으로만 정한다 (lib/gpu/board.ts supplierSlotCount)
    글자: 표 안은 14px 이상(--fs-base), 금액은 크게, 업체와 표기는 한 단계 작게 (14px 밑으로 안 내림)
-   강조색은 청록 하나(--gpu-accent), 상태색은 판단에 필요한 곳(미반영, 적정판매가 밑)에만 */
-
-/* 이 화면만 청록, 공용 부품(기본 단추, 마진 조절, 상세 창)도 같은 색을 쓰게 브랜드 토큰을 이 안에서 덮는다
-   대비: 밝은 바탕 다섯(흰색 #f8fafc #eef1f6 #f8f8f8 #faf9f5) 위 글자 4.5 이상, lib/gpu/board-accent.test.ts 가 잰다 */
-.board {
-  --gpu-accent: #0f766e;
-  --gpu-accent-ink: #115e59;
-  --gpu-accent-soft: #ccfbf1;
-  --brand: var(--gpu-accent);
-  --brand-dark: var(--gpu-accent-ink);
-  --brand-soft-2: var(--gpu-accent-soft);
-  --brand-fg: #ffffff;
-  --color-brand: var(--gpu-accent);
-  --color-brand-hover: var(--gpu-accent-ink);
-}
+   강조색은 테마 브랜드 색(--gpu-accent = --brand), 상태색은 판단에 필요한 곳(미반영, 적정판매가 밑)에만
+   이 파일에서 테마 색 토큰을 덮거나 색 값을 직접 적지 않는다, 테마를 바꾸면 이 화면도 같이 바뀐다 (lib/gpu/board-accent.test.ts) */
 
 .steps {
   display: flex;
@@ -122,8 +109,8 @@
 .row > :first-child { left: 0; flex-direction: column; margin-left: calc(-1 * var(--space-2)); padding-left: var(--space-2); margin-right: calc(-1 * var(--col-gap)); padding-right: var(--col-gap); }
 .row > :last-child { right: 0; align-items: center; justify-content: flex-end; margin-right: calc(-1 * var(--space-2)); padding-right: var(--space-2); margin-left: calc(-1 * var(--col-gap)); padding-left: var(--col-gap); }
 .row:hover:not(.head) > :first-child, .row:hover:not(.head) > :last-child { background: var(--surface-bg); }
-.table[data-more-left] .row > :first-child { box-shadow: 10px 0 10px -10px rgb(0 0 0 / 0.35); }
-.table[data-more-right] .row > :last-child { box-shadow: -10px 0 10px -10px rgb(0 0 0 / 0.35); }
+.table[data-more-left] .row > :first-child { box-shadow: 10px 0 10px -10px color-mix(in srgb, var(--text) 25%, transparent); }
+.table[data-more-right] .row > :last-child { box-shadow: -10px 0 10px -10px color-mix(in srgb, var(--text) 25%, transparent); }
 
 .model { display: flex; flex-direction: column; min-width: 0; }
 .modelName { font-size: var(--fs-md); font-weight: 700; color: var(--text); overflow-wrap: anywhere; }

@@ -1,7 +1,7 @@
 // GPU 문의 — 모델 한 줄에서 가장 싼 공급사를 고르고, 그 공급사에 물을 글을 짓는다
 //
 // 누구에게: 줄의 1위 공급사 (board.ts vendors[0], 싼 순)
-// 어디로: 공급사(suppliers)에 이어진 CRM 회사의 담당자 메일 전화, 누리집, 그 값의 출처 주소
+// 어디로: 공급사(suppliers)에 이어진 CRM 회사의 담당자 메일 전화, 홈페이지, 그 값의 출처 주소
 // 메일은 서버가 보내지 않는다, 화면은 메일 앱을 열거나 글을 복사하고 누른 사실만 이력(inquiry_sent)에 남긴다
 // 화면(/pricing/gpu 문의하기)과 창구(GET POST /api/pricing/gpu/inquiry, teamda gpu inquiry get create)가 이 파일을 지난다
 

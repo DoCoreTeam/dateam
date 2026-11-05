@@ -102,7 +102,7 @@ export const GPU_DEFS: ActionDef[] = [
   { op: "POST /api/pricing/gpu/review/commit", name: "gpu.review.commit", scope: "approve", cli: "gpu review commit" },
   { op: "POST /api/pricing/gpu/review/stream", name: "gpu.review.stream", scope: "write", cli: "gpu review stream" },
   { op: "POST /api/pricing/gpu/specs/generate", name: "gpu.spec.generate", scope: "admin", cli: "gpu spec generate" },
-  { op: "GET /api/pricing/gpu/inquiry", name: "gpu.inquiry.get", scope: "read", cli: "gpu inquiry get", summary: "모델의 가장 싼 공급사와 그 담당자 메일 전화 누리집, 문의 글 제목과 본문 (product_id)" },
+  { op: "GET /api/pricing/gpu/inquiry", name: "gpu.inquiry.get", scope: "read", cli: "gpu inquiry get", summary: "모델의 가장 싼 공급사와 그 담당자 메일 전화 홈페이지, 문의 글 제목과 본문 (product_id)" },
   { op: "POST /api/pricing/gpu/inquiry", name: "gpu.inquiry.create", scope: "write", cli: "gpu inquiry create", summary: "공급사에 문의한 사실을 이력에 남김 (메일은 보내지 않음), product_id vendor channel" },
   { op: "POST /api/pricing/gpu/entries", name: "gpu.entry.create", scope: "write", cli: "gpu entry create", summary: "견적과 시세를 정해진 칸으로 여러 줄 넣음, 관리자는 바로 확정 일반 회원은 확정 대기" },
   { op: "POST /api/pricing/gpu/gcube/fetch", name: "gpu.gcube.fetch", scope: "admin", cli: "gpu gcube fetch", summary: "gcube 사이트 판매가를 지금 가져와 상품 번호(ser)로 덮어씀" },

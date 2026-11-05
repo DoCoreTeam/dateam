@@ -4,7 +4,7 @@
   "title": "사내 자동화 API",
   "version": "1",
   "description": "지금 배포된 사내 자동화 API 의 엔드포인트 전체입니다. 모든 요청에 X-API-Key 헤더(또는 Authorization: Bearer <키>)가 필요하고, 키는 「내 키 관리」에서 발급합니다. 배포가 바뀌면 이 스펙도 함께 바뀌므로 코드 생성 전에 다시 받아 쓰세요.",
-  "x-spec-hash": "1c6458b45d4b06aa"
+  "x-spec-hash": "4bdc061d68ab600b"
  },
  "servers": [
   {
@@ -46086,7 +46086,7 @@
   "/pricing/gpu/inquiry": {
    "get": {
     "operationId": "gpu.inquiry.get",
-    "summary": "모델의 가장 싼 공급사와 그 담당자 메일 전화 누리집, 문의 글 제목과 본문 (product_id)",
+    "summary": "모델의 가장 싼 공급사와 그 담당자 메일 전화 홈페이지, 문의 글 제목과 본문 (product_id)",
     "tags": [
      "gpu"
     ],

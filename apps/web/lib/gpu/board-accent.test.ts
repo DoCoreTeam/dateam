@@ -1,55 +1,31 @@
-// GPU 관리 화면 강조색은 청록 하나, 바탕 위 글자 대비 4.5 이상 (ins_0458 디자인 기준)
+// GPU 관리 화면은 고른 테마의 색을 그대로 쓴다 (사용자 지적 2026-11-05 「여기만 색깔이 다르네 표준화된 색깔로 해야지 테마도 있는데」)
+// 한때 이 화면만 청록으로 토큰을 덮어써서 테마를 바꿔도 이 화면만 안 바뀌었다
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 
-const CSS_PATH = path.join(import.meta.dirname, '../../app/(member)/pricing/gpu/board/board.module.css')
-const css = readFileSync(CSS_PATH, 'utf8')
-const MIN_CONTRAST = 4.5
-/** 테마마다 이 화면이 놓이는 밝은 바탕 (globals.css --color-surface --surface-bg --color-bg) */
-const SURFACES = ['#ffffff', '#f8fafc', '#eef1f6', '#f8f8f8', '#faf9f5']
+const DIR = path.join(import.meta.dirname, '../../app/(member)/pricing/gpu/board')
+const CSS = readFileSync(path.join(DIR, 'board.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+const TSX = readdirSync(DIR).filter((f) => !f.startsWith('.') && f.endsWith('.tsx')).map((f) => [f, readFileSync(path.join(DIR, f), 'utf8')] as const)
 
-function luminance(hex: string): number {
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
-    .map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4))
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b
-}
+/** 테마가 정하는 색 토큰 — 화면이 다시 정의하면 그 화면만 테마에서 떨어진다 */
+const THEME_TOKENS = /--(brand|brand-[a-z0-9-]+|color-brand[a-z-]*|gpu-accent[a-z-]*|accent[a-z-]*|text|border[a-z-]*|surface[a-z-]*|color-[a-z-]+)\s*:/
 
-function contrast(a: string, b: string): number {
-  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
-  return (hi + 0.05) / (lo + 0.05)
-}
-
-function boardToken(name: string): string {
-  const block = css.match(/\.board\s*\{([^}]*)\}/)?.[1] ?? ''
-  const value = block.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})`))?.[1]
-  assert.ok(value, `.board 에 --${name} 이 hex 로 없다`)
-  return value
-}
-
-test('강조는 --gpu-accent 하나, 화면 규칙에서 --brand 를 직접 안 쓴다', () => {
-  const rules = css.replace(/\.board\s*\{[^}]*\}/, '')
-  assert.equal(rules.match(/var\(--brand\)/g)?.length ?? 0, 0)
-  assert.ok((rules.match(/var\(--gpu-accent\)/g)?.length ?? 0) > 0)
+test('화면 CSS 가 테마 색 토큰을 다시 정의하지 않는다', () => {
+  assert.equal(CSS.match(new RegExp(THEME_TOKENS.source, 'g'))?.length ?? 0, 0, CSS.match(THEME_TOKENS)?.[0])
 })
 
-test('청록이다 (초록 파랑이 빨강보다 크고 초록이 파랑 이상)', () => {
-  const hex = boardToken('gpu-accent')
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
-  assert.ok(g > r && b > r && g >= b, `${hex} 는 청록이 아니다`)
+test('화면 CSS 에 색 값을 직접 적지 않는다 (16진, rgb, hsl)', () => {
+  const hits = CSS.match(/#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(|\boklch\(/g) ?? []
+  assert.deepEqual(hits, [])
 })
 
-test('강조 글자와 진한 강조 글자가 모든 바탕에서 대비 4.5 이상', () => {
-  for (const name of ['gpu-accent', 'gpu-accent-ink']) {
-    const fg = boardToken(name)
-    for (const bg of SURFACES) {
-      assert.ok(contrast(fg, bg) >= MIN_CONTRAST, `${name} ${fg} 대 ${bg} = ${contrast(fg, bg).toFixed(2)}`)
-    }
-  }
+test('화면 컴포넌트가 인라인 색을 쓰지 않는다', () => {
+  const bad = TSX.filter(([, src]) => /(color|background|borderColor)\s*:\s*['"`]#|#[0-9a-fA-F]{6}\b/.test(src)).map(([f]) => f)
+  assert.deepEqual(bad, [])
 })
 
-test('강조 바탕 위 흰 글자(기본 단추)와 옅은 강조 위 진한 글자(고른 마진)도 4.5 이상', () => {
-  assert.ok(contrast('#ffffff', boardToken('gpu-accent')) >= MIN_CONTRAST)
-  assert.ok(contrast(boardToken('gpu-accent-ink'), boardToken('gpu-accent-soft')) >= MIN_CONTRAST)
+test('강조는 테마 토큰으로 쓴다', () => {
+  assert.ok((CSS.match(/var\(--gpu-accent\)|var\(--brand\)/g)?.length ?? 0) > 0)
 })
