@@ -45,6 +45,8 @@ export const BOARD_COPY = {
   inquirySource: '이 값을 본 곳 열기',
   inquiryDraft: '문의 글',
   inquirySubject: '제목',
+  inquiryLangLabel: '문의 글 언어',
+  inquiryLang: { ko: '한국어', en: 'English' },
   inquiryCopy: '글 복사',
   inquiryCopied: '복사했습니다. 메일이나 문의 창구에 붙여 넣습니다',
   inquiryCopyFailed: '복사하지 못했습니다. 글을 직접 골라 복사합니다',

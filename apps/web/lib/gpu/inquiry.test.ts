@@ -107,6 +107,10 @@ test('웹=CLI: 정의 두 줄이 창구 하나와 CLI 이름을 잇고, 창구�
   assert.match(panel, /export const INQUIRY_API = '\/api\/pricing\/gpu\/inquiry'/)
   assert.match(panel, /useSWR<Inquiry>\(`\$\{INQUIRY_API\}\?product_id=/)
   assert.match(panel, /fetch\(INQUIRY_API, \{\s*method: 'POST'/)
+  // 고른 언어 글 하나를 창과 메일 쓰기와 글 복사가 같이 쓴다
+  assert.match(panel, /const \{ subject, body \} = inquiry\.drafts\[lang\]/)
+  assert.match(panel, /mailtoHref\(c\.email, subject, body\)/)
+  assert.match(panel, /const draft = `\$\{subject\}\\n\\n\$\{body\}`/)
   const board = fs.readFileSync(path.join(import.meta.dirname, '../../app/(member)/pricing/gpu/board/GpuBoardClient.tsx'), 'utf8')
   assert.match(board, /<InquiryPanel productId=\{inquiryProduct\}/)
 })

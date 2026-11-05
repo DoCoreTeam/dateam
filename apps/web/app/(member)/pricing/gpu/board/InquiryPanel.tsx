@@ -9,10 +9,11 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import { fetcher } from '@/lib/swr-config'
 import { fmtKRW } from '@/lib/gpu/format-price'
-import { mailtoHref, type Inquiry, type InquiryChannel } from '@/lib/gpu/inquiry'
+import { isInquiryLang, mailtoHref, INQUIRY_LANGS, type Inquiry, type InquiryChannel, type InquiryLang } from '@/lib/gpu/inquiry'
 import { BOARD_COPY as C } from '@/lib/gpu/board-copy'
 import SlidePanel from '@/components/ui/SlidePanel'
 import ContactLink from '@/components/ui/ContactLink'
+import SegmentedTabs from '@/components/ui/SegmentedTabs'
 import ErrorState from '@/components/ui/ErrorState'
 import { SkelList } from '@/components/ui/LoadingSkeleton'
 import s from './board.module.css'
@@ -37,7 +38,10 @@ function NoContact({ inquiry, isAdmin }: { inquiry: Inquiry; isAdmin: boolean })
 
 function InquiryBody({ inquiry, isAdmin }: { inquiry: Inquiry; isAdmin: boolean }) {
   const [note, setNote] = useState<Note>(null)
-  const draft = `${inquiry.subject}\n\n${inquiry.body}`
+  // 기본은 공급사 나라로 정한 언어 (해외는 영어), 바꾸면 메일 쓰기와 글 복사가 그 언어를 쓴다
+  const [lang, setLang] = useState<InquiryLang>(inquiry.lang)
+  const { subject, body } = inquiry.drafts[lang]
+  const draft = `${subject}\n\n${body}`
 
   async function record(channel: InquiryChannel) {
     try {
@@ -84,7 +88,7 @@ function InquiryBody({ inquiry, isAdmin }: { inquiry: Inquiry; isAdmin: boolean 
                   {c.email && (
                     <>
                       <ContactLink kind="email" value={c.email} />
-                      <a className={`${s.action} ${s.actionLead}`} href={mailtoHref(c.email, inquiry.subject, inquiry.body)} onClick={() => void record('mail')}>{C.inquiryMail}</a>
+                      <a className={`${s.action} ${s.actionLead}`} href={mailtoHref(c.email, subject, body)} onClick={() => void record('mail')}>{C.inquiryMail}</a>
                     </>
                   )}
                 </span>
@@ -106,10 +110,16 @@ function InquiryBody({ inquiry, isAdmin }: { inquiry: Inquiry; isAdmin: boolean 
 
       <section>
         <h3 className={s.pHeading}>{C.inquiryDraft}</h3>
+        <SegmentedTabs
+          ariaLabel={C.inquiryLangLabel}
+          tabs={INQUIRY_LANGS.map((id) => ({ id, label: C.inquiryLang[id] }))}
+          activeId={lang}
+          onSelect={(id) => { if (isInquiryLang(id)) setLang(id) }}
+        />
         <label className={`${s.pLabel} ${s.iSubject}`}>{C.inquirySubject}
-          <input className="input-field" readOnly value={inquiry.subject} />
+          <input className="input-field" readOnly value={subject} lang={lang} />
         </label>
-        <textarea className={`input-field ${s.iDraft}`} readOnly rows={10} value={inquiry.body} aria-label={C.inquiryDraft} />
+        <textarea className={`input-field ${s.iDraft}`} readOnly rows={10} value={body} lang={lang} aria-label={C.inquiryDraft} />
         <div className={s.pActions}>
           <button type="button" className="btn-primary" onClick={() => void copy()}>{C.inquiryCopy}</button>
         </div>

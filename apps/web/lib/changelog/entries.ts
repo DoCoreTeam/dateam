@@ -36,6 +36,26 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.107',
+    date: '2026-11-05',
+    title: '해외 공급사에는 영어로 문의 글을 써 줘요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '🌏',
+        headline: '문의 글을 영어로도 써 줘요',
+        detail: 'GPU 관리의 문의 창이 해외 공급사에는 영어 글로, 국내 공급사에는 한국어 글로 열려요. 창에서 한국어와 English 를 바꾸면 메일 쓰기와 글 복사도 그 언어로 바뀌어요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '🧰',
+        headline: 'teamda 에서도 문의 글 언어를 고를 수 있어요',
+        detail: 'teamda gpu inquiry get 에 lang 을 ko 나 en 으로 주면 그 언어 글을 받아요. 안 주면 공급사 나라로 정해요.',
+        developer: true,
+      },
+    ],
+  },
+  {
     version: '0.11.106',
     date: '2026-11-05',
     title: 'GPU 관리도 고른 테마 색을 따라요',
