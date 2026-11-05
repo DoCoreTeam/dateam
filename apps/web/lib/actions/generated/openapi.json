@@ -45282,6 +45282,14 @@
     "x-internal": "/api/pricing/gpu/inquiry",
     "parameters": [
      {
+      "name": "lang",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
       "name": "product_id",
       "in": "query",
       "required": false,
@@ -60057,5 +60065,5 @@
    }
   }
  },
- "x-spec-hash": "bc64658872a2e50b"
+ "x-spec-hash": "936826c295b2014a"
 }

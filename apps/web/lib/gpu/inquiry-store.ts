@@ -2,26 +2,26 @@
 // 읽기는 회원 세션 클라이언트(RLS 그대로), 기록(gpu_audit_logs)만 서비스롤, 부르는 창구가 사람 확인을 먼저 한다
 
 import { getGpuBoard } from './board-data.ts'
-import { buildInquiry, matchOrg, type Inquiry, type InquiryContact, type InquiryOrgIn, type InquiryRecordIn } from './inquiry.ts'
+import { buildInquiry, matchOrg, type Inquiry, type InquiryContact, type InquiryLang, type InquiryOrgIn, type InquiryRecordIn } from './inquiry.ts'
 import { recordGpuAudit } from './audit.ts'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Db = any
 
-interface SupplierRow { id: string; name: string | null; website: string | null; account_id: string | null }
-interface CompetitorRow { name: string | null; short_name: string | null; aliases: string[] | null; website_url: string | null; supplier_id: string | null }
+interface SupplierRow { id: string; name: string | null; website: string | null; account_id: string | null; country: string | null }
+interface CompetitorRow { name: string | null; short_name: string | null; aliases: string[] | null; website_url: string | null; supplier_id: string | null; country: string | null }
 interface ContactRow { name: string | null; title: string | null; email: string | null; phone: string | null; mobile: string | null }
 
 async function readOrgs(db: Db): Promise<InquiryOrgIn[]> {
   const [{ data: suppliers, error: se }, { data: competitors, error: ce }] = await Promise.all([
-    db.from('suppliers').select('id, name, website, account_id'),
-    db.from('competitors').select('name, short_name, aliases, website_url, supplier_id').is('deleted_at', null),
+    db.from('suppliers').select('id, name, website, account_id, country'),
+    db.from('competitors').select('name, short_name, aliases, website_url, supplier_id, country').is('deleted_at', null),
   ])
   if (se) throw se
   if (ce) throw ce
   const byId = new Map<string, SupplierRow>(((suppliers ?? []) as SupplierRow[]).map((s) => [s.id, s]))
   const fromSuppliers = [...byId.values()].map((s) => ({
-    names: [s.name ?? ''], supplier_id: s.id, account_id: s.account_id, website: s.website,
+    names: [s.name ?? ''], supplier_id: s.id, account_id: s.account_id, website: s.website, country: s.country,
   }))
   const fromCompetitors = ((competitors ?? []) as CompetitorRow[]).map((c) => {
     const linked = c.supplier_id ? byId.get(c.supplier_id) : undefined
@@ -30,6 +30,7 @@ async function readOrgs(db: Db): Promise<InquiryOrgIn[]> {
       supplier_id: c.supplier_id,
       account_id: linked?.account_id ?? null,
       website: c.website_url ?? linked?.website ?? null,
+      country: c.country ?? linked?.country ?? null,
     }
   })
   return [...fromSuppliers, ...fromCompetitors]
@@ -54,14 +55,14 @@ async function readContacts(db: Db, accountId: string | null): Promise<InquiryCo
 export type InquiryLookup = { ok: true; inquiry: Inquiry } | { ok: false; status: 404; code: 'no_product' | 'no_vendor' }
 
 /** 상품 하나가 든 모델 줄의 가장 싼 공급사와 그 연락처 */
-export async function getInquiry(db: Db, productId: string): Promise<InquiryLookup> {
+export async function getInquiry(db: Db, productId: string, lang: InquiryLang | null = null): Promise<InquiryLookup> {
   const board = await getGpuBoard(db)
   const row = board.rows.find((r) => r.products.some((p) => p.id === productId))
   if (!row) return { ok: false, status: 404, code: 'no_product' }
   const offer = row.vendors.find((v) => v.krw != null)
   if (!offer) return { ok: false, status: 404, code: 'no_vendor' }
   const org = matchOrg(offer.vendor, await readOrgs(db))
-  const inquiry = buildInquiry({ row, product_id: productId, org, contacts: await readContacts(db, org?.account_id ?? null) })
+  const inquiry = buildInquiry({ row, product_id: productId, org, contacts: await readContacts(db, org?.account_id ?? null), lang })
   return inquiry ? { ok: true, inquiry } : { ok: false, status: 404, code: 'no_vendor' }
 }
 
