@@ -40,6 +40,8 @@ import { bucketsClosedBy, openInterestOf } from '../bars/rollup.ts'
 import { computeIndicators, evaluateTriggers, requiredBarCount } from '../judge/indicators.ts'
 import { createRuleJudge } from '../judge/rule.ts'
 import { createServerJevJudge } from '../judge/jev.ts'
+import { scoreRecentJudgments } from '../judge/score-recent.ts'
+import { trackRecordGate, trackRecordOf, trackRecordThresholdsOf } from '../judge/track-record.ts'
 import { JEV_PROMPT_VERSION } from '../judge/jev-prompt.ts'
 import type { AiProviderId } from '@/lib/ai/provider-catalog'
 import {
@@ -1031,7 +1033,7 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function emitOrExplain(ctx: any): Promise<string> {
   try {
-    const { now, today, window, target, contractCode, trigger, indicators, num, str, outcome } = ctx
+    const { now, today, window, target, contractCode, trigger, indicators, num, str, values, outcome } = ctx
     const completed = outcome.results?.find?.(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (r: any) => r.judge === 'rule' && r.result?.status === 'completed',
@@ -1107,6 +1109,23 @@ async function emitOrExplain(ctx: any): Promise<string> {
     const verdict = agreedDirection(rawScore, trigger.direction)
     if (verdict.conflict) return `emit:judge:${verdict.reason}${eventNote}`
     const direction = verdict.direction
+
+    /**
+     * **성적 관문** — 쌓인 판단이 비용을 넘겨 벌었을 때만 낸다 (`judge/track-record.ts`).
+     *
+     * 현황의 성적 칸과 같은 채점(`scoreRecentJudgments`)을 읽는다. 따로 세면 화면은 미달인데
+     * 신호가 나가는 날이 생긴다. 못 읽으면 **막는 쪽**이다 — 성적을 모르는데 내보내지 않는다
+     */
+    try {
+      const recent = await scoreRecentJudgments({
+        contractCode, now, today, values, exitBefore: num('session_close_exit_minutes', 15),
+      })
+      if (!recent.ok) return `emit:track_record:unmeasured${eventNote}`
+      const gate = trackRecordGate(trackRecordOf(recent.scores), trackRecordThresholdsOf(values))
+      if (gate.status !== 'pass') return `emit:${gate.code}${eventNote}`
+    } catch (error) {
+      return `emit:track_record:failed:${error instanceof Error ? error.message : 'unknown'}${eventNote}`
+    }
 
     let models = null
     let modelNote = ''

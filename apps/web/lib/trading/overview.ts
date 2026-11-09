@@ -101,6 +101,7 @@ import { PROTECTION_LABEL, needsHumanUnlock, DEFAULT_PROTECTION, type Protection
 import { decideEnableNotify, enableHint } from './notify/enable-gate.ts'
 import { evaluateGate, type CriterionResult } from './gate/criteria.ts'
 import { loadBarsAsOf } from './bars/store.ts'
+import { scoreRecentJudgments } from './judge/score-recent.ts'
 import { buildSeries, type ChartSeries, type PlanParams } from './chart/series.ts'
 import { scoreJudgment, summarizeScores, type JudgmentScore } from './judge/score.ts'
 import { feeConfigured } from './risk/fees.ts'
@@ -498,14 +499,6 @@ export async function loadTradingOverview(now: Date): Promise<TradingOverview> {
   }
 }
 
-/**
- * 채점에 쓸 봉 수 — **차트보다 넉넉히 읽는다.**
- *
- * 판단이 난 뒤 결판이 날 때까지의 봉이 있어야 채점이 되고, 앞으로는 지표를 구할 만큼
- * 더 필요하다. 차트용 180봉으로 재면 오래된 판단이 죄다 「아직」으로 잡힌다.
- */
-const SCORE_BARS = 3_000
-
 /** 되짚기 규칙 한 벌. **설정이 유일한 출처다** — 화면도 여기서 받아 쓴다(M4) */
 function replayRuleOf(values: Readonly<Record<string, unknown>>, feeIncluded: boolean): ReplayRule {
   return {
@@ -544,60 +537,9 @@ async function loadAccuracy(
   })
   if (!contractCode) return empty('근월물이 정해지지 않았습니다')
   try {
-    // 승수와 호가 간격은 표가 유일한 출처다(M6). 못 읽으면 못 잰 것이고 기본값을 안 끼운다
-    const instrument = await loadInstrumentSpec(today)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const admin = createAdminClient() as any
-    const bars = await loadBarsAsOf({ contractCode, tf: '1m', asOf: now, limit: SCORE_BARS })
-    if (bars.length === 0) return empty('가격 봉이 아직 없습니다')
-
-    const { data, error } = await admin
-      .from('trading_judgments')
-      .select('id, bar_close_at, judge, raw_score')
-      .eq('status', 'completed')
-      .not('raw_score', 'is', null)
-      .order('bar_close_at', { ascending: false })
-      .limit(2_000)
-    if (error) return empty(`판단을 읽지 못했습니다: ${error.message}`)
-
-    const slippage = instrument.tickSize * 2
-    const scores: JudgmentScore[] = []
-    for (const row of (data ?? []) as { id: string; bar_close_at: string; judge: string; raw_score: Record<string, number> }[]) {
-      const lean = leaningOf(row.raw_score)
-      // 관망은 채점하지 않는다 — 들어갈 자리가 없으므로 맞고 틀림이 없다
-      if (!lean || lean.direction === 'hold') continue
-      scores.push(scoreJudgment(
-        { id: row.id, barCloseAt: row.bar_close_at, judge: row.judge, direction: lean.direction },
-        bars,
-        {
-          indicators: {
-            atrPeriod: Number(values.atr_period) || 14,
-            smaFastPeriod: Number(values.sma_fast_period) || 5,
-            smaSlowPeriod: Number(values.sma_slow_period) || 20,
-            breakoutPeriod: Number(values.breakout_period) || 20,
-          },
-          exit: {
-            stopAtrMultiple: Number(values.exit_stop_atr_multiple) || 1.2,
-            targetAtrMultiple: Number(values.exit_target_atr_multiple) || 1.5,
-            chaseAtrMultiple: Number(values.exit_chase_atr_multiple) || 0.3,
-            timeExitMinutes: Number(values.min_hold_minutes) || 15,
-          },
-          instrument,
-          quantity: 1,
-          delayMinutes: Number(values.replay_delay_minutes) || 2,
-          orderKind: String(values.replay_order_type ?? 'market') === 'limit' ? 'limit' : 'market',
-          slippagePoints: slippage,
-          stopSlippagePoints: slippage,
-          feePercentPerSide: feePercent,
-          feeFlatKrw: feeFlat,
-          // 실시간과 같은 규칙으로 판다 — 그날 접속매매 끝 N분 전
-          sessionCloseAt: (barStartAt) => {
-            const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(barStartAt)
-            return new Date(new Date(`${day}T15:45:00+09:00`).getTime() - exitBefore * 60_000)
-          },
-        },
-      ))
-    }
+    const recent = await scoreRecentJudgments({ contractCode, now, today, values, exitBefore })
+    if (!recent.ok) return empty(recent.reason)
+    const { scores } = recent
     if (scores.length === 0) return empty('채점할 판단이 아직 없습니다')
 
     const days = new Set(scores.map((x) => x.barAt.slice(0, 10))).size
@@ -625,7 +567,7 @@ async function loadAccuracy(
       unmeasuredReason: '',
       // 지금은 한 판단에 한 계약이다. 화면이 그 사실을 말해야 원 금액을 읽을 수 있다
       contracts: 1,
-      multiplier: instrument.multiplier,
+      multiplier: recent.multiplier,
       baseKrw,
       feeIncluded: feeConfigured(feePercent, feeFlat),
       replay: replayRuleOf(values, feeConfigured(feePercent, feeFlat)),
