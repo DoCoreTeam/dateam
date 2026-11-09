@@ -95,6 +95,14 @@ export interface AssemblyJson {
   saved: SaveResult | null
 }
 
+export interface DeviationStateJson {
+  versionNo: number
+  contentHash: string
+  deviations: { clauseId: string; reason: 'ai' | 'manual' | 'changed' | 'removed' | 'unknown'; title: string }[]
+  approval: { versionNo: number; contentHash: string; approvedById: string | null; approvedAt: string } | null
+  canConclude: boolean
+}
+
 /** 창구 하나의 답 — 성공이면 body, 아니면 사람이 읽을 말과 코드 */
 export type Outcome<T> =
   | { ok: true; body: T }
@@ -135,6 +143,9 @@ export const contractApi = {
   modules: (fail: string) => callApi<{ items: ContractModuleJson[] }>('/api/crm/contract-modules', fail),
   assemble: (id: string, fail: string, body: { version: number; moduleKeys: string[]; dryRun?: boolean }) =>
     callApi<AssemblyJson>(`${contractUrl(id)}/assemble`, fail, json('POST', body)),
+  deviations: (id: string, fail: string) => callApi<DeviationStateJson>(`${contractUrl(id)}/deviation-approval`, fail),
+  approveDeviations: (id: string, fail: string, body: { version: number; note?: string }) =>
+    callApi<DeviationStateJson>(`${contractUrl(id)}/deviation-approval`, fail, json('POST', body)),
   versions: (id: string, fail: string) => callApi<{ items: ContractVersionItem[] }>(`${contractUrl(id)}/versions`, fail),
   compare: (id: string, fail: string, a: number, b: number) =>
     callApi<ContractCompareJson>(`${contractUrl(id)}/compare?a=${a}&b=${b}`, fail),

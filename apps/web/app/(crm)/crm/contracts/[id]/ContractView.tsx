@@ -27,10 +27,10 @@ import type { StatusKey } from '@/lib/tokens/status-colors'
 import { canAmend, canSend, canTransition, canWriteVersion, type ContractStatus } from '@/lib/crm/domain/contract-status'
 import { ACTION, ENTITY, failedTo, progress } from '@/lib/terms'
 import {
-  CONTRACT_ASSEMBLY, CONTRACT_META, CONTRACT_PAYMENT_EDITOR,
+  CONTRACT_ASSEMBLY, CONTRACT_DEVIATION_PANEL, CONTRACT_META, CONTRACT_PAYMENT_EDITOR,
   CONTRACT_DELETE, CONTRACT_DOC, CONTRACT_FIELD_LABEL, CONTRACT_MSG, CONTRACT_REFILL, CONTRACT_SCREEN, CONTRACT_STATUS_LABEL, DOC_HEADER,
 } from '@/lib/terms/contract-doc'
-import { contractApi, type ContractDetail, type Outcome } from './contract-api'
+import { contractApi, type ContractDetail, type DeviationStateJson, type Outcome } from './contract-api'
 import ContractPaperFrame, { screenPaperHtml } from './ContractPaperFrame'
 import ContractVersions from './ContractVersions'
 import ContractPreview from './ContractPreview'
@@ -40,6 +40,7 @@ import ContractAiEditModal from './ContractAiEditModal'
 import ContractConcludeModal from './ContractConcludeModal'
 import ContractModulePicker from './ContractModulePicker'
 import ContractPaymentEditor from './ContractPaymentEditor'
+import ContractDeviation from './ContractDeviation'
 import DeleteRecordModal from '../../DeleteRecordModal'
 import styles from './contract-view.module.css'
 
@@ -51,6 +52,8 @@ export interface ContractAbilities {
   exportFiles: boolean
   /** 회사 단위 계약을 고를 수 있나 — 화면 표시만, 막는 것은 서버 */
   corporate: boolean
+  /** 표준 이탈을 승인할 수 있나 (관리자) — 화면 표시만, 막는 것은 서버 */
+  approveDeviation: boolean
 }
 
 const STATUS_TONE: Record<string, StatusKey> = {
@@ -81,6 +84,7 @@ export default function ContractView({ contractId, abilities }: { contractId: st
   /** 미리보기로 연 버전 번호 */
   const [preview, setPreview] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [deviation, setDeviation] = useState<DeviationStateJson | null>(null)
   const { ask, dialog } = useAskDialog()
 
   const loadFail = failedTo(CONTRACT_DOC.entity, '불러오지')
@@ -272,7 +276,9 @@ export default function ContractView({ contractId, abilities }: { contractId: st
           </NbButton>
         )}
         {mayConclude && abilities.conclude && (
-          <NbButton variant="ghost" disabled={!!busy} onClick={() => setModal('conclude')}>
+          <NbButton variant="ghost" disabled={!!busy || deviation?.canConclude === false}
+            title={deviation?.canConclude === false ? CONTRACT_DEVIATION_PANEL.concludeBlocked : undefined}
+            onClick={() => setModal('conclude')}>
             <Stamp size={16} aria-hidden /> {CONTRACT_SCREEN.conclude}
           </NbButton>
         )}
@@ -340,6 +346,17 @@ export default function ContractView({ contractId, abilities }: { contractId: st
         </section>
       )}
       {writable && quoteChange.state === 'gone' && <p className={styles.note}>{CONTRACT_REFILL.quoteGone}</p>}
+      {mayConclude && deviation?.canConclude === false && abilities.conclude && (
+        <p className={styles.note}>{CONTRACT_DEVIATION_PANEL.concludeBlocked}</p>
+      )}
+      {status === 'DRAFT' && (
+        <ContractDeviation
+          contract={contract}
+          canApprove={abilities.approveDeviation}
+          onState={setDeviation}
+          onApproved={(text) => void done(text)}
+        />
+      )}
 
       <div className={styles.layout}>
         <section className={styles.main} aria-label={CONTRACT_SCREEN.paperTitle(contract.contractNo, current.versionNo)}>

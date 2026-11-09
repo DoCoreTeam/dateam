@@ -174,13 +174,14 @@ function routes(dir: string): string[] {
   return out
 }
 
-test('★ 계약서 라우트는 전부 withCrmApi MEMBER 를 지난다', () => {
+// MEMBER 보다 엄격한 ADMIN 창구(표준 이탈 승인 P0184 I12b)도 관문을 지난 것으로 센다, READONLY 는 여전히 안 된다
+test('★ 계약서 라우트는 전부 withCrmApi MEMBER 이상을 지난다', () => {
   const files = routes(join(ROOT, 'app/api/crm/contracts'))
   assert.ok(files.length >= 4, `라우트를 못 찾았다(${files.length})`)
   for (const f of files) {
     const src = readFileSync(f, 'utf8')
     const handlers = [...src.matchAll(/export async function (GET|POST|PATCH|PUT|DELETE)\b/g)].length
-    const guarded = [...src.matchAll(/withCrmApi\('MEMBER'/g)].length
+    const guarded = [...src.matchAll(/withCrmApi\('(MEMBER|ADMIN)'/g)].length
     assert.ok(handlers > 0, `${f} 에 처리기가 없다`)
     assert.equal(guarded, handlers, `${f} 처리기 ${handlers}개 중 MEMBER 관문 ${guarded}개`)
   }

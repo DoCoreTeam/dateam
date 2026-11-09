@@ -650,6 +650,22 @@ export const CONTRACT_DEVIATION_MSG = {
   reason: { ai: 'AI 가 쓴 조항', manual: '새로 넣은 조항', changed: '표준과 다른 글', removed: '빠진 표준 조항', unknown: '표준에 없는 조항' } as Record<'ai' | 'manual' | 'changed' | 'removed' | 'unknown', string>,
 } as const
 
+/** 상세 화면의 표준 이탈 칸 (P0184 I12b) */
+export const CONTRACT_DEVIATION_PANEL = {
+  title: (n: number): string => `표준과 다른 조항 ${n}개`,
+  needsApproval: '관리자가 이 버전을 승인해야 체결할 수 있습니다.',
+  approved: (at: string): string => `관리자가 이 버전을 승인했습니다 (${at}). 본문을 고치면 승인이 풀립니다.`,
+  askAdmin: '체결하려면 관리자에게 이 버전의 승인을 요청하세요.',
+  approve: '이 버전 승인',
+  approveTitle: (n: number): string => `표준과 다른 조항 ${n}개를 승인할까요?`,
+  approveBody: '승인은 지금 버전에만 붙습니다. 승인 뒤 본문을 고치면 다시 승인해야 체결할 수 있습니다.',
+  note: '승인 메모 (선택)',
+  approvedDone: '이 버전의 표준 이탈을 승인했습니다.',
+  concludeBlocked: '표준과 다른 조항이 있어 관리자 승인 전에는 체결할 수 없습니다.',
+  loadFailed: '표준 이탈을 확인하지 못했습니다.',
+  approveFailed: '표준 이탈을 승인하지 못했습니다.',
+} as const
+
 /** 계약의 성격 이름 (P0184 I10) — 목록 필터와 만들기 창이 같은 말을 쓴다 */
 export const CONTRACT_KIND_LABEL = {
   direction: {

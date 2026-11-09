@@ -8,7 +8,7 @@ import ContractView, { type ContractAbilities } from './ContractView'
 
 export const metadata = { title: `${CONTRACT_DOC.entity} · ${SERVICE_LABEL.crm}` }
 
-const NONE: ContractAbilities = { conclude: false, terminate: false, exportFiles: false, corporate: false }
+const NONE: ContractAbilities = { conclude: false, terminate: false, exportFiles: false, corporate: false, approveDeviation: false }
 
 /**
  * 화면이 그릴 단추를 서버가 미리 판정한다.
@@ -27,6 +27,7 @@ async function readAbilities(): Promise<ContractAbilities> {
       terminate: hasCrmRole(role, CONTRACT_ACTION_ROLE.terminate),
       exportFiles: await canExport('/crm'),
       corporate: visibleSensitivities(role).includes('CORPORATE'),
+      approveDeviation: hasCrmRole(role, 'ADMIN'),
     }
   } catch {
     // 세션을 못 읽으면 다 끈다 — 서버가 어차피 막으니 열어 두는 쪽이 더 위험하다
