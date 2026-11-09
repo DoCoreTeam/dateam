@@ -108,6 +108,23 @@ export const CONTRACT_MSG = {
   badVersionNo: '버전 번호가 올바르지 않습니다.',
   notDeletable: '체결했거나 해지한 계약서는 삭제할 수 없습니다. 있었던 계약의 기록입니다.',
   notInTrash: '휴지통에서 계약서를 찾을 수 없습니다.',
+  badDirection: '계약 방향을 골라 주세요. 매출, 매입, 제휴, 공동수급, 3자, 회사 단위 중 하나입니다.',
+  badFormOwner: '계약서 양식이 누구 것인지 골라 주세요.',
+  badDocLayer: '계약서 종류를 골라 주세요.',
+  dealNotFound: '연결할 딜을 찾을 수 없습니다.',
+} as const
+
+/** 계약 당사자 말 (P0184 I03) */
+export const CONTRACT_PARTY_MSG = {
+  required: '당사자를 한 명 이상 넣어 주세요.',
+  tooMany: (max: number): string => `당사자는 ${max}명까지 넣을 수 있습니다.`,
+  badShape: (n: number): string => `${n}번째 당사자의 모양이 올바르지 않습니다.`,
+  badRole: (n: number): string => `${n}번째 당사자의 역할을 골라 주세요.`,
+  nameRequired: (n: number): string => `${n}번째 당사자의 상호를 입력해 주세요.`,
+  valueTooLong: (n: number): string => `${n}번째 당사자의 값이 너무 깁니다.`,
+  selfOnce: '우리 회사는 당사자 중 한 번만 넣을 수 있습니다.',
+  consortiumLead: '공동수급 계약은 주관사가 정확히 한 곳이어야 합니다.',
+  companyNotFound: '당사자로 고른 회사를 찾을 수 없습니다.',
 } as const
 
 /** AI 로 고치기 말 (P0132 I09) */

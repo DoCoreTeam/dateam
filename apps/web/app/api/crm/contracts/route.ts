@@ -1,11 +1,13 @@
 // GET  /api/crm/contracts?dealId= — 딜의 계약서 목록
 // GET  /api/crm/contracts?q=&status=&trash=1&limit=&cursor= — 워크스페이스 계약서 목록 (dealId 가 없을 때)
 // POST /api/crm/contracts         — 보냄 또는 수락 견적으로 계약서 만들기 {quoteId, templateId?, title?, manual?}
+//                                   quoteId 가 없으면 견적 없이 만들기 {direction, title, parties[], dealId?, templateId?, formOwner?, docLayer?, manual?}
 import type { NextRequest } from 'next/server'
 import { withCrmApi, readJson } from '@/lib/crm/api/handler'
 import { CrmError } from '@/lib/crm/domain/errors'
 import { CONTRACT_MSG } from '@/lib/terms/contract-doc'
 import { listContracts, listDealContracts, createContractFromQuote, type CreateContractInput } from '@/lib/crm/services/contract'
+import { createContract, type CreateContractBlankInput } from '@/lib/crm/services/contract-create'
 
 export async function GET(req: NextRequest) {
   return withCrmApi('MEMBER', async ({ db }) => {
@@ -25,6 +27,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return withCrmApi('MEMBER', async ({ db, session }) => {
     const body = await readJson(req)
-    return createContractFromQuote(db, session.workspaceId, session.memberId, body as CreateContractInput)
+    if (body && typeof body === 'object' && 'quoteId' in body) {
+      return createContractFromQuote(db, session.workspaceId, session.memberId, body as CreateContractInput)
+    }
+    return createContract(db, session.workspaceId, session.memberId, body as CreateContractBlankInput)
   })
 }

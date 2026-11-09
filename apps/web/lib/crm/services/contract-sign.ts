@@ -75,9 +75,10 @@ export interface ContractActor {
 }
 
 /** 서명본 — 이 딜에 계약서 종류로 올린, 지우지 않은 첨부 */
-async function checkSignedAttachment(tx: unknown, dealId: string, raw: unknown): Promise<string | null> {
+async function checkSignedAttachment(tx: unknown, dealId: string | null, raw: unknown): Promise<string | null> {
   if (raw === undefined || raw === null || raw === '') return null
-  if (typeof raw !== 'string') throw new CrmError('VALIDATION_FAILED', CONTRACT_SIGN.signedNotFound, { field: 'signedAttachmentId' })
+  // 서명본은 지금 딜 첨부에서만 고른다 — 딜 없는 계약의 첨부 자리는 상세 화면(I12)이 연다
+  if (typeof raw !== 'string' || !dealId) throw new CrmError('VALIDATION_FAILED', CONTRACT_SIGN.signedNotFound, { field: 'signedAttachmentId' })
   const row = await any(tx).crmAttachment.findFirst({
     where: { id: raw, targetType: 'DEAL', targetId: dealId, kind: 'CONTRACT', deletedAt: null },
     select: { id: true },
@@ -92,7 +93,8 @@ async function bookDealAmount(tx: unknown, workspaceId: string, actorId: string 
     where: { contractId: contract.id, versionNo: contract.currentVersionNo }, select: { quoteSnapshot: true },
   })
   const net = contractNetOf(version?.quoteSnapshot ?? null)
-  if (net === null) return { from: null, to: null }
+  // 딜 없는 계약은 올릴 딜 금액이 없다
+  if (net === null || !contract.dealId) return { from: null, to: null }
   const deal = await any(tx).crmDeal.findFirst({
     where: { id: contract.dealId }, select: { contractNetMinor: true, primaryQuoteId: true, currency: true },
   })

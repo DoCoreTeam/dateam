@@ -191,7 +191,11 @@ test('만들기는 워크스페이스 가드가 걸린 연결로 견적을 읽�
   assert.match(route, /createContractFromQuote\(db, session\.workspaceId/)
   const fn = SERVICE.slice(SERVICE.indexOf('export async function createContractFromQuote'))
   assert.match(fn, /getQuote\(db, quoteId\)/)
-  assert.ok(!/getCrmDb|\$queryRaw/.test(SERVICE), '가드를 지나지 않는 연결을 쓴다')
+  // 번호 셈 한 곳만 SQL 로 센다 (P0184 I03, 등급 거름망이 회사 단위 번호를 빼지 않게) — 그 SQL 도 워크스페이스로 묶인다
+  const numberFn = SERVICE.slice(SERVICE.indexOf('export async function nextContractNo')).split('\n}\n')[0]
+  assert.match(numberFn, /"workspaceId" = current_setting\('app\.workspace_id', true\)/)
+  const rest = SERVICE.replace(numberFn, '')
+  assert.ok(!/getCrmDb|\$queryRaw/.test(rest), '가드를 지나지 않는 연결을 쓴다')
 })
 
 // 시험이 지어낸 값이 저장소에 안 남는다

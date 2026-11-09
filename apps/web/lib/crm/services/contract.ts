@@ -32,6 +32,7 @@ import { getQuoteDocument } from './quote-document.ts'
 import { checkClauses, defaultTemplateFor, readPublishedTemplate } from './contract-template.ts'
 import { resolveSetting, settingDef } from './setting.ts'
 import { kstTodayKey } from '../../datetime/kst.ts'
+import { partiesFromQuote, writeParties } from './contract-party.ts'
 import { CONTRACT_DOC, CONTRACT_MSG, CONTRACT_REFILL, CONTRACT_SIGN } from '../../terms/contract-doc.ts'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -80,15 +81,22 @@ export async function readContractNoPattern(db: CrmDb): Promise<string> {
   return raw && validateQuoteNoPattern(raw) === null ? raw : DEFAULT_CONTRACT_NO_PATTERN
 }
 
-/** 다음 계약서 번호 — 견적 번호와 같은 셈(삭제된 것도 쓴 번호다) */
-async function nextContractNo(tx: unknown, pattern: string, todayKey: string): Promise<string> {
+/**
+ * 다음 계약서 번호 — 견적 번호와 같은 셈(삭제된 것도 쓴 번호다).
+ *
+ * **등급과 상관없이 모든 계약을 센다.** 번호는 워크스페이스에 한 줄이다. 모델 조회로 세면 등급 거름망이
+ * 회사 단위 계약을 빼서 멤버가 그 번호를 다시 집고, 유일 키에 막혀 「번호가 방금 쓰였다」만 되풀이한다.
+ * 그래서 확장을 안 지나는 SQL 로 센다. 워크스페이스는 withCrmTx 가 먼저 박은 트랜잭션 값이다 —
+ * 트랜잭션 밖에서 부르면 빈 값이라 0건이고, 1번을 집어 유일 키가 막는다(조용히 남의 번호를 안 쓴다).
+ */
+export async function nextContractNo(tx: unknown, pattern: string, todayKey: string): Promise<string> {
   const prefix = seqPrefix(pattern, todayKey)
-  const last = await c(tx).findFirst({
-    where: { ...(prefix ? { contractNo: { startsWith: prefix } } : {}), deletedAt: undefined },
-    orderBy: { contractNo: 'desc' },
-    select: { contractNo: true },
-  })
-  return renderQuoteNo(pattern, todayKey, seqOf(last?.contractNo, prefix) + 1)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows: { contractNo: string }[] = await (tx as any).$queryRaw`
+    SELECT "contractNo" FROM crm_contract
+    WHERE "workspaceId" = current_setting('app.workspace_id', true) AND starts_with("contractNo", ${prefix})
+    ORDER BY "contractNo" DESC LIMIT 1`
+  return renderQuoteNo(pattern, todayKey, seqOf(rows[0]?.contractNo, prefix) + 1)
 }
 
 // ------------------------------------------------------------
@@ -140,11 +148,11 @@ export function renderClauses(body: readonly Clause[], values: FieldValues, doc:
 }
 
 /** 날짜 칸 값을 DB 날짜로. 형식이 아니면 null (목록 표시용이라 원본은 칸 값이다) */
-function dateOrNull(v: string | undefined): Date | null {
+export function dateOrNull(v: string | undefined): Date | null {
   return v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T00:00:00Z`) : null
 }
 
-function cleanTitle(raw: unknown, fallback: string): string {
+export function cleanTitle(raw: unknown, fallback: string): string {
   const t = normalizeText(typeof raw === 'string' ? raw : null) ?? fallback
   if (!t) throw new CrmError('VALIDATION_FAILED', CONTRACT_MSG.titleRequired, { field: 'title' })
   return t.slice(0, MAX_TITLE)
@@ -160,7 +168,11 @@ function isUniqueViolation(e: unknown): boolean {
 
 export interface ContractRow {
   id: string
-  dealId: string
+  dealId: string | null
+  direction: string
+  formOwner: string
+  docLayer: string
+  sensitivity: string
   quoteId: string | null
   contractNo: string
   title: string
@@ -178,8 +190,8 @@ export interface ContractRow {
   updatedAt: Date
 }
 
-const SELECT = {
-  id: true, dealId: true, quoteId: true, contractNo: true, title: true, status: true, templateId: true, parentContractId: true,
+export const CONTRACT_SELECT = {
+  id: true, dealId: true, direction: true, formOwner: true, docLayer: true, sensitivity: true, quoteId: true, contractNo: true, title: true, status: true, templateId: true, parentContractId: true,
   currentVersionNo: true, sentAt: true, sentVersionNo: true, concludedAt: true, totalMinor: true, currency: true,
   version: true, createdAt: true, updatedAt: true,
 } as const
@@ -207,15 +219,15 @@ const VERSION_SELECT = {
 } as const
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const toRow = (r: any): ContractRow => ({ ...r, totalMinor: r.totalMinor === null || r.totalMinor === undefined ? null : String(r.totalMinor) })
+export const toRow = (r: any): ContractRow => ({ ...r, totalMinor: r.totalMinor === null || r.totalMinor === undefined ? null : String(r.totalMinor) })
 
 export async function listDealContracts(db: CrmDb, dealId: string): Promise<ContractRow[]> {
-  const rows = await c(db).findMany({ where: { dealId }, orderBy: { createdAt: 'desc' }, select: SELECT })
+  const rows = await c(db).findMany({ where: { dealId }, orderBy: { createdAt: 'desc' }, select: CONTRACT_SELECT })
   return rows.map(toRow)
 }
 
 export async function findContract(db: unknown, id: string): Promise<ContractRow> {
-  const row = await c(db).findFirst({ where: { id }, select: SELECT })
+  const row = await c(db).findFirst({ where: { id }, select: CONTRACT_SELECT })
   if (!row) throw new CrmError('NOT_FOUND', CONTRACT_MSG.notFound)
   return toRow(row)
 }
@@ -288,7 +300,7 @@ export async function createContractFromQuote(
   const manual = checkManualFields(input.manual)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const deal = await (db as any).crmDeal.findFirst({ where: { id: quote.dealId }, select: { businessTypeKey: true } })
+  const deal = await (db as any).crmDeal.findFirst({ where: { id: quote.dealId }, select: { businessTypeKey: true, companyId: true } })
   const templateId = typeof input.templateId === 'string' && input.templateId
     ? input.templateId
     : (await defaultTemplateFor(db, deal?.businessTypeKey ?? null))?.id
@@ -318,7 +330,7 @@ export async function createContractFromQuote(
         effectiveTo: dateOrNull(fieldValues['contract.end']?.value),
         createdById: actorId,
       },
-      select: SELECT,
+      select: CONTRACT_SELECT,
     })
     await cv(tx).create({
       data: {
@@ -334,13 +346,18 @@ export async function createContractFromQuote(
       actorType: 'HUMAN', actorId, action: 'contract.created', targetType: 'contract', targetId: created.id,
       afterJson: { contractNo, quoteId, quoteVersion: quote.version, templateId, templateVersionNo },
     })
+    await writeParties(tx, workspaceId, created.id, partiesFromQuote(doc, deal?.companyId ?? null))
     return { contract: toRow(created), versionNo: 1 }
   })
 
+  return retryOnNumberTaken(attempt)
+}
+
+/** 같은 번호를 동시에 집었다 — 트랜잭션을 새로 열어 한 번만 다시 시도한다 */
+export async function retryOnNumberTaken<T>(attempt: () => Promise<T>): Promise<T> {
   try {
     return await attempt()
   } catch (e) {
-    // 같은 번호를 동시에 집었다 — 트랜잭션을 새로 열어 한 번만 다시 시도한다
     if (!isUniqueViolation(e)) throw e
     try { return await attempt() } catch (e2) {
       if (isUniqueViolation(e2)) throw new CrmError('CONFLICT', CONTRACT_MSG.numberTaken)
@@ -490,7 +507,7 @@ export async function createAmendment(
           effectiveTo: dateOrNull(fieldValues['contract.end']?.value),
           createdById: actorId,
         },
-        select: SELECT,
+        select: CONTRACT_SELECT,
       })
       await cv(tx).create({
         data: {
@@ -686,7 +703,7 @@ export async function listContracts(
     orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
     take: take + 1,
     ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
-    select: { ...SELECT, deal: { select: { name: true, company: { select: { name: true } } } } },
+    select: { ...CONTRACT_SELECT, deal: { select: { name: true, company: { select: { name: true } } } } },
   })
   const page = rows.slice(0, take)
   return {
@@ -709,7 +726,7 @@ export async function deleteContract(
   await withCrmTx(workspaceId, async (tx) => {
     // 영구 삭제는 휴지통에 있는 것도 지울 수 있어야 한다 — 지운 행 걸러내기를 이 조회만 넘는다
     const before = await c(tx).findFirst({
-      where: mode === 'purge' ? { id, deletedAt: { not: undefined } } : { id }, select: SELECT,
+      where: mode === 'purge' ? { id, deletedAt: { not: undefined } } : { id }, select: CONTRACT_SELECT,
     })
     if (!before) throw new CrmError('NOT_FOUND', CONTRACT_MSG.notFound)
     if (before.status === 'CONCLUDED' || before.status === 'TERMINATED') {
@@ -733,7 +750,7 @@ export async function restoreContract(workspaceId: string, actorId: string | nul
   return withCrmTx(workspaceId, async (tx) => {
     const res = await c(tx).updateMany({ where: { id, deletedAt: { not: null } }, data: { deletedAt: null, ...BUMP_VERSION } })
     if (res.count === 0) throw new CrmError('NOT_FOUND', CONTRACT_MSG.notInTrash)
-    const after = await c(tx).findFirst({ where: { id }, select: SELECT })
+    const after = await c(tx).findFirst({ where: { id }, select: CONTRACT_SELECT })
     await writeAudit(tx, {
       actorType: 'HUMAN', actorId, action: 'contract.restored',
       targetType: 'contract', targetId: id, afterJson: { contractNo: after.contractNo, status: after.status },
