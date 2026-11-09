@@ -36,6 +36,31 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.108',
+    date: '2026-11-09',
+    title: 'AI 트레이딩 성적을 바로 세고, 성적이 될 때만 신호를 내요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '📉',
+        headline: '손실을 이익으로 세던 성적 계산을 고쳤어요',
+        detail: '가격이 이미 손절선을 지난 판단을 손절가에 판 것으로 세어 손실이 이익으로 잡히던 것을 고쳤어요. 그동안 성적 칸은 최근 2~3일만 보고 있었는데, 이제 쌓인 한 달치를 다 셉니다.',
+      },
+      {
+        kind: 'feature',
+        emoji: '🚦',
+        headline: '성적이 기준을 넘을 때만 신호를 내요',
+        detail: '현황의 성적 칸이 지금 신호를 내는지, 안 낸다면 Profit Factor 가 얼마이고 기준이 얼마인지 알려 줘요. 기준은 설정의 검증 관문 값을 그대로 씁니다.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🔕',
+        headline: 'AI 판단은 기본으로 부르지 않아요',
+        detail: 'AI 판단이 규칙 판단과 거의 같은 방향을 말해 덧붙이는 정보가 없었어요. 설정의 「AI 판단 부르기」를 켜면 다시 묻습니다.',
+      },
+    ],
+  },
+  {
     version: '0.11.107',
     date: '2026-11-05',
     title: '해외 공급사에는 영어로 문의 글을 써 줘요',
