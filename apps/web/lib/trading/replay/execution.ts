@@ -152,6 +152,18 @@ export function replayExecution(
     return notFilled('slipped_beyond_chase_limit')
   }
 
+  /**
+   * **이미 손절선에 닿았거나 너머면 안 들어간다.**
+   *
+   * 전에는 들어간 뒤 다음 봉에서 「손절가에 팔았다」고 셌다. 롱인데 진입가가 손절가보다
+   * 낮으면 그 손절은 **이익**이 된다. 실측 2026-11-05 판단 3,540건 중 손절 287건이
+   * 이익으로 잡혀 +14,593,723원이 생겼고, 합계의 부호가 마이너스에서 플러스로 뒤집혔다.
+   * 사람은 손절선이 깨진 신호를 따라가지 않는다.
+   */
+  if (!favors(direction, entryPrice, plan.stopPrice) || entryPrice === plan.stopPrice) {
+    return notFilled('beyond_stop_at_entry')
+  }
+
   const entryAt = entryBar.startAt
   const timeExitAt = new Date(entryAt.getTime() + plan.timeExitMinutes * MINUTE_MS)
   let ambiguousBar = false
@@ -169,11 +181,11 @@ export function replayExecution(
        * 유리한 쪽을 고르면 백테스트만 잘 나오고 실전에서 그만큼 빠진다.
        */
       ambiguousBar = true
-      return settle(params, entryPrice, entryAt, stopFill(params, plan), bar.startAt, 'stop', true,
+      return settle(params, entryPrice, entryAt, stopFill(params, plan, bar), bar.startAt, 'stop', true,
         'both_touched_same_bar')
     }
     if (hitStop) {
-      return settle(params, entryPrice, entryAt, stopFill(params, plan), bar.startAt, 'stop', false, 'stop')
+      return settle(params, entryPrice, entryAt, stopFill(params, plan, bar), bar.startAt, 'stop', false, 'stop')
     }
     if (hitTarget) {
       // 목표가는 지정가로 걸어 두므로 슬리피지가 없다
@@ -200,10 +212,13 @@ export function replayExecution(
 }
 
 /** 손절 체결가 — 손절가에서 불리한 쪽으로 더 밀린다 */
-function stopFill(params: ReplayParams, plan: ExitPlan): number {
+/**
+ * 손절 체결가. **봉이 손절선 너머에서 열리면 시가에 판다** — 손절가는 그 봉에 없던 값이다
+ */
+function stopFill(params: ReplayParams, plan: ExitPlan, bar: MinuteBarInput): number {
   return params.direction === 'long'
-    ? plan.stopPrice - params.stopSlippagePoints
-    : plan.stopPrice + params.stopSlippagePoints
+    ? Math.min(plan.stopPrice, bar.open) - params.stopSlippagePoints
+    : Math.max(plan.stopPrice, bar.open) + params.stopSlippagePoints
 }
 
 /** 시장가 청산 — 불리한 쪽으로 밀린다 */

@@ -225,3 +225,35 @@ test('수수료가 순손익에서 빠진다', () => {
   assert.equal(r.costKrw, 3_000)
   assert.equal(r.netPnlKrw, Math.round((1103 - 1100.24) * 50_000) - 3_000)
 })
+
+// ── 손절선이 이미 깨진 자리 (실측 2026-11-05 손절 287건이 이익으로 잡힘) ──
+
+test('★ 진입가가 이미 손절선 아래면 안 들어간다 — 들어가면 손절이 이익으로 잡힌다', () => {
+  const r = replayExecution(BASE, [
+    bar(1, 1100, 1100.2, 1097.5, 1097.6),
+    bar(2, 1097.6, 1097.8, 1096.0, 1096.2), // 시가 1097.6 + 0.04 = 1097.64, 손절 1098 아래
+    bar(3, 1096.2, 1098.5, 1096.0, 1098.4),
+  ])
+  assert.equal(r.filled, false)
+  assert.equal(r.reason, 'beyond_stop_at_entry')
+  assert.equal(r.netPnlKrw, 0)
+})
+
+test('★ 숏도 같다 — 진입가가 손절선 위면 안 들어간다', () => {
+  const r = replayExecution({ ...BASE, direction: 'short', plan: { ...PLAN, stopPrice: 1102, targetPrice: 1097, chaseLimitPrice: 1099.4 } }, [
+    bar(1, 1100, 1102.5, 1099.8, 1102.4),
+    bar(2, 1102.4, 1102.6, 1102.1, 1102.3),
+  ])
+  assert.equal(r.reason, 'beyond_stop_at_entry')
+})
+
+test('★ 봉이 손절선 너머에서 열리면 손절가가 아니라 시가에 판다', () => {
+  const r = replayExecution(BASE, [
+    bar(1, 1100, 1100.2, 1099.8, 1100.1),
+    bar(2, 1100.2, 1100.4, 1100.0, 1100.3),
+    bar(3, 1096.5, 1097.0, 1096.0, 1096.8), // 손절 1098 아래로 갭
+  ])
+  assert.equal(r.exitKind, 'stop')
+  assert.equal(r.exitPrice, 1096.46, '시가 1096.5 - 슬리피지 0.04')
+  assert.ok(r.netPnlKrw < 0, '손절은 손실이다')
+})
