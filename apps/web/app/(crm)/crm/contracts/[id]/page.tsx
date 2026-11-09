@@ -1,5 +1,6 @@
 import { resolveCrmAccess, hasCrmRole } from '@/lib/crm/auth/requireCrmMember'
 import { CONTRACT_ACTION_ROLE } from '@/lib/crm/domain/contract-status'
+import { visibleSensitivities } from '@/lib/crm/domain/contract-sensitivity'
 import { canExport } from '@/lib/access/guard'
 import { SERVICE_LABEL } from '@/lib/terms/entity'
 import { CONTRACT_DOC } from '@/lib/terms/contract-doc'
@@ -7,7 +8,7 @@ import ContractView, { type ContractAbilities } from './ContractView'
 
 export const metadata = { title: `${CONTRACT_DOC.entity} · ${SERVICE_LABEL.crm}` }
 
-const NONE: ContractAbilities = { conclude: false, terminate: false, exportFiles: false }
+const NONE: ContractAbilities = { conclude: false, terminate: false, exportFiles: false, corporate: false }
 
 /**
  * 화면이 그릴 단추를 서버가 미리 판정한다.
@@ -25,6 +26,7 @@ async function readAbilities(): Promise<ContractAbilities> {
       conclude: hasCrmRole(role, CONTRACT_ACTION_ROLE.conclude),
       terminate: hasCrmRole(role, CONTRACT_ACTION_ROLE.terminate),
       exportFiles: await canExport('/crm'),
+      corporate: visibleSensitivities(role).includes('CORPORATE'),
     }
   } catch {
     // 세션을 못 읽으면 다 끈다 — 서버가 어차피 막으니 열어 두는 쪽이 더 위험하다

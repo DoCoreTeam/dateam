@@ -36,7 +36,7 @@ export interface CrmNavGroup {
 }
 
 /**
- * 묶음 다섯. 순서는 **하루에 여는 횟수**다 — 데이터 모델 순서가 아니다.
+ * 묶음 여섯. 순서는 **하루에 여는 횟수**다 — 데이터 모델 순서가 아니다.
  *
  * 「거래처」가 묶음 이름이고 개체 이름은 「회사」다 — 용어집이 그렇게 정했고 섞지 않는다
  * (`lib/terms/entity.ts`).
@@ -59,13 +59,20 @@ export const CRM_NAV_GROUPS: readonly CrmNavGroup[] = [
     tabs: [
       { href: '/crm/deals', label: '딜' },
       { href: '/crm/quotes', label: '견적' },
-      // 계약서는 견적의 다음 문서다 — 딜 안에서 만들고 여기서 모아 본다 (P0132 I15)
-      { href: '/crm/contracts', label: CONTRACT_DOC.list },
       // 품목은 견적의 **재료**다. 설정으로 내리면 견적 쓰다가 오타를 발견해도
       // 고치러 갈 길이 안 보인다 — 실제로 고칠 화면 자체가 없었다(사용자 지적)
       // 가격 기준으로 넓어졌다 — 안에 제품 품목 인건비 등급 탭이 있다(P0135)
       { href: '/crm/products', label: PRICEBOOK.title },
     ],
+  },
+  {
+    /*
+      계약서는 딜에 딸리지 않는다 (P0184). 매입 제휴 공동수급 회사 단위 계약은 딜이 없어
+      「딜」 묶음의 탭으로 두면 찾을 길이 없다. 그래서 여섯째 자리로 올렸다 (사용자 결정 2026-11-09)
+    */
+    label: CONTRACT_DOC.list,
+    href: '/crm/contracts',
+    tabs: [{ href: '/crm/contracts', label: CONTRACT_DOC.list }],
   },
   {
     // 같은 것의 두 면. 영업은 "○○전자의 배수현"을 찾지 "인물 목록"을 찾지 않는다.

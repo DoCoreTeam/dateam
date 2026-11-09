@@ -692,9 +692,26 @@ export interface ContractListItem extends ContractRow {
 export interface ContractListInput {
   q?: string | null
   status?: string | null
+  direction?: string | null
+  formOwner?: string | null
+  sensitivity?: string | null
   trash?: boolean
   limit?: number
   cursor?: string | null
+}
+
+/** 목록 필터 값은 아는 값만 받는다 — 모르는 값은 조건에서 뺀다 (주소는 아무나 고친다) */
+const LIST_ENUMS = {
+  direction: ['SALES', 'PURCHASE', 'PARTNERSHIP', 'CONSORTIUM', 'BROKERAGE', 'CORPORATE'],
+  formOwner: ['OURS', 'THEIRS', 'ISSUER'],
+  sensitivity: ['SALES', 'PURCHASE', 'CORPORATE'],
+} as const
+function enumFilters(input: ContractListInput): Record<string, string> {
+  return Object.fromEntries(
+    (Object.keys(LIST_ENUMS) as (keyof typeof LIST_ENUMS)[])
+      .filter((k) => (LIST_ENUMS[k] as readonly string[]).includes(input[k] ?? ''))
+      .map((k) => [k, input[k] as string]),
+  )
 }
 
 /** 워크스페이스의 계약서 — 번호, 제목, 딜 이름으로 찾는다. 휴지통 보기는 지운 것만 */
@@ -707,6 +724,7 @@ export async function listContracts(
   const where: Record<string, unknown> = {
     ...(input.trash ? { deletedAt: { not: null } } : {}),
     ...(input.status ? { status: input.status } : {}),
+    ...enumFilters(input),
     ...(q ? { OR: [{ contractNo: like }, { title: like }, { deal: { name: like } }] } : {}),
   }
   const rows = await c(db).findMany({
@@ -714,14 +732,20 @@ export async function listContracts(
     orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
     take: take + 1,
     ...(input.cursor ? { cursor: { id: input.cursor }, skip: 1 } : {}),
-    select: { ...CONTRACT_SELECT, deal: { select: { name: true, company: { select: { name: true } } } } },
+    select: {
+      ...CONTRACT_SELECT,
+      deal: { select: { name: true, company: { select: { name: true } } } },
+      // 딜 없는 계약은 상대 당사자 이름이 회사 칸이 된다
+      parties: { where: { isSelf: false }, orderBy: { position: 'asc' }, take: 1, select: { snapshot: true } },
+    },
   })
   const page = rows.slice(0, take)
+  type ListRow = { deal?: { name: string; company?: { name: string } | null } | null; parties?: { snapshot: { name?: string } }[] }
   return {
-    items: page.map((r: { deal?: { name: string; company?: { name: string } | null } | null }) => ({
+    items: page.map((r: ListRow) => ({
       ...toRow(r),
       dealName: r.deal?.name ?? '',
-      companyName: r.deal?.company?.name ?? null,
+      companyName: r.deal?.company?.name ?? r.parties?.[0]?.snapshot?.name ?? null,
     })),
     nextCursor: rows.length > take ? page[page.length - 1].id : null,
   }

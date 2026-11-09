@@ -5,6 +5,9 @@
 // 권한 없음은 오류와 다른 상태다 — 「다시 시도」를 눌러도 안 풀리는 것을 고장처럼 그리지 않는다.
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Plus } from 'lucide-react'
+import NbButton from '@/components/ui/nb/NbButton'
+import ContractCreateModal from './ContractCreateModal'
 import ListToolbar from '@/components/ui/list/ListToolbar'
 import ListSurface from '@/components/ui/list/ListSurface'
 import ListPager from '@/components/ui/list/ListPager'
@@ -16,7 +19,7 @@ import { formatAmount } from '@/app/(crm)/crm/deals/amount'
 import type { StatusKey } from '@/lib/tokens/status-colors'
 import { ENTITY, FILTER_ALL, failedTo } from '@/lib/terms'
 import {
-  CONTRACT_DOC, CONTRACT_LIST, CONTRACT_STATUS_LABEL, DEAL_CONTRACTS, DOC_HEADER, versionLabel,
+  CONTRACT_CREATE_BLANK, CONTRACT_DOC, CONTRACT_KIND_LABEL, CONTRACT_LIST, CONTRACT_STATUS_LABEL, DEAL_CONTRACTS, DOC_HEADER, versionLabel,
 } from '@/lib/terms/contract-doc'
 import { useListQuery } from '@/lib/ui/use-list-query'
 import { useRowSelection } from '@/hooks/useRowSelection'
@@ -25,9 +28,18 @@ import {
   TRASH_FILTER, TRASH_FILTER_KEYS, TRASH_EMPTY, isTrashView, useRestore, restoreColumn,
 } from '@/components/ui/crm/trash'
 
+export interface ContractListAbilities {
+  create: boolean
+  /** 회사 단위 계약을 고를 수 있나 — 화면 표시만, 막는 것은 서버 */
+  corporate: boolean
+}
+
 export interface ContractListItem {
   id: string
-  dealId: string
+  dealId: string | null
+  direction: string
+  formOwner: string
+  sensitivity: string
   contractNo: string
   title: string
   status: string
@@ -57,6 +69,11 @@ const COLUMNS: ColumnDef<ContractListItem>[] = [
         <div>{r.title}</div>
       </>
     ),
+  },
+  {
+    key: 'direction',
+    header: CONTRACT_KIND_LABEL.colDirection,
+    cell: (r) => CONTRACT_KIND_LABEL.direction[r.direction as keyof typeof CONTRACT_KIND_LABEL.direction] ?? r.direction,
   },
   { key: 'company', header: ENTITY.company.label, cell: (r) => r.companyName ?? '—' },
   { key: 'deal', header: ENTITY.deal.label, cell: (r) => r.dealName || '—', hideOnCard: true },
@@ -89,19 +106,31 @@ const STATUS_FILTER = {
   ],
 }
 
-export default function ContractListView() {
+/** 방향 양식 등급 — 이름은 CONTRACT_KIND_LABEL 한 곳에서 */
+const kindFilter = (key: 'direction' | 'formOwner' | 'sensitivity', label: string, names: Record<string, string>) => ({
+  key, label, options: [{ value: '', label: FILTER_ALL }, ...Object.entries(names).map(([value, l]) => ({ value, label: l }))],
+})
+const DIRECTION_FILTER = kindFilter('direction', CONTRACT_KIND_LABEL.colDirection, CONTRACT_KIND_LABEL.direction)
+const FORM_OWNER_FILTER = kindFilter('formOwner', CONTRACT_KIND_LABEL.colFormOwner, CONTRACT_KIND_LABEL.formOwner)
+const SENSITIVITY_FILTER = kindFilter('sensitivity', CONTRACT_KIND_LABEL.colSensitivity, CONTRACT_KIND_LABEL.sensitivity)
+const KIND_KEYS = ['direction', 'formOwner', 'sensitivity'] as const
+
+export default function ContractListView({ abilities }: { abilities: ContractListAbilities }) {
   const { query, set, queryKey } = useListQuery({
     view: 'table', size: 20, sort: { key: 'updatedAt', dir: 'desc' }, mode: 'more',
-    filterKeys: ['status', ...TRASH_FILTER_KEYS],
+    filterKeys: ['status', ...KIND_KEYS, ...TRASH_FILTER_KEYS],
   })
   const [rows, setRows] = useState<ContractListItem[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [denied, setDenied] = useState(false)
+  const [creating, setCreating] = useState(false)
 
   const q = query.q ?? ''
   const status = query.filters?.status ?? ''
+  const kinds = KIND_KEYS.map((k) => [k, query.filters?.[k] ?? ''] as const).filter(([, v]) => v)
+  const kindsKey = kinds.map(([k, v]) => `${k}=${v}`).join('&')
   const trash = isTrashView(query)
   const fail = failedTo(CONTRACT_DOC.entity, '불러오지')
 
@@ -114,6 +143,7 @@ export default function ContractListView() {
       const sp = new URLSearchParams()
       if (q) sp.set('q', q)
       if (status) sp.set('status', status)
+      for (const [k, v] of kinds) sp.set(k, v)
       if (trash) sp.set('trash', '1')
       sp.set('limit', String(query.size))
       if (nextCursor) sp.set('cursor', nextCursor)
@@ -129,7 +159,8 @@ export default function ContractListView() {
     } finally {
       setLoading(false)
     }
-  }, [queryKey, q, status, trash, query.size, fail])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- kinds 는 kindsKey 로 바뀜을 센다
+  }, [queryKey, q, status, kindsKey, trash, query.size, fail])
 
   useEffect(() => { void load(false, null) }, [load])
 
@@ -150,7 +181,7 @@ export default function ContractListView() {
     onReload: () => void load(false, null),
   })
 
-  const filtered = Boolean(q || status)
+  const filtered = Boolean(q || status || kinds.length)
   const shownError = error ?? restoreError
   return (
     <>
@@ -159,8 +190,11 @@ export default function ContractListView() {
         onChange={set}
         searchPlaceholder={CONTRACT_LIST.search}
         views={['table', 'card']}
-        filters={[STATUS_FILTER, TRASH_FILTER]}
+        filters={[STATUS_FILTER, DIRECTION_FILTER, FORM_OWNER_FILTER, ...(abilities.corporate ? [SENSITIVITY_FILTER] : []), TRASH_FILTER]}
         selection={crmBulk.toolbarSelection}
+        actions={abilities.create ? (
+          <NbButton onClick={() => setCreating(true)}><Plus size={14} /> {CONTRACT_CREATE_BLANK.open}</NbButton>
+        ) : undefined}
       />
 
       {crmBulk.panels}
@@ -178,7 +212,7 @@ export default function ContractListView() {
         empty={denied ? { title: DEAL_CONTRACTS.denied } : trash ? TRASH_EMPTY : {
           title: filtered ? CONTRACT_LIST.emptyFiltered : CONTRACT_LIST.empty,
           description: filtered ? CONTRACT_LIST.emptyFilteredNext : CONTRACT_LIST.emptyNext,
-          action: filtered ? undefined : { label: CONTRACT_LIST.goDeals, href: '/crm/deals' },
+          action: filtered || !abilities.create ? undefined : { label: CONTRACT_CREATE_BLANK.open, onClick: () => setCreating(true) },
         }}
       />
 
@@ -189,6 +223,8 @@ export default function ContractListView() {
         loading={loading}
         onChange={() => void load(true, cursor)}
       />
+
+      {creating && <ContractCreateModal canCorporate={abilities.corporate} onClose={() => setCreating(false)} />}
     </>
   )
 }

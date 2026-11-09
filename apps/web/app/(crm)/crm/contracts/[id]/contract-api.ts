@@ -13,7 +13,10 @@ import { CONTRACT_DOC } from '@/lib/terms/contract-doc'
 
 export interface ContractJson {
   id: string
-  dealId: string
+  dealId: string | null
+  direction: string
+  formOwner: string
+  docLayer: string
   quoteId: string | null
   contractNo: string
   title: string
@@ -48,6 +51,7 @@ export interface ContractDetail {
   current: ContractVersionJson
   rendered: Clause[]
   quoteChange: QuoteChangeJson
+  parties: { role: string; isSelf: boolean; snapshot: { name?: string; bizNo?: string } }[]
 }
 
 export type ContractVersionItem = Pick<ContractVersionJson, 'versionNo' | 'kind' | 'note' | 'createdAt'>

@@ -13,7 +13,7 @@ import { redirect } from 'next/navigation'
 import { badgeTitle, SERVICE_LABEL } from '@/lib/terms'
 import { redirectApiUser, requireAdminMfa } from '@/lib/auth/api-user-gate'
 import {
-  Building2, Handshake, Mic, BarChart3, Sun, FileText
+  Building2, Handshake, Mic, BarChart3, Sun, FileText, FileSignature
 } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import AppShell from '@/components/ui/shell/AppShell'
@@ -64,13 +64,14 @@ import AttentionSync from '@/components/crm/AttentionSync'
 const NAV_ICON: Record<string, React.ReactNode> = {
   '/crm/today': <Sun size={16} />,
   '/crm/deals': <Handshake size={16} />,
+  '/crm/contracts': <FileSignature size={16} />,
   '/crm/companies': <Building2 size={16} />,
   '/crm/meetings': <Mic size={16} />,
   '/crm/reports': <BarChart3 size={16} />,
 }
 
 /**
- * 그룹을 만들지 않는다 — 다섯이면 묶음 머리글 없이도 한눈에 들어온다.
+ * 그룹을 만들지 않는다 — 여섯이면 묶음 머리글 없이도 한눈에 들어온다.
  * 항목이 둘뿐인 묶음에 이름을 붙이면 이름이 항목보다 많아진다(§2-3-3 N-3).
  */
 const NAV_ITEMS: NavItem[] = CRM_NAV_GROUPS.map((g) => ({

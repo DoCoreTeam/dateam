@@ -206,7 +206,8 @@ export const CONTRACT_PAPER = {
 
 /** 버전이 생긴 까닭 — 버전 기록에 이 말로 보인다 */
 export const CONTRACT_VERSION_KIND: Record<string, string> = {
-  GENERATED: '견적으로 만듦',
+  /** 견적에서도 딜 없이도 첫 버전은 이것이다 — 「견적으로」라 쓰면 딜 없는 계약에 거짓이 된다 */
+  GENERATED: '처음 만듦',
   EDITED: '손으로 고침',
   AI_EDIT: 'AI 지시로 고침',
   REFILLED: '견적으로 다시 채움',
@@ -313,6 +314,8 @@ export const DOC_HISTORY = {
 /** 감사 기록의 계약서 동작 — 변경 이력에 이 문장으로 보인다 */
 export const CONTRACT_AUDIT_LABEL: Record<string, string> = {
   'contract.created': '계약서를 만들었어요',
+  'contract.meta_updated': '계약 정보를 고쳤어요',
+  'contract.deviation_approved': '표준과 다른 조항을 승인했어요',
   'contract.version_saved': '계약서 새 버전을 남겼어요',
   'contract.refilled': '견적 값으로 계약서를 다시 채웠어요',
   'contract.amended': '변경 계약서를 만들었어요',
@@ -422,7 +425,7 @@ export const CONTRACT_CREATE = {
 
 /** 계약서 목록 화면 (P0132 I15) */
 export const CONTRACT_LIST = {
-  description: '딜에서 만든 계약서를 한곳에서 봅니다. 만들고 고치는 건 딜과 계약서 화면에서 합니다.',
+  description: '매출 매입 제휴 회사 단위 계약서를 한곳에서 봅니다. 딜 없이 만들거나 견적에서 만듭니다.',
   search: '계약서 번호·제목·딜로 검색',
   colContract: '계약서',
   colStatus: '상태',
@@ -432,8 +435,7 @@ export const CONTRACT_LIST = {
   emptyFiltered: '조건에 맞는 계약서가 없어요',
   emptyFilteredNext: '검색어나 상태를 바꿔 보세요.',
   empty: '아직 만든 계약서가 없어요',
-  emptyNext: '계약서는 딜 안에서 만듭니다. 보냈거나 수락된 견적에서 「계약서 만들기」를 누르세요.',
-  goDeals: '딜 보러 가기',
+  emptyNext: '「새 계약서」로 딜 없이 만들거나, 보냈거나 수락된 견적에서 「계약서 만들기」를 누르세요.',
   unit: '건',
   unknownName: '번호를 알 수 없는 계약서',
 } as const
@@ -548,4 +550,57 @@ export const CONTRACT_DEVIATION_MSG = {
   alreadyApproved: '이 버전은 이미 승인했습니다.',
   notDraft: '체결 전 계약서만 승인할 수 있습니다.',
   reason: { ai: 'AI 가 쓴 조항', manual: '새로 넣은 조항', changed: '표준과 다른 글', removed: '빠진 표준 조항', unknown: '표준에 없는 조항' } as Record<'ai' | 'manual' | 'changed' | 'removed' | 'unknown', string>,
+} as const
+
+/** 계약의 성격 이름 (P0184 I10) — 목록 필터와 만들기 창이 같은 말을 쓴다 */
+export const CONTRACT_KIND_LABEL = {
+  direction: {
+    SALES: '매출', PURCHASE: '매입', PARTNERSHIP: '제휴', CONSORTIUM: '공동수급', BROKERAGE: '3자', CORPORATE: '회사 단위',
+  } as Record<'SALES' | 'PURCHASE' | 'PARTNERSHIP' | 'CONSORTIUM' | 'BROKERAGE' | 'CORPORATE', string>,
+  formOwner: { OURS: '우리 양식', THEIRS: '상대 양식', ISSUER: '발주처 양식' } as Record<'OURS' | 'THEIRS' | 'ISSUER', string>,
+  docLayer: {
+    STANDALONE: '단독 계약', MASTER: '기본계약', ORDER: '개별계약', AMENDMENT: '변경계약', MOU: '업무협약', NDA: '비밀유지',
+  } as Record<'STANDALONE' | 'MASTER' | 'ORDER' | 'AMENDMENT' | 'MOU' | 'NDA', string>,
+  sensitivity: { SALES: '영업', PURCHASE: '매입', CORPORATE: '회사 기밀' } as Record<'SALES' | 'PURCHASE' | 'CORPORATE', string>,
+  partyRole: {
+    SUPPLIER: '공급자', CUSTOMER: '고객', LEAD: '주관사', MEMBER: '구성원', BROKER: '중개자', PARTNER: '제휴사', OTHER: '기타',
+  } as Record<'SUPPLIER' | 'CUSTOMER' | 'LEAD' | 'MEMBER' | 'BROKER' | 'PARTNER' | 'OTHER', string>,
+  colDirection: '방향',
+  colFormOwner: '양식',
+  colSensitivity: '등급',
+} as const
+
+/** 딜 없이 계약서 만들기 창 (P0184 I10) */
+export const CONTRACT_CREATE_BLANK = {
+  open: '새 계약서',
+  title: '새 계약서',
+  direction: '계약 방향',
+  docLayer: '계약서 종류',
+  formOwner: '양식',
+  name: '계약서 제목',
+  namePlaceholder: '예: GPU 서버 매입 계약',
+  template: '템플릿',
+  templateDefault: '기본 템플릿',
+  noTemplate: '발행한 템플릿이 없습니다. 설정의 계약 탭에서 템플릿을 발행해 주세요.',
+  goTemplates: '템플릿 발행하러 가기',
+  parties: '당사자',
+  partyRole: '역할',
+  partyName: '상호',
+  partyBizNo: '사업자번호',
+  partySelf: '우리 회사',
+  addParty: '당사자 넣기',
+  removeParty: (n: number): string => `${n}번째 당사자 빼기`,
+  partyHint: '매출은 상대가 고객, 매입은 상대가 공급자입니다. 공동수급은 주관사 한 곳과 구성원을 넣습니다.',
+  corporateHint: '회사 단위 계약은 관리자만 보고 만들 수 있습니다.',
+  saveFailed: '계약서를 만들지 못했습니다.',
+} as const
+
+/** 계약 정보 고치기 (P0184 I10) — 만들 때 고른 방향 양식 종류 제목 당사자 */
+export const CONTRACT_META = {
+  open: '계약 정보',
+  title: '계약 정보 고치기',
+  partiesFollowQuote: '견적에서 만든 계약서의 당사자는 견적을 따릅니다. 견적을 고친 뒤 다시 채우기를 써 주세요.',
+  notDraft: '체결 전 계약서만 고칠 수 있습니다.',
+  saved: '계약 정보를 고쳤습니다.',
+  saveFailed: '계약 정보를 고치지 못했습니다.',
 } as const

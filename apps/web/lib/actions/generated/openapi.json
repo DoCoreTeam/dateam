@@ -28965,7 +28965,7 @@
    },
    "get": {
     "operationId": "crm.contract.get",
-    "summary": "계약서, 지금 버전, 칸을 채운 본문, 견적 변경 여부",
+    "summary": "계약서, 지금 버전, 칸을 채운 본문, 견적 변경 여부, 당사자",
     "tags": [
      "crm"
     ],
@@ -29072,18 +29072,19 @@
       "application/json": {
        "schema": {
         "type": "object",
-        "properties": {
+        "x-known-properties": {
          "body": {},
+         "direction": {},
+         "docLayer": {},
+         "formOwner": {},
          "manual": {},
          "note": {
           "type": "string"
          },
+         "parties": {},
          "refill": {},
-         "title": {
-          "type": "string"
-         }
-        },
-        "additionalProperties": false
+         "title": {}
+        }
        }
       }
      }
@@ -40322,6 +40323,22 @@
       }
      },
      {
+      "name": "direction",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "formOwner",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
       "name": "limit",
       "in": "query",
       "required": false,
@@ -40331,6 +40348,14 @@
      },
      {
       "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "sensitivity",
       "in": "query",
       "required": false,
       "schema": {
@@ -60448,5 +60473,5 @@
    }
   }
  },
- "x-spec-hash": "48107417ecde70b2"
+ "x-spec-hash": "de263b0998164731"
 }

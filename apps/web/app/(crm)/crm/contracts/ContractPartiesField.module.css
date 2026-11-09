@@ -1,0 +1,13 @@
+/* 당사자 한 줄 — 역할 상호 사업자번호 우리 회사 빼기. 칸이 늘어 이름 칸을 누르지 않게 minmax(0, …) */
+.party {
+  display: grid;
+  grid-template-columns: minmax(0, 8rem) minmax(0, 2fr) minmax(0, 1fr) auto auto;
+  gap: var(--space-2, 0.5rem);
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .party {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}

@@ -57,6 +57,15 @@ const CONVERTED = ['app/admin/access/AccessClient.tsx']
  * 여기 적는 것은 **앞으로도 드롭다운일 자리**다.
  */
 const WHY_SELECT: Readonly<Record<string, string>> = {
+  // 계약 성격(P0184 I10) — 값은 DB CHECK 가 정한 닫힌 목록이다 (마이그 325)
+  'app/(crm)/crm/contracts/ContractCreateModal.tsx#DOC_LAYERS':
+    '계약서 종류 다섯(단독 기본 개별 업무협약 비밀유지)은 crm_contract.docLayer CHECK 가 정한다. 자라는 목록이 아니다',
+  'app/(crm)/crm/contracts/ContractCreateModal.tsx#FORM_OWNERS':
+    '양식 주인 셋(우리 상대 발주처)은 crm_contract.formOwner CHECK 가 정한다. 자라는 목록이 아니다',
+  'app/(crm)/crm/contracts/[id]/ContractMetaModal.tsx#FORM_OWNERS':
+    '같은 이유 — 양식 주인 셋은 DB CHECK 가 정한다',
+  'app/(crm)/crm/contracts/ContractPartiesField.tsx#ROLES':
+    '당사자 역할 일곱은 crm_contract_party.role CHECK 가 정한다. 자라는 목록이 아니다',
   // GPU 정해진 칸 입력(P0177) — 칸 값은 코드가 정한 닫힌 목록이다
   'app/(member)/pricing/gpu/board/EntryPanel.tsx#ENTRY_KINDS':
     '입력 종류 둘(견적 시세)은 lib/gpu/entry.ts 가 정한다. 자라는 목록이 아니다',

@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { FileText, Lock, Pencil, RefreshCw, Send, Sparkles, Stamp, Ban, FilePlus2, XCircle, Trash2 } from 'lucide-react'
+import { FileText, Lock, Pencil, RefreshCw, Send, Sparkles, Stamp, Ban, FilePlus2, XCircle, Trash2, Users } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
@@ -27,6 +27,7 @@ import type { StatusKey } from '@/lib/tokens/status-colors'
 import { canAmend, canSend, canTransition, canWriteVersion, type ContractStatus } from '@/lib/crm/domain/contract-status'
 import { ACTION, ENTITY, failedTo, progress } from '@/lib/terms'
 import {
+  CONTRACT_META,
   CONTRACT_DELETE, CONTRACT_DOC, CONTRACT_FIELD_LABEL, CONTRACT_MSG, CONTRACT_REFILL, CONTRACT_SCREEN, CONTRACT_STATUS_LABEL, DOC_HEADER,
 } from '@/lib/terms/contract-doc'
 import { contractApi, type ContractDetail, type Outcome } from './contract-api'
@@ -34,6 +35,7 @@ import ContractPaperFrame, { screenPaperHtml } from './ContractPaperFrame'
 import ContractVersions from './ContractVersions'
 import ContractPreview from './ContractPreview'
 import ContractEditModal from './ContractEditModal'
+import ContractMetaModal from './ContractMetaModal'
 import ContractAiEditModal from './ContractAiEditModal'
 import ContractConcludeModal from './ContractConcludeModal'
 import DeleteRecordModal from '../../DeleteRecordModal'
@@ -45,6 +47,8 @@ export interface ContractAbilities {
   terminate: boolean
   /** 파일로 빼기 — 미리보기도 내보내기 창구를 지나므로 같은 판정이다 */
   exportFiles: boolean
+  /** 회사 단위 계약을 고를 수 있나 — 화면 표시만, 막는 것은 서버 */
+  corporate: boolean
 }
 
 const STATUS_TONE: Record<string, StatusKey> = {
@@ -59,7 +63,7 @@ type Load =
   | { kind: 'error'; message: string }
 
 type Notice = { tone: 'ok' | 'error'; text: string } | null
-type ModalKind = 'edit' | 'ai' | 'conclude' | null
+type ModalKind = 'edit' | 'meta' | 'ai' | 'conclude' | null
 
 export default function ContractView({ contractId, abilities }: { contractId: string; abilities: ContractAbilities }) {
   const params = useSearchParams()
@@ -138,7 +142,9 @@ export default function ContractView({ contractId, abilities }: { contractId: st
 
   if (load.kind === 'loading' && !detail) return <div className="page-inner"><AXDotLoader /></div>
 
-  const fallbackBack = { href: detail ? `/crm/deals/${detail.contract.dealId}` : '/crm/deals', label: ENTITY.deal.label }
+  // 딜 없는 계약(매입 제휴 회사 단위)은 계약서 목록으로 돌아간다
+  const dealId = detail?.contract.dealId ?? null
+  const fallbackBack = dealId ? { href: `/crm/deals/${dealId}`, label: ENTITY.deal.label } : { href: '/crm/contracts', label: CONTRACT_DOC.list }
   const back = backTarget(params, fallbackBack)
 
   if (load.kind === 'denied') {
@@ -243,6 +249,9 @@ export default function ContractView({ contractId, abilities }: { contractId: st
           <>
             <NbButton variant="ghost" disabled={!!busy} onClick={() => setModal('edit')}>
               <Pencil size={16} aria-hidden /> {CONTRACT_DOC.edit}
+            </NbButton>
+            <NbButton variant="ghost" disabled={!!busy} onClick={() => setModal('meta')}>
+              <Users size={16} aria-hidden /> {CONTRACT_META.open}
             </NbButton>
             <NbButton variant="ghost" disabled={!!busy} onClick={() => setModal('ai')}>
               <Sparkles size={16} aria-hidden /> {CONTRACT_DOC.aiEdit}
@@ -368,6 +377,15 @@ export default function ContractView({ contractId, abilities }: { contractId: st
           onFailed={(o) => { setModal(null); failed(o) }}
         />
       )}
+      {modal === 'meta' && detail && (
+        <ContractMetaModal
+          contract={contract}
+          parties={detail.parties ?? []}
+          canCorporate={abilities.corporate}
+          onClose={() => setModal(null)}
+          onSaved={() => void done(CONTRACT_META.saved)}
+        />
+      )}
       {modal === 'ai' && (
         <ContractAiEditModal
           contract={contract}
@@ -389,7 +407,7 @@ export default function ContractView({ contractId, abilities }: { contractId: st
           entity={CONTRACT_DOC.entity}
           name={contract.contractNo}
           endpoint={`/api/crm/contracts/${contract.id}`}
-          redirectTo={`/crm/deals/${contract.dealId}`}
+          redirectTo={contract.dealId ? `/crm/deals/${contract.dealId}` : '/crm/contracts'}
           impact={{ removed: [...CONTRACT_DELETE.removed], kept: [...CONTRACT_DELETE.kept] }}
           onClose={() => setDeleting(false)}
         />

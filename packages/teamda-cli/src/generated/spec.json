@@ -4,7 +4,7 @@
   "title": "사내 자동화 API",
   "version": "1",
   "description": "지금 배포된 사내 자동화 API 의 엔드포인트 전체입니다. 모든 요청에 X-API-Key 헤더(또는 Authorization: Bearer <키>)가 필요하고, 키는 「내 키 관리」에서 발급합니다. 배포가 바뀌면 이 스펙도 함께 바뀌므로 코드 생성 전에 다시 받아 쓰세요.",
-  "x-spec-hash": "0abb794b47eb59d5"
+  "x-spec-hash": "102e54d953f6ab6e"
  },
  "servers": [
   {
@@ -29856,7 +29856,7 @@
    },
    "get": {
     "operationId": "crm.contract.get",
-    "summary": "계약서, 지금 버전, 칸을 채운 본문, 견적 변경 여부",
+    "summary": "계약서, 지금 버전, 칸을 채운 본문, 견적 변경 여부, 당사자",
     "tags": [
      "crm"
     ],
@@ -29963,18 +29963,19 @@
       "application/json": {
        "schema": {
         "type": "object",
-        "properties": {
+        "x-known-properties": {
          "body": {},
+         "direction": {},
+         "docLayer": {},
+         "formOwner": {},
          "manual": {},
          "note": {
           "type": "string"
          },
+         "parties": {},
          "refill": {},
-         "title": {
-          "type": "string"
-         }
-        },
-        "additionalProperties": false
+         "title": {}
+        }
        }
       }
      }
@@ -41213,6 +41214,22 @@
       }
      },
      {
+      "name": "direction",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "formOwner",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
       "name": "limit",
       "in": "query",
       "required": false,
@@ -41222,6 +41239,14 @@
      },
      {
       "name": "q",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "sensitivity",
       "in": "query",
       "required": false,
       "schema": {

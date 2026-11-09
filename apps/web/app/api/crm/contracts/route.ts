@@ -1,5 +1,5 @@
 // GET  /api/crm/contracts?dealId= — 딜의 계약서 목록
-// GET  /api/crm/contracts?q=&status=&trash=1&limit=&cursor= — 워크스페이스 계약서 목록 (dealId 가 없을 때)
+// GET  /api/crm/contracts?q=&status=&direction=&formOwner=&sensitivity=&trash=1&limit=&cursor= — 워크스페이스 계약서 목록 (dealId 가 없을 때)
 // POST /api/crm/contracts         — 계약서 만들기, 딜 없이 {direction, title, parties[], dealId?, templateId?, formOwner?, docLayer?, manual?} 또는 견적에서 {quoteId, templateId?, title?, manual?}
 import type { NextRequest } from 'next/server'
 import { withCrmApi, readJson } from '@/lib/crm/api/handler'
@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     }
     return listContracts(db, {
       q: sp.get('q'), status: sp.get('status'), trash: sp.get('trash') === '1',
+      direction: sp.get('direction'), formOwner: sp.get('formOwner'), sensitivity: sp.get('sensitivity'),
       limit: Number(sp.get('limit')) || undefined, cursor: sp.get('cursor'),
     })
   })

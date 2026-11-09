@@ -36,6 +36,8 @@ export default function ContractConcludeModal({ contract, onClose, onDone, onFai
 
   const load = useCallback(async () => {
     setFiles({ kind: 'loading' })
+    // 딜 없는 계약은 서명본을 붙일 딜 첨부가 없다 — 붙이는 자리는 상세 화면이 연다 (I12)
+    if (!contract.dealId) { setFiles({ kind: 'ok', items: [] }); return }
     const out = await contractApi.signedFiles(contract.dealId, CONTRACT_SCREEN.signedLoadFailed)
     if (!out.ok) { setFiles({ kind: 'error', message: out.message }); return }
     const items = out.body
@@ -98,13 +100,15 @@ export default function ContractConcludeModal({ contract, onClose, onDone, onFai
             </ul>
           )}
         </section>
-        <AttachmentPanel
-          target="DEAL"
-          targetId={contract.dealId}
-          defaultKind="CONTRACT"
-          reloadKey={seq}
-          onChanged={() => { setSeq((n) => n + 1); void load() }}
-        />
+        {contract.dealId && (
+          <AttachmentPanel
+            target="DEAL"
+            targetId={contract.dealId}
+            defaultKind="CONTRACT"
+            reloadKey={seq}
+            onChanged={() => { setSeq((n) => n + 1); void load() }}
+          />
+        )}
       </div>
     </NbModal>
   )

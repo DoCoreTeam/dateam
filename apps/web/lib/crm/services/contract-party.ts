@@ -135,3 +135,19 @@ export function autoValuesFromParties(parties: readonly PartyInput[], contractNo
     'contract.no': contractNo,
   }
 }
+
+export interface PartyRow extends PartyInput { id: string; position: number }
+
+/** 계약의 당사자 — 순서대로. 계약을 먼저 읽은 창구만 부른다 (등급 거름망은 계약 행에 걸려 있다) */
+export async function listParties(db: Db, contractId: string): Promise<PartyRow[]> {
+  return db.crmContractParty.findMany({
+    where: { contractId }, orderBy: { position: 'asc' },
+    select: { id: true, role: true, isSelf: true, position: true, companyId: true, snapshot: true },
+  })
+}
+
+/** 당사자를 통째로 바꾼다 — 같은 트랜잭션에서 지우고 다시 쓴다 */
+export async function replaceParties(tx: Db, workspaceId: string, contractId: string, parties: readonly PartyInput[]): Promise<void> {
+  await tx.crmContractParty.deleteMany({ where: { contractId } })
+  await writeParties(tx, workspaceId, contractId, parties)
+}
