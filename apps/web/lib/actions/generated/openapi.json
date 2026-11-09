@@ -28692,6 +28692,191 @@
     }
    }
   },
+  "/crm/contract-modules/{id}": {
+   "delete": {
+    "operationId": "crm.contract-module.rm",
+    "summary": "modules/[id] — 모듈 지우기 (관리자). 조항은 라이브러리에 남는다",
+    "tags": [
+     "crm"
+    ],
+    "x-cli": "crm contract-module rm",
+    "x-scope": "admin",
+    "x-kind": "route",
+    "x-internal": "/api/crm/contract-modules/{id}",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "dryRun",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "enum": [
+        "1"
+       ]
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공, data 는 화면이 받는 값과 같음"
+     },
+     "202": {
+      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-query-complete": true
+   },
+   "get": {
+    "operationId": "crm.contract-module.get",
+    "summary": "modules/[id] — 모듈 한 줄",
+    "tags": [
+     "crm"
+    ],
+    "x-cli": "crm contract-module get",
+    "x-scope": "read",
+    "x-kind": "route",
+    "x-internal": "/api/crm/contract-modules/{id}",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공, data 는 화면이 받는 값과 같음"
+     },
+     "202": {
+      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-query-complete": true
+   },
+   "patch": {
+    "operationId": "crm.contract-module.update",
+    "summary": "modules/[id] — 고치기 (관리자, version 필요). 키와 종류는 안 바뀐다",
+    "tags": [
+     "crm"
+    ],
+    "x-cli": "crm contract-module update",
+    "x-scope": "admin",
+    "x-kind": "route",
+    "x-internal": "/api/crm/contract-modules/{id}",
+    "parameters": [
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "dryRun",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "enum": [
+        "1"
+       ]
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공, data 는 화면이 받는 값과 같음"
+     },
+     "202": {
+      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-query-complete": true,
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "clauseKeys": {},
+         "enableWhen": {},
+         "isActive": {},
+         "key": {},
+         "kind": {},
+         "position": {},
+         "title": {}
+        },
+        "additionalProperties": false
+       }
+      }
+     }
+    }
+   }
+  },
   "/crm/contract-templates/{id}": {
    "delete": {
     "operationId": "crm.contract-template.rm",
@@ -40163,6 +40348,127 @@
          "html": {},
          "key": {},
          "lang": {},
+         "title": {}
+        },
+        "additionalProperties": false
+       }
+      }
+     }
+    }
+   }
+  },
+  "/crm/contract-modules": {
+   "get": {
+    "operationId": "crm.contract-module.list",
+    "summary": "modules?kind= — 계약 모듈 목록",
+    "tags": [
+     "crm"
+    ],
+    "x-cli": "crm contract-module list",
+    "x-scope": "read",
+    "x-kind": "route",
+    "x-internal": "/api/crm/contract-modules",
+    "parameters": [
+     {
+      "name": "kind",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공, data 는 화면이 받는 값과 같음"
+     },
+     "202": {
+      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-query-complete": true
+   },
+   "post": {
+    "operationId": "crm.contract-module.create",
+    "summary": "modules — 새 모듈 (관리자). 서비스가 역할을 다시 본다",
+    "tags": [
+     "crm"
+    ],
+    "x-cli": "crm contract-module create",
+    "x-scope": "admin",
+    "x-kind": "route",
+    "x-internal": "/api/crm/contract-modules",
+    "parameters": [
+     {
+      "name": "dryRun",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "enum": [
+        "1"
+       ]
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "성공, data 는 화면이 받는 값과 같음"
+     },
+     "201": {
+      "description": "만들어짐"
+     },
+     "202": {
+      "description": "이 키에 범위가 없어 승인 요청이 만들어짐"
+     },
+     "400": {
+      "description": "입력 오류"
+     },
+     "401": {
+      "description": "API 키가 없거나 유효하지 않음"
+     },
+     "403": {
+      "description": "범위 또는 권한 부족"
+     },
+     "404": {
+      "description": "없음"
+     },
+     "409": {
+      "description": "충돌, 버전이 다르거나 같은 멱등 키를 다른 요청에 씀"
+     },
+     "429": {
+      "description": "분당 요청 한도 초과: Retry-After 헤더를 확인하세요"
+     }
+    },
+    "x-query-complete": true,
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object",
+        "properties": {
+         "clauseKeys": {},
+         "enableWhen": {},
+         "isActive": {},
+         "key": {},
+         "kind": {},
+         "position": {},
          "title": {}
         },
         "additionalProperties": false
@@ -60473,5 +60779,5 @@
    }
   }
  },
- "x-spec-hash": "de263b0998164731"
+ "x-spec-hash": "aa8eec135a4d9b68"
 }

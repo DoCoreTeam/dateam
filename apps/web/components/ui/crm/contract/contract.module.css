@@ -37,3 +37,4 @@
 @media (max-width: 640px) {
   .row { grid-template-columns: minmax(0, 1fr); }
 }
+.ruleRow { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) auto; gap: var(--space-2); align-items: center; }

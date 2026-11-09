@@ -8,6 +8,7 @@ import QuoteTermsCard from './QuoteTermsCard'
 import PricebookCard from './PricebookCard'
 import ContractTemplatesCard from './ContractTemplatesCard'
 import ContractClausesCard from './ContractClausesCard'
+import ContractModulesCard from './ContractModulesCard'
 import PipelineCard from './PipelineCard'
 import BusinessTypeCard from './BusinessTypeCard'
 import DuplicatesCard from './DuplicatesCard'
@@ -71,6 +72,7 @@ export default async function CrmSettingsPage({
     'SettingsCard.contract': <SettingsCard group="contract" />,
     ContractTemplatesCard: <ContractTemplatesCard />,
     ContractClausesCard: <ContractClausesCard />,
+    ContractModulesCard: <ContractModulesCard />,
     BudgetCard: <BudgetCard />,
     'SettingsCard.ai': <SettingsCard group="ai" />,
     AutoApplyCard: <AutoApplyCard />,
