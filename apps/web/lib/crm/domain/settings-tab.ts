@@ -45,7 +45,7 @@ export interface CrmSettingsCardSpec {
 }
 
 /**
- * 카드 열일곱 장을 부품 열넷이 그린다 (`SettingsCard` 하나가 네 장을 그린다).
+ * 카드 열여덟 장을 부품 열다섯이 그린다 (`SettingsCard` 하나가 네 장을 그린다).
  * 하나가 늘면 여기 한 줄을 더한다 — 안 더하면 `settings-tab.test.ts` 가
  * 화면과 이 목록의 수가 다르다고 말한다.
  */
@@ -58,6 +58,7 @@ export const CRM_SETTINGS_CARDS: readonly CrmSettingsCardSpec[] = [
   { id: 'SettingsCard.quoteImport', component: 'SettingsCard', tab: 'quote', title: '견적서 파일 읽기', keywords: ['파일로 가져오기', '구성', '상한', '원본 조각', '대조'] },
   { id: 'SettingsCard.contract', component: 'SettingsCard', tab: 'contract', title: '계약서 서명란과 번호', keywords: ['서명란', '날인', '갑', '을', '계약서 번호', '대표자'] },
   { id: 'ContractTemplatesCard', component: 'ContractTemplatesCard', tab: 'contract', title: '계약서 템플릿', keywords: ['계약', '조항', '칸', '발행'] },
+  { id: 'ContractClausesCard', component: 'ContractClausesCard', tab: 'contract', title: '조항 라이브러리', keywords: ['계약', '표준 조항', '승인', '조항 버전'] },
   { id: 'BudgetCard', component: 'BudgetCard', tab: 'ai', title: 'AI 예산', keywords: ['한도', '비용', '토큰'] },
   { id: 'SettingsCard.ai', component: 'SettingsCard', tab: 'ai', title: 'AI·연동 설정', keywords: ['AI 키', '모델', '연동'] },
   { id: 'AutoApplyCard', component: 'AutoApplyCard', tab: 'ai', title: 'AI 자동 반영', keywords: ['신뢰도', '자동', '제안'] },

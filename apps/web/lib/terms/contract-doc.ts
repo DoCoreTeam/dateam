@@ -442,3 +442,49 @@ export const CONTRACT_DELETE = {
   removed: ['이 계약서의 버전 기록'],
   kept: ['딜과 견적', '이미 내보낸 파일'],
 } as const
+
+/** 조항 라이브러리 (P0184 I05) */
+export const CONTRACT_CLAUSE_MSG = {
+  notFound: '조항을 찾을 수 없습니다.',
+  badKey: '조항 키는 영문 소문자, 숫자, 점, 밑줄, 줄표로 64자까지입니다.',
+  badLang: '조항 언어는 한국어(ko) 또는 영어(en)입니다.',
+  titleRequired: '조항 제목을 넣어 주세요.',
+  bodyRequired: '조항 본문을 넣어 주세요.',
+  keyTaken: '같은 키의 조항이 이미 있습니다. 그 조항을 고쳐 다음 버전으로 만드세요.',
+  draftExists: '이 조항은 이미 고치는 중인 초안이 있습니다. 그 초안을 고쳐 주세요.',
+  conflict: '다른 사람이 이 조항을 먼저 고쳤습니다. 새로고침 후 다시 시도해 주세요.',
+  notDraft: '초안만 승인하거나 지울 수 있습니다. 승인된 조항은 고치면 다음 버전 초안이 됩니다.',
+  approveDenied: '조항 승인은 관리자만 할 수 있습니다.',
+} as const
+
+export const CONTRACT_CLAUSE_STATUS = { DRAFT: '초안', APPROVED: '승인' } as const
+
+/** 설정 계약 탭의 조항 라이브러리 카드 (P0184 I05) */
+export const CONTRACT_CLAUSE_CARD = {
+  cardTitle: '조항 라이브러리',
+  cardDesc: '계약서를 조립하는 표준 조항입니다. 승인한 조항이 표준이 되고, 승인한 글을 고치면 다음 버전 초안이 새로 생깁니다.',
+  create: '새 조항',
+  editTitle: '조항 수정',
+  key: '조항 키',
+  keyPlaceholder: '예: common.confidentiality',
+  keyHelp: '같은 조항의 버전을 묶는 이름입니다. 만든 뒤에는 바꿀 수 없습니다.',
+  lang: '언어',
+  langLabel: { ko: '한국어', en: '영어' } as Record<'ko' | 'en', string>,
+  title: '조항 제목',
+  titlePlaceholder: '예: 제5조 (비밀유지)',
+  body: '조항 본문',
+  version: (n: number): string => `버전 ${n}`,
+  approve: '승인',
+  approveTitle: (key: string, n: number): string => `「${key}」 버전 ${n}, 승인할까요?`,
+  approveBody: '승인한 글은 표준이 되어 고칠 수 없습니다. 고치려면 다음 버전 초안을 만듭니다.',
+  forkNote: '승인한 조항이라 고치면 다음 버전 초안으로 저장됩니다.',
+  forked: (n: number): string => `버전 ${n} 초안으로 저장했습니다. 승인한 글은 그대로입니다.`,
+  deleteTitle: (key: string, n: number): string => `「${key}」 버전 ${n} 초안을 삭제할까요?`,
+  deleteBody: '초안만 삭제합니다. 승인한 버전은 남습니다.',
+  loadFailed: '조항을 불러오지 못했습니다.',
+  saveFailed: '조항을 저장하지 못했습니다.',
+  approveFailed: '조항을 승인하지 못했습니다.',
+  deleteFailed: '조항을 삭제하지 못했습니다.',
+  empty: '조항이 아직 없어요',
+  emptyNext: '표준 조항을 만들고 관리자가 승인하면 계약서 조립에 쓰입니다.',
+} as const

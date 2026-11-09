@@ -250,6 +250,7 @@ model CrmWorkspace {
   quotes      CrmQuote[]
   quoteSections CrmQuoteSection[]
   contractTemplates CrmContractTemplate[]
+  contractClauses CrmContractClause[]
   contracts   CrmContract[]
 
   @@map("crm_workspace")
@@ -1688,6 +1689,33 @@ model CrmContractTemplateVersion {
   @@unique([templateId, versionNo])
   @@index([workspaceId])
   @@map("crm_contract_template_version")
+}
+
+/// 조항 라이브러리 한 줄 (마이그 326). 승인본은 고치지 않는다 — 고치면 다음 번호의 초안이다
+model CrmContractClause {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  /// 조항 키. 같은 조항의 버전과 언어가 이 키로 묶인다
+  key          String
+  /// ko en
+  lang         String    @default("ko")
+  versionNo    Int       @default(1)
+  title        String
+  html         String
+  /// DRAFT APPROVED
+  status       String    @default("DRAFT")
+  approvedById String?
+  approvedAt   DateTime?
+  version      Int       @default(0)
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now()) @updatedAt
+
+  workspace CrmWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+
+  @@unique([workspaceId, key, lang, versionNo])
+  @@index([workspaceId, status])
+  @@map("crm_contract_clause")
 }
 
 /// 계약서 한 건. 내용은 버전에 있고 이 행은 지금 상태와 가리키는 곳만 든다

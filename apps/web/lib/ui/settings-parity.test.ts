@@ -157,6 +157,8 @@ const NOT_STORED_FIELD: readonly { file: string; why: string }[] = [
     why: '파이프라인과 단계를 새로 만들고 지우는 목록 편집기다' },
   { file: 'app/(crm)/crm/settings/ContractTemplatesCard.tsx',
     why: '템플릿을 새로 만들고 고치는 창이다 — 저장 단추는 작성 중 본문을 남기고, 쓰이는 것은 발행한 버전이라 «저장됨» 한 상태로 말할 수 없다' },
+  { file: 'app/(crm)/crm/settings/ContractClausesCard.tsx',
+    why: '조항을 새로 만들거나, 승인한 조항이면 다음 버전 초안을 새로 만드는 창이다 — 고친 값이 그 자리에 «저장됨» 으로 남지 않는다' },
   { file: 'app/(crm)/crm/settings/QuoteTermsCard.tsx',
     why: 'draft 가 새 조건을 만드는 폼이다 — 아직 저장된 적 없는 값이라 「수정」이 틀린 말이 된다' },
 ]
