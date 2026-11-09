@@ -20,7 +20,7 @@ import { formatAmount } from '../../../app/(crm)/crm/deals/amount.ts'
 import { QUOTE } from '../../terms/quote.ts'
 import { CONTRACT_FIELD_LABEL, EMPTY_FIELD } from '../../terms/contract-doc.ts'
 
-export type ContractFieldSource = 'supplier' | 'customer' | 'quote' | 'contract'
+export type ContractFieldSource = 'supplier' | 'customer' | 'quote' | 'contract' | 'party'
 /** longtext — 사람이 계약마다 여러 줄로 채우는 내용(수행범위). 줄마다 문단이 된다 */
 export type ContractFieldKind = 'text' | 'money' | 'date' | 'block' | 'longtext'
 
@@ -32,6 +32,11 @@ export interface ContractFieldDef {
   kind: ContractFieldKind
   /** 견적에서 자동으로 오나. 아니면 계약서를 만들 때 사람이 넣는다 */
   auto: boolean
+  /**
+   * 다른 칸의 다른 이름이면 그 칸 key (P0184 I04). 값을 따로 안 들고 그 칸 값을 그대로 찍는다 —
+   * 사람이 「고객.대표자」를 고치면 「갑.대표자」도 같이 바뀐다
+   */
+  aliasOf?: string
 }
 
 export const CONTRACT_FIELDS: readonly ContractFieldDef[] = [
@@ -70,7 +75,27 @@ export const CONTRACT_FIELDS: readonly ContractFieldDef[] = [
   { key: 'contract.end', label: CONTRACT_FIELD_LABEL['contract.end'], source: 'contract', kind: 'date', auto: false },
   // 계약마다 내용이 다른 조항 자리 — 템플릿은 칸만 두고 계약서 고치기에서 여러 줄로 채운다
   { key: 'contract.scope', label: CONTRACT_FIELD_LABEL['contract.scope'], source: 'contract', kind: 'longtext', auto: false },
+  ...partyAliases(),
 ]
+
+/**
+ * 갑 을 — 사는 쪽이 갑, 파는 쪽이 을이다 (P0184 I04).
+ *
+ * 공급자 고객 칸은 **역할**(누가 공급하나)로 채워지고, 갑 을은 그 칸의 다른 이름이다. 그래서 방향을 따로
+ * 안 묻는다: 매출이면 고객(상대)이 갑이고 우리가 을, 매입이면 우리가 고객 칸에 서서 갑이 된다.
+ * 공급 관계가 아닌 계약(제휴 공동수급 회사 단위)은 당사자가 우리를 고객 칸에, 상대를 공급자 칸에 둔다
+ * (autoValuesFromParties) — 그 계약서의 갑은 우리다.
+ */
+function partyAliases(): ContractFieldDef[] {
+  const parts = ['name', 'ceo', 'bizNo', 'address', 'phone'] as const
+  return [
+    ...parts.map((p) => ({ key: `partyA.${p}`, aliasOf: `customer.${p}` })),
+    ...parts.map((p) => ({ key: `partyB.${p}`, aliasOf: `supplier.${p}` })),
+  ].map(({ key, aliasOf }) => ({ key, aliasOf, label: CONTRACT_FIELD_LABEL[key], source: 'party' as const, kind: 'text' as const, auto: true }))
+}
+
+/** 값을 따로 드는 칸 — 고치기 화면과 칸 값 합치기가 읽는다. 별칭은 원래 칸을 고치면 따라온다 */
+export const VALUE_FIELDS: readonly ContractFieldDef[] = CONTRACT_FIELDS.filter((f) => f.aliasOf === undefined)
 
 const BY_LABEL = new Map(CONTRACT_FIELDS.map((f) => [f.label, f]))
 const BY_KEY = new Map(CONTRACT_FIELDS.map((f) => [f.key, f]))
@@ -169,7 +194,7 @@ export function autoValuesFrom(doc: QuoteDocument, contractNo: string): Record<s
  */
 export function mergeFieldValues(auto: Record<string, string>, manual: Record<string, string>): FieldValues {
   const out: FieldValues = {}
-  for (const f of CONTRACT_FIELDS) {
+  for (const f of VALUE_FIELDS) {
     if (f.kind === 'block') continue
     const m = manual[f.key]
     if (m !== undefined && m.trim() !== '') {
@@ -238,7 +263,7 @@ export function fillHtml(html: string, values: FieldValues, doc: QuoteDocument |
   return blockFilled.replace(TOKEN, (_w, label: string) => {
     const def = BY_LABEL.get(label)!
     if (def.kind === 'block') return doc ? renderBlock(def.key, doc) : EMPTY_FIELD
-    const v = values[def.key]?.value ?? ''
+    const v = values[def.aliasOf ?? def.key]?.value ?? ''
     if (v === '') return EMPTY_SPAN
     // 글 속에 든 여러 줄 칸은 문단을 못 쪼개니 줄바꿈으로 잇는다
     return def.kind === 'longtext' ? splitLines(v).map(escapeHtml).join('<br>') : escapeHtml(v)

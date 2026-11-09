@@ -80,6 +80,16 @@ export const CONTRACT_FIELD_LABEL: Record<string, string> = {
   'contract.start': '계약.시작일',
   'contract.end': '계약.끝일',
   'contract.scope': '계약.수행범위',
+  'partyA.name': '갑.상호',
+  'partyA.ceo': '갑.대표자',
+  'partyA.bizNo': '갑.사업자번호',
+  'partyA.address': '갑.주소',
+  'partyA.phone': '갑.전화번호',
+  'partyB.name': '을.상호',
+  'partyB.ceo': '을.대표자',
+  'partyB.bizNo': '을.사업자번호',
+  'partyB.address': '을.주소',
+  'partyB.phone': '을.전화번호',
 }
 
 /** 계약서 서버 메시지 — 화면이 그대로 보여 준다 */

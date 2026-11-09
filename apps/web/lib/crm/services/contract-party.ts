@@ -117,8 +117,10 @@ export async function writeParties(tx: Db, workspaceId: string, contractId: stri
 
 /** 견적 칸(공급자 고객)을 당사자에서 채운다 — 딜 없이 만든 계약의 첫 자동 값 */
 export function autoValuesFromParties(parties: readonly PartyInput[], contractNo: string): Record<string, string> {
-  const supplier = parties.find((p) => p.role === 'SUPPLIER')?.snapshot
-  const customer = parties.find((p) => p.role === 'CUSTOMER')?.snapshot
+  const supplying = parties.some((p) => p.role === 'SUPPLIER' || p.role === 'CUSTOMER')
+  // 공급 관계가 아니면(제휴 공동수급 회사 단위) 우리가 고객 칸(갑), 첫 상대가 공급자 칸(을) — contract-fields 갑 을
+  const supplier = (supplying ? parties.find((p) => p.role === 'SUPPLIER') : parties.find((p) => !p.isSelf))?.snapshot
+  const customer = (supplying ? parties.find((p) => p.role === 'CUSTOMER') : parties.find((p) => p.isSelf))?.snapshot
   return {
     'supplier.name': supplier?.name ?? '',
     'supplier.ceo': supplier?.ceo ?? '',
@@ -126,6 +128,9 @@ export function autoValuesFromParties(parties: readonly PartyInput[], contractNo
     'supplier.address': supplier?.address ?? '',
     'supplier.phone': supplier?.phone ?? '',
     'customer.name': customer?.name ?? '',
+    'customer.ceo': customer?.ceo ?? '',
+    'customer.bizNo': customer?.bizNo ?? '',
+    'customer.address': customer?.address ?? '',
     'customer.phone': customer?.phone ?? '',
     'contract.no': contractNo,
   }

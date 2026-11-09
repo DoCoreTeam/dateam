@@ -3,9 +3,12 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  CONTRACT_FIELDS, scanTokens, fillHtml, autoValuesFrom, mergeFieldValues, changedAutoFields,
+  CONTRACT_FIELDS, VALUE_FIELDS, scanTokens, fillHtml, autoValuesFrom, mergeFieldValues, changedAutoFields,
   fieldToken, UnknownFieldError, EMPTY_FIELD,
 } from './contract-fields.ts'
+import { autoValuesFromParties, checkParties } from '../services/contract-party.ts'
+import { checkManualFields } from '../services/contract.ts'
+import { CrmError } from './errors.ts'
 import type { QuoteDocument } from './quote-document.ts'
 import { CONTRACT_FIELD_LABEL } from '../../terms/contract-doc.ts'
 
@@ -212,4 +215,54 @@ test('★ 견적 문서의 값 칸은 모두 계약서 칸이거나 사유와 �
   for (const key of Object.values(COVERED)) assert.ok(CONTRACT_FIELDS.some((f) => f.key === key), key)
   const stale = [...Object.keys(COVERED), ...Object.keys(EXEMPT)].filter((p) => !paths.includes(p))
   assert.deepEqual(stale, [], `견적 문서에 없는 칸을 적어 두었다: ${stale.join(', ')}`)
+})
+
+// ------------------------------------------------------------
+// 갑 을 (P0184 I04) — 사는 쪽이 갑, 파는 쪽이 을
+// ------------------------------------------------------------
+
+const AB = `<p>${fieldToken(label('partyA.name'))} 대표 ${fieldToken(label('partyA.ceo'))} / ${fieldToken(label('partyB.name'))}</p>`
+const US = { name: '주식회사 에이엑스', ceo: '홍길동' }
+const THEM = { name: '한빛서버', ceo: '이대표' }
+
+test('★ 매출이면 갑은 상대, 을은 우리 — 견적에서 만든 계약', () => {
+  const v = mergeFieldValues(autoValuesFrom(DOC, 'CT-1'), { 'customer.ceo': '박대표' })
+  assert.equal(fillHtml(AB, v, DOC), '<p>주식회사 &lt;한빛&gt; 대표 박대표 / 주식회사 에이엑스</p>')
+})
+
+test('★ 매입이면 갑은 우리, 을은 상대 — 당사자로 만든 계약', () => {
+  const parties = checkParties([
+    { role: 'SUPPLIER', snapshot: THEM }, { role: 'CUSTOMER', isSelf: true, snapshot: US },
+  ], 'PURCHASE')
+  const v = mergeFieldValues(autoValuesFromParties(parties, 'CT-2'), {})
+  assert.equal(fillHtml(AB, v, null), '<p>주식회사 에이엑스 대표 홍길동 / 한빛서버</p>')
+})
+
+test('공급 관계가 아닌 계약(제휴)은 우리가 갑', () => {
+  const parties = checkParties([{ role: 'PARTNER', snapshot: THEM }, { role: 'PARTNER', isSelf: true, snapshot: US }], 'PARTNERSHIP')
+  const v = mergeFieldValues(autoValuesFromParties(parties, 'CT-3'), {})
+  assert.equal(fillHtml(AB, v, null), '<p>주식회사 에이엑스 대표 홍길동 / 한빛서버</p>')
+})
+
+test('기존 공급자 고객 칸은 그대로 채워진다', () => {
+  const v = mergeFieldValues(autoValuesFrom(DOC, 'CT-1'), {})
+  const html = `<p>${fieldToken(label('supplier.name'))} ${fieldToken(label('customer.name'))}</p>`
+  assert.equal(fillHtml(html, v, DOC), '<p>주식회사 에이엑스 주식회사 &lt;한빛&gt;</p>')
+})
+
+test('★ 별칭 칸은 값을 따로 안 들고, 사람이 직접 넣을 수 없다', () => {
+  const aliases = CONTRACT_FIELDS.filter((f) => f.aliasOf)
+  assert.equal(aliases.length, 10)
+  for (const f of aliases) {
+    assert.ok(CONTRACT_FIELDS.some((g) => g.key === f.aliasOf && !g.aliasOf), `${f.key} → ${f.aliasOf}`)
+    assert.ok(!VALUE_FIELDS.includes(f))
+  }
+  const v = mergeFieldValues(autoValuesFrom(DOC, 'CT-1'), {})
+  assert.ok(!Object.keys(v).some((k) => k.startsWith('party')))
+  assert.throws(() => checkManualFields({ 'partyA.name': 'x' }), (e) => e instanceof CrmError && e.code === 'VALIDATION_FAILED')
+})
+
+test('★ 모르는 칸 거절이 갑 을에도 걸린다', () => {
+  assert.deepEqual(scanTokens('{{갑.상호}} {{을.상효}}'), { known: ['partyA.name'], unknown: ['을.상효'] })
+  assert.throws(() => fillHtml('<p>{{갑.상효}}</p>', {}, null), UnknownFieldError)
 })

@@ -109,14 +109,14 @@ export function assertContractableQuote(quote: { status: string; expired?: boole
   if (quote.status === 'SENT' && quote.expired) throw new CrmError('INVALID_TRANSITION', CONTRACT_MSG.quoteExpired)
 }
 
-/** 사람이 넣는 칸 — 모르는 칸, 블록 칸, 계약서 번호는 거절한다 */
+/** 사람이 넣는 칸 — 모르는 칸, 블록 칸, 별칭 칸(갑 을), 계약서 번호는 거절한다 */
 export function checkManualFields(input: unknown): Record<string, string> {
   if (input === undefined || input === null) return {}
   if (typeof input !== 'object' || Array.isArray(input)) throw new CrmError('VALIDATION_FAILED', CONTRACT_MSG.badField('manual'))
   const out: Record<string, string> = {}
   for (const [key, raw] of Object.entries(input as Record<string, unknown>)) {
     const def = fieldByKey(key)
-    if (!def || def.kind === 'block' || key === 'contract.no') throw new CrmError('VALIDATION_FAILED', CONTRACT_MSG.badField(key), { field: key })
+    if (!def || def.kind === 'block' || def.aliasOf !== undefined || key === 'contract.no') throw new CrmError('VALIDATION_FAILED', CONTRACT_MSG.badField(key), { field: key })
     const value = typeof raw === 'string' ? raw.trim() : ''
     if (value.length > (def.kind === 'longtext' ? MAX_LONG_FIELD_VALUE : MAX_FIELD_VALUE)) throw new CrmError('VALIDATION_FAILED', CONTRACT_MSG.fieldTooLong(def.label), { field: key })
     out[key] = value

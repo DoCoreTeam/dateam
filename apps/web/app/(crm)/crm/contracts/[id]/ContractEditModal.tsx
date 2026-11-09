@@ -9,7 +9,7 @@ import { useMemo, useState } from 'react'
 import NbModal from '@/components/ui/nb/NbModal'
 import NbButton from '@/components/ui/nb/NbButton'
 import ClauseEditor, { type EditableClause } from '@/components/ui/crm/contract/ClauseEditor'
-import { CONTRACT_FIELDS } from '@/lib/crm/domain/contract-fields'
+import { VALUE_FIELDS } from '@/lib/crm/domain/contract-fields'
 import { withSubmitGuard } from '@/lib/forms/submit-guard'
 import { failedTo, progress, ACTION } from '@/lib/terms'
 import { CONTRACT_DOC, CONTRACT_MSG, CONTRACT_SCREEN } from '@/lib/terms/contract-doc'
@@ -32,7 +32,7 @@ export default function ContractEditModal({ contract, current, onClose, onSaved,
   const [note, setNote] = useState('')
   const [clauses, setClauses] = useState<EditableClause[]>(() => current.body.map((c) => ({ ...c })))
   const [manual, setManual] = useState<Record<string, string>>(
-    () => Object.fromEntries(CONTRACT_FIELDS.map((f) => [f.key, manualValue(current, f.key)])),
+    () => Object.fromEntries(VALUE_FIELDS.map((f) => [f.key, manualValue(current, f.key)])),
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -89,7 +89,7 @@ export default function ContractEditModal({ contract, current, onClose, onSaved,
           <h3 id="contract-edit-fields" className={styles.sectionTitle}>{CONTRACT_SCREEN.fieldsSection}</h3>
           <p className={styles.hint}>{CONTRACT_SCREEN.fieldHint}</p>
           <div className={styles.fields}>
-            {CONTRACT_FIELDS.map((f) => {
+            {VALUE_FIELDS.map((f) => {
               const auto = current.fieldValues[f.key]
               const isManual = (manual[f.key] ?? '').trim() !== ''
               const id = `contract-field-${f.key}`
