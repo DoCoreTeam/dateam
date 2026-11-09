@@ -88,7 +88,7 @@ export default function ContractCreateModal({ canCorporate, onClose }: Props) {
           <span className={styles.footNote}>{direction === 'CORPORATE' ? T.corporateHint : ''}</span>
           <span className={styles.itemActions}>
             <NbButton variant="ghost" onClick={onClose} disabled={busy}>{ACTION.cancel}</NbButton>
-            <NbButton onClick={() => void save()} disabled={busy || noTemplate}>{busy ? progress(ACTION.save) : ACTION.save}</NbButton>
+            <NbButton onClick={() => void save()} disabled={busy}>{busy ? progress(ACTION.save) : ACTION.save}</NbButton>
           </span>
         </div>
       }

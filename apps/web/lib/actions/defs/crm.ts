@@ -24,6 +24,7 @@ export const CRM_DEFS: ActionDef[] = [
   { op: "DELETE /api/crm/contract-modules/{id}", name: "crm.contract-module.rm", scope: "admin", cli: "crm contract-module rm" },
   { op: "PATCH /api/crm/contract-modules/{id}", name: "crm.contract-module.update", scope: "admin", cli: "crm contract-module update" },
   { op: "POST /api/crm/contract-modules", name: "crm.contract-module.create", scope: "admin", cli: "crm contract-module create" },
+  { op: "POST /api/crm/contracts/{id}/assemble", name: "crm.contract.assemble", scope: "write", cli: "crm contract assemble" },
   { op: "GET /api/crm/contract-clauses/{id}", name: "crm.contract-clause.get", scope: "read", cli: "crm contract-clause get" },
   { op: "GET /api/crm/contracts", name: "crm.contract.list", scope: "read", cli: "crm contract list" },
   { op: "GET /api/crm/contracts/{id}", name: "crm.contract.get", scope: "read", cli: "crm contract get" },

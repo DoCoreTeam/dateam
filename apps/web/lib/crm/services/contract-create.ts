@@ -9,7 +9,7 @@ import type { CrmDb } from '../db/client.ts'
 import { withCrmTx, type TxCapableClient, type TxLike } from '../db/tx.ts'
 import { writeAudit, type AuditCapableTx } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
-import { contentHash } from '../domain/contract-body.ts'
+import { contentHash, type Clause } from '../domain/contract-body.ts'
 import { mergeFieldValues } from '../domain/contract-fields.ts'
 import type { ContractVersionKind } from '../domain/contract-status.ts'
 import { sensitivityOfDirection } from '../domain/contract-sensitivity.ts'
@@ -18,6 +18,7 @@ import {
   CONTRACT_SELECT, checkManualFields, cleanTitle, dateOrNull, nextContractNo, readContractNoPattern, readContractSignature,
   retryOnNumberTaken, toRow, type ContractRow,
 } from './contract.ts'
+import { planAssembly } from './contract-assembly.ts'
 import { assertPartyCompanies, autoValuesFromParties, checkParties, writeParties } from './contract-party.ts'
 import { kstTodayKey } from '../../datetime/kst.ts'
 import { CONTRACT_MSG } from '../../terms/contract-doc.ts'
@@ -27,6 +28,18 @@ const c = (db: unknown): any => (db as any).crmContract
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const cv = (db: unknown): any => (db as any).crmContractVersion
 type Tx = TxLike & AuditCapableTx
+
+/**
+ * 발행한 템플릿이 없으면 승인된 모듈로 첫 본문을 조립한다 (P0184 I12).
+ * 공통 조항과 조건이 맞는 모듈만 들어간다. 승인본이 빠졌으면 템플릿도 모듈도 없는 것으로 보고 거절한다.
+ */
+async function firstBodyFromModules(
+  db: CrmDb, direction: string, businessTypeKey: string | null, manual: Record<string, string>,
+): Promise<{ templateVersionNo: null; body: Clause[] }> {
+  const { clauses, missing } = await planAssembly(db, { direction, businessTypeKey, values: manual }, [])
+  if (clauses.length === 0 || missing.length > 0) throw new CrmError('VALIDATION_FAILED', CONTRACT_MSG.noTemplate, { field: 'templateId' })
+  return { templateVersionNo: null, body: clauses }
+}
 
 export const CONTRACT_DIRECTIONS = ['SALES', 'PURCHASE', 'PARTNERSHIP', 'CONSORTIUM', 'BROKERAGE', 'CORPORATE'] as const
 export const CONTRACT_FORM_OWNERS = ['OURS', 'THEIRS', 'ISSUER'] as const
@@ -73,12 +86,13 @@ export async function createContract(
 
   const templateId = typeof input.templateId === 'string' && input.templateId
     ? input.templateId
-    : (await defaultTemplateFor(db, deal?.businessTypeKey ?? null))?.id
-  if (!templateId) throw new CrmError('VALIDATION_FAILED', CONTRACT_MSG.noTemplate, { field: 'templateId' })
-  const [{ versionNo: templateVersionNo, body: templateBody }, signature, pattern] = await Promise.all([
-    readPublishedTemplate(db, templateId), readContractSignature(db), readContractNoPattern(db),
+    : (await defaultTemplateFor(db, deal?.businessTypeKey ?? null))?.id ?? null
+  const [{ templateVersionNo, body }, signature, pattern] = await Promise.all([
+    templateId
+      ? readPublishedTemplate(db, templateId).then((t) => ({ templateVersionNo: t.versionNo, body: checkClauses(t.body) }))
+      : firstBodyFromModules(db, direction, deal?.businessTypeKey ?? null, manual),
+    readContractSignature(db), readContractNoPattern(db),
   ])
-  const body = checkClauses(templateBody)
   if (body.length === 0) throw new CrmError('VALIDATION_FAILED', CONTRACT_MSG.noClauses)
 
   // 받은 연결로 트랜잭션을 연다 — 창구가 넘긴 것은 이 워크스페이스로 못 박힌 getCrmDb 다

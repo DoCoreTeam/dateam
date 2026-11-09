@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { FileText, Lock, Pencil, RefreshCw, Send, Sparkles, Stamp, Ban, FilePlus2, XCircle, Trash2, Users } from 'lucide-react'
+import { Blocks, FileText, Lock, Pencil, RefreshCw, Send, Sparkles, Stamp, Ban, FilePlus2, XCircle, Trash2, Users } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import AXDotLoader from '@/components/ui/AXDotLoader'
 import ErrorState from '@/components/ui/ErrorState'
@@ -27,7 +27,7 @@ import type { StatusKey } from '@/lib/tokens/status-colors'
 import { canAmend, canSend, canTransition, canWriteVersion, type ContractStatus } from '@/lib/crm/domain/contract-status'
 import { ACTION, ENTITY, failedTo, progress } from '@/lib/terms'
 import {
-  CONTRACT_META,
+  CONTRACT_ASSEMBLY, CONTRACT_META,
   CONTRACT_DELETE, CONTRACT_DOC, CONTRACT_FIELD_LABEL, CONTRACT_MSG, CONTRACT_REFILL, CONTRACT_SCREEN, CONTRACT_STATUS_LABEL, DOC_HEADER,
 } from '@/lib/terms/contract-doc'
 import { contractApi, type ContractDetail, type Outcome } from './contract-api'
@@ -38,6 +38,7 @@ import ContractEditModal from './ContractEditModal'
 import ContractMetaModal from './ContractMetaModal'
 import ContractAiEditModal from './ContractAiEditModal'
 import ContractConcludeModal from './ContractConcludeModal'
+import ContractModulePicker from './ContractModulePicker'
 import DeleteRecordModal from '../../DeleteRecordModal'
 import styles from './contract-view.module.css'
 
@@ -63,7 +64,7 @@ type Load =
   | { kind: 'error'; message: string }
 
 type Notice = { tone: 'ok' | 'error'; text: string } | null
-type ModalKind = 'edit' | 'meta' | 'ai' | 'conclude' | null
+type ModalKind = 'edit' | 'meta' | 'ai' | 'conclude' | 'assemble' | null
 
 export default function ContractView({ contractId, abilities }: { contractId: string; abilities: ContractAbilities }) {
   const params = useSearchParams()
@@ -256,6 +257,9 @@ export default function ContractView({ contractId, abilities }: { contractId: st
             <NbButton variant="ghost" disabled={!!busy} onClick={() => setModal('ai')}>
               <Sparkles size={16} aria-hidden /> {CONTRACT_DOC.aiEdit}
             </NbButton>
+            <NbButton variant="ghost" disabled={!!busy} onClick={() => setModal('assemble')}>
+              <Blocks size={16} aria-hidden /> {CONTRACT_ASSEMBLY.open}
+            </NbButton>
           </>
         )}
         {canSend(status) && (
@@ -391,6 +395,15 @@ export default function ContractView({ contractId, abilities }: { contractId: st
           contract={contract}
           onClose={() => setModal(null)}
           onSaved={(r) => void done(r.created ? CONTRACT_SCREEN.saved(r.versionNo) : CONTRACT_SCREEN.noChange)}
+          onFailed={(o) => { setModal(null); failed(o) }}
+        />
+      )}
+      {modal === 'assemble' && (
+        <ContractModulePicker
+          contract={contract}
+          current={current}
+          onClose={() => setModal(null)}
+          onSaved={(r) => void done(r.created ? CONTRACT_ASSEMBLY.done(r.versionNo) : CONTRACT_SCREEN.noChange)}
           onFailed={(o) => { setModal(null); failed(o) }}
         />
       )}

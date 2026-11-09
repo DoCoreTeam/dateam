@@ -78,6 +78,23 @@ export interface SaveResult {
   created: boolean
 }
 
+export interface ContractModuleJson {
+  id: string
+  key: string
+  kind: 'COMMON' | 'PERFORMANCE' | 'CONSIDERATION' | 'REGULATION' | 'ANNEX'
+  title: string
+  clauseKeys: string[]
+  isActive: boolean
+}
+
+export interface AssemblyJson {
+  modules: string[]
+  automatic: string[]
+  missing: string[]
+  clauseCount: number
+  saved: SaveResult | null
+}
+
 /** 창구 하나의 답 — 성공이면 body, 아니면 사람이 읽을 말과 코드 */
 export type Outcome<T> =
   | { ok: true; body: T }
@@ -115,6 +132,9 @@ export const contractApi = {
     callApi<ContractJson>(`${contractUrl(id)}/status`, fail, json('POST', body)),
   amend: (id: string, fail: string) =>
     callApi<{ contract: ContractJson; versionNo: number }>(`${contractUrl(id)}/status`, fail, json('POST', { action: 'amend' })),
+  modules: (fail: string) => callApi<{ items: ContractModuleJson[] }>('/api/crm/contract-modules', fail),
+  assemble: (id: string, fail: string, body: { version: number; moduleKeys: string[]; dryRun?: boolean }) =>
+    callApi<AssemblyJson>(`${contractUrl(id)}/assemble`, fail, json('POST', body)),
   versions: (id: string, fail: string) => callApi<{ items: ContractVersionItem[] }>(`${contractUrl(id)}/versions`, fail),
   compare: (id: string, fail: string, a: number, b: number) =>
     callApi<ContractCompareJson>(`${contractUrl(id)}/compare?a=${a}&b=${b}`, fail),

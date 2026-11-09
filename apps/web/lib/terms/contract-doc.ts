@@ -108,7 +108,7 @@ export const CONTRACT_MSG = {
   conflict: '다른 사람이 이 계약서를 먼저 고쳤습니다. 새로고침 후 다시 시도해 주세요.',
   quoteNotContractable: '보냈거나 수락된 견적으로만 계약서를 만들 수 있습니다. 작성 중 견적은 아직 고객과 합의한 값이 아닙니다.',
   quoteExpired: '유효기간이 지난 견적입니다. 개정본을 보낸 뒤 그 견적으로 만들어 주세요.',
-  noTemplate: '쓸 수 있는 계약서 템플릿이 없습니다. 설정의 계약 탭에서 템플릿을 발행해 주세요.',
+  noTemplate: '쓸 수 있는 계약서 템플릿도, 승인된 공통 조항 모듈도 없습니다. 설정의 계약 탭에서 템플릿을 발행하거나 모듈의 조항을 승인해 주세요.',
   notWritable: '체결했거나 끝난 계약서는 고칠 수 없습니다. 바꾸려면 변경 계약서를 만들어 주세요.',
   noClauses: '조항이 하나도 없는 계약서는 저장할 수 없습니다.',
   badField: (key: string): string => `계약서에 넣을 수 없는 칸입니다: ${key}`,
@@ -510,6 +510,30 @@ export const CONTRACT_MODULE_MSG = {
   editDenied: '계약 모듈은 관리자만 만들고 고칠 수 있습니다.',
 } as const
 
+/** 계약에 모듈을 골라 조립 (P0184 I12) */
+export const CONTRACT_ASSEMBLY_MSG = {
+  badModuleKeys: '고른 모듈 목록이 올바르지 않습니다.',
+  unknownModules: (keys: string): string => `없거나 꺼진 모듈입니다: ${keys}`,
+  nothingToAssemble: '들어갈 모듈이 없습니다. 설정의 계약 탭에서 모듈을 만들고 조항을 넣어 주세요.',
+  versionNote: (titles: string): string => `모듈 조립: ${titles}`,
+} as const
+
+export const CONTRACT_ASSEMBLY = {
+  open: '모듈로 조립',
+  title: '모듈 골라 조립',
+  intro: '공통 조항 위에 고른 모듈을 얹어 본문을 새로 만듭니다. 지금 본문은 버전 기록에 남습니다.',
+  noModules: '만든 모듈이 없습니다. 설정의 계약 탭에서 모듈을 만들어 주세요.',
+  goModules: '모듈 만들러 가기',
+  common: '공통 조항 (늘 들어감)',
+  automatic: '조건이 맞아 저절로 들어감',
+  willInclude: (n: number): string => `조항 ${n}개로 조립합니다.`,
+  missing: (keys: string): string => `승인된 조항이 없어 조립할 수 없습니다: ${keys}. 설정의 조항 라이브러리에서 승인해 주세요.`,
+  checking: '조립할 조항을 세는 중입니다',
+  assemble: '조립',
+  done: (n: number): string => `모듈로 조립했습니다 (버전 ${n}).`,
+  failed: '모듈로 조립하지 못했습니다.',
+} as const
+
 /** 설정 계약 탭의 계약 모듈 카드 (P0184 I11) */
 export const CONTRACT_MODULE_CARD = {
   cardTitle: '계약 모듈',
@@ -634,8 +658,8 @@ export const CONTRACT_CREATE_BLANK = {
   name: '계약서 제목',
   namePlaceholder: '예: GPU 서버 매입 계약',
   template: '템플릿',
-  templateDefault: '기본 템플릿',
-  noTemplate: '발행한 템플릿이 없습니다. 설정의 계약 탭에서 템플릿을 발행해 주세요.',
+  templateDefault: '기본 템플릿 (없으면 승인된 모듈로 조립)',
+  noTemplate: '발행한 템플릿이 없어 승인된 공통 조항과 조건이 맞는 모듈로 첫 본문을 조립합니다.',
   goTemplates: '템플릿 발행하러 가기',
   parties: '당사자',
   partyRole: '역할',
