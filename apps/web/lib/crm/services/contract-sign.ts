@@ -22,6 +22,7 @@ import {
 import type { QuoteDocument } from '../domain/quote-document.ts'
 import { findContract, type ContractRow } from './contract.ts'
 import { recalcLedger } from './ledger.ts'
+import { assertDeviationsApproved } from './contract-deviation.ts'
 import { CONTRACT_MSG, CONTRACT_SIGN, CONTRACT_STATUS_LABEL } from '../../terms/contract-doc.ts'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -128,6 +129,8 @@ export async function changeContractStatus(
     const contract = await findContract(tx, id)
     if (contract.version !== version) throw new CrmError('CONFLICT', CONTRACT_MSG.conflict)
     assertActionState(contract.status, action)
+    // 표준과 다른 조항이 있으면 이 버전의 관리자 승인이 있어야 체결된다 (P0184 I08)
+    if (action === 'conclude') await assertDeviationsApproved(tx, contract)
     const signed = action === 'conclude' ? await checkSignedAttachment(tx, contract.dealId, input.signedAttachmentId) : null
     const n = await any(tx).crmContract.updateMany({
       where: { id, version },

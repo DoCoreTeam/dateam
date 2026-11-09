@@ -1744,6 +1744,26 @@ model CrmContractModule {
   @@map("crm_contract_module")
 }
 
+/// 표준 이탈 승인 (마이그 328). 버전 하나와 그 지문에 붙고 고치지 않는다
+model CrmContractDeviationApproval {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  contractId   String
+  versionNo    Int
+  contentHash  String
+  /// 승인할 때 본 이탈 목록 [{clauseId, reason}]
+  deviations   Json     @default("[]")
+  note         String?
+  approvedById String?
+  approvedAt   DateTime @default(now())
+
+  contract CrmContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, versionNo])
+  @@index([workspaceId])
+  @@map("crm_contract_deviation_approval")
+}
+
 /// 계약서 한 건. 내용은 버전에 있고 이 행은 지금 상태와 가리키는 곳만 든다
 model CrmContract {
   id                 String            @id @default(cuid())
@@ -1794,6 +1814,7 @@ model CrmContract {
   amendments CrmContract[]       @relation("ContractAmendment")
   versions  CrmContractVersion[]
   parties   CrmContractParty[]
+  deviationApprovals CrmContractDeviationApproval[]
   links     CrmContractLink[]
 
   @@unique([workspaceId, contractNo])

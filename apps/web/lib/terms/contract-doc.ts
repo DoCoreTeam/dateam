@@ -539,3 +539,13 @@ export const CONTRACT_PAYMENT_MSG = {
   badPercent: '비율은 소수 둘째 자리까지 넣을 수 있습니다.',
   percentSum: (sum: number): string => `분할 비율의 합이 100%가 아닙니다 (지금 ${sum}%).`,
 } as const
+
+/** 표준 이탈과 관리자 승인 (P0184 I08) */
+export const CONTRACT_DEVIATION_MSG = {
+  needsApproval: (n: number): string => `표준과 다른 조항이 ${n}개 있어 관리자 승인 전에는 체결할 수 없습니다.`,
+  approveDenied: '표준 이탈 승인은 관리자만 할 수 있습니다.',
+  noDeviations: '표준과 다른 조항이 없어 승인할 것이 없습니다.',
+  alreadyApproved: '이 버전은 이미 승인했습니다.',
+  notDraft: '체결 전 계약서만 승인할 수 있습니다.',
+  reason: { ai: 'AI 가 쓴 조항', manual: '새로 넣은 조항', changed: '표준과 다른 글', removed: '빠진 표준 조항', unknown: '표준에 없는 조항' } as Record<'ai' | 'manual' | 'changed' | 'removed' | 'unknown', string>,
+} as const
