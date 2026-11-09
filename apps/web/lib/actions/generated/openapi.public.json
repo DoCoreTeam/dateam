@@ -4,7 +4,7 @@
   "title": "사내 자동화 API",
   "version": "1",
   "description": "지금 배포된 사내 자동화 API 의 엔드포인트 전체입니다. 모든 요청에 X-API-Key 헤더(또는 Authorization: Bearer <키>)가 필요하고, 키는 「내 키 관리」에서 발급합니다. 배포가 바뀌면 이 스펙도 함께 바뀌므로 코드 생성 전에 다시 받아 쓰세요.",
-  "x-spec-hash": "87175f9134561f6e"
+  "x-spec-hash": "0abb794b47eb59d5"
  },
  "servers": [
   {
@@ -41272,7 +41272,7 @@
    },
    "post": {
     "operationId": "crm.contract.create",
-    "summary": "보냄 또는 수락 견적으로 계약서 만들기 {quoteId, templateId?, title?, manual?}",
+    "summary": "계약서 만들기, 딜 없이 {direction, title, parties[], dealId?, templateId?, formOwner?, docLayer?, manual?} 또는 견적에서 {quoteId, temp",
     "tags": [
      "crm"
     ],

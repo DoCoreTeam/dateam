@@ -40381,7 +40381,7 @@
    },
    "post": {
     "operationId": "crm.contract.create",
-    "summary": "보냄 또는 수락 견적으로 계약서 만들기 {quoteId, templateId?, title?, manual?}",
+    "summary": "계약서 만들기, 딜 없이 {direction, title, parties[], dealId?, templateId?, formOwner?, docLayer?, manual?} 또는 견적에서 {quoteId, temp",
     "tags": [
      "crm"
     ],

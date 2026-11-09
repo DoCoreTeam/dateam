@@ -1,7 +1,6 @@
 // GET  /api/crm/contracts?dealId= — 딜의 계약서 목록
 // GET  /api/crm/contracts?q=&status=&trash=1&limit=&cursor= — 워크스페이스 계약서 목록 (dealId 가 없을 때)
-// POST /api/crm/contracts         — 보냄 또는 수락 견적으로 계약서 만들기 {quoteId, templateId?, title?, manual?}
-//                                   quoteId 가 없으면 견적 없이 만들기 {direction, title, parties[], dealId?, templateId?, formOwner?, docLayer?, manual?}
+// POST /api/crm/contracts         — 계약서 만들기, 딜 없이 {direction, title, parties[], dealId?, templateId?, formOwner?, docLayer?, manual?} 또는 견적에서 {quoteId, templateId?, title?, manual?}
 import type { NextRequest } from 'next/server'
 import { withCrmApi, readJson } from '@/lib/crm/api/handler'
 import { CrmError } from '@/lib/crm/domain/errors'
