@@ -48,3 +48,7 @@
 @media (max-width: 640px) {
   .fields, .compare { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* 지급 일정 분할 줄: 구분 비율 시기 삭제 (P0184 I12a) */
+.installRow { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 2fr) auto; gap: var(--space-2); align-items: center; }
+@media (max-width: 640px) { .installRow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }

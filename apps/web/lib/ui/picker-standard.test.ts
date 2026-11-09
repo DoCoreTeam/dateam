@@ -57,6 +57,13 @@ const CONVERTED = ['app/admin/access/AccessClient.tsx']
  * 여기 적는 것은 **앞으로도 드롭다운일 자리**다.
  */
 const WHY_SELECT: Readonly<Record<string, string>> = {
+  // 지급 일정(P0184 I12a) — 값은 서버 스키마(contract-payment.ts)가 정한 닫힌 목록이다
+  'app/(crm)/crm/contracts/[id]/ContractPaymentEditor.tsx#KINDS':
+    '대가 종류 아홉은 contract-payment.ts PAYMENT_KINDS 가 정한다. 자라는 목록이 아니다',
+  'app/(crm)/crm/contracts/[id]/ContractPaymentEditor.tsx#PERIODS':
+    '주기 셋(매월 분기 매년)은 contract-payment.ts PAYMENT_PERIODS 가 정한다',
+  'app/(crm)/crm/contracts/[id]/ContractPaymentEditor.tsx#CURRENCIES':
+    '통화 둘(원화 달러)은 견적 통화와 같은 고정 목록이다',
   // 계약 성격(P0184 I10) — 값은 DB CHECK 가 정한 닫힌 목록이다 (마이그 325)
   'app/(crm)/crm/contracts/ContractCreateModal.tsx#DOC_LAYERS':
     '계약서 종류 다섯(단독 기본 개별 업무협약 비밀유지)은 crm_contract.docLayer CHECK 가 정한다. 자라는 목록이 아니다',

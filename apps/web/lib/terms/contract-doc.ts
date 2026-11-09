@@ -611,6 +611,26 @@ export const CONTRACT_PAYMENT = {
   points: (n: number): string => `${n.toLocaleString('ko-KR')}점`,
 } as const
 
+/** 지급 일정 입력 창 (P0184 I12a) */
+export const CONTRACT_PAYMENT_EDITOR = {
+  open: '지급 일정',
+  title: '지급 일정',
+  intro: '대가 종류를 고르고 칸을 채우면 계약서의 지급 일정 칸에 표로 찍힙니다. 저장하면 다음 버전이 됩니다.',
+  kind: '대가 종류',
+  currency: '통화',
+  amountHelp: '금액은 통화 단위로 넣습니다. 예: 원화 1000000, 달러 10.80',
+  unit: '단위',
+  unitPlaceholder: '예: GPU 시간',
+  dueDay: '지급일 (매월 며칠)',
+  expiresAfterMonths: '사용 기한 (개월)',
+  addInstallment: '분할 줄 추가',
+  removeInstallment: (n: number): string => `${n}번째 분할 줄 삭제`,
+  percentNow: (sum: number): string => `비율 합 ${sum}%`,
+  clear: '지급 일정 비우기',
+  saved: (n: number): string => `지급 일정을 저장했습니다 (버전 ${n}).`,
+  failed: '지급 일정을 저장하지 못했습니다.',
+} as const
+
 export const CONTRACT_PAYMENT_MSG = {
   badKind: '대가 종류가 올바르지 않습니다.',
   badShape: '지급 일정의 모양이 올바르지 않습니다.',
