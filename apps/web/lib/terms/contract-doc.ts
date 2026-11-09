@@ -488,3 +488,25 @@ export const CONTRACT_CLAUSE_CARD = {
   empty: '조항이 아직 없어요',
   emptyNext: '표준 조항을 만들고 관리자가 승인하면 계약서 조립에 쓰입니다.',
 } as const
+
+/** 계약 모듈과 조립 (P0184 I06) */
+export const CONTRACT_MODULE_MSG = {
+  badKind: '모듈 종류가 올바르지 않습니다.',
+  badCondition: '켜는 조건의 모양이 올바르지 않습니다.',
+  badConditionField: (field: string): string => `켜는 조건에 쓸 수 없는 칸입니다: ${field}`,
+  tooManyRules: (max: number): string => `켜는 조건은 ${max}줄까지입니다.`,
+  missingClauses: (keys: string): string => `승인된 조항이 없어 조립하지 못했습니다: ${keys}`,
+} as const
+
+/** 모듈 종류 이름 */
+export const CONTRACT_MODULE_KIND = {
+  COMMON: '공통 조항',
+  PERFORMANCE: '급부',
+  CONSIDERATION: '대가',
+  REGULATION: '규제',
+  ANNEX: '부속서',
+} as const
+
+/** 조립한 조항의 제목 모양 */
+export const assembledArticleTitle = (n: number, title: string): string => `제${n}조 (${title})`
+export const assembledAnnexTitle = (n: number, title: string): string => `부속서 ${n}. ${title}`

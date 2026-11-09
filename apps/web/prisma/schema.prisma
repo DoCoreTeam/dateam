@@ -251,6 +251,7 @@ model CrmWorkspace {
   quoteSections CrmQuoteSection[]
   contractTemplates CrmContractTemplate[]
   contractClauses CrmContractClause[]
+  contractModules CrmContractModule[]
   contracts   CrmContract[]
 
   @@map("crm_workspace")
@@ -1716,6 +1717,31 @@ model CrmContractClause {
   @@unique([workspaceId, key, lang, versionNo])
   @@index([workspaceId, status])
   @@map("crm_contract_clause")
+}
+
+/// 계약 모듈 (마이그 327). 조항 키의 순서 있는 묶음, 본문은 조항 라이브러리 승인본에서 읽는다
+model CrmContractModule {
+  id          String   @id @default(cuid())
+  workspaceId String
+  key         String
+  /// COMMON PERFORMANCE CONSIDERATION REGULATION ANNEX
+  kind        String
+  title       String
+  clauseKeys  String[] @default([])
+  /// 켜는 조건. null 이면 고를 때만 들어간다
+  enableWhen  Json?
+  isActive    Boolean  @default(true)
+  position    Int      @default(0)
+  version     Int      @default(0)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  workspace CrmWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+
+  @@unique([workspaceId, key])
+  @@index([workspaceId, kind, position])
+  @@map("crm_contract_module")
 }
 
 /// 계약서 한 건. 내용은 버전에 있고 이 행은 지금 상태와 가리키는 곳만 든다
