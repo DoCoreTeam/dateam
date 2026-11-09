@@ -92,6 +92,7 @@ export const CONTRACT_MSG = {
   unknownFields: (names: string): string => `모르는 칸이 있습니다: ${names}. 「칸 넣기」에서 골라 넣어 주세요.`,
   badClauses: (why: string): string => `조항을 저장하지 못했습니다. ${why}`,
   notFound: '계약서를 찾을 수 없습니다.',
+  sensitivityDenied: '회사 단위 계약은 관리자만 만들 수 있습니다.',
   versionNotFound: '그 버전을 찾을 수 없습니다.',
   conflict: '다른 사람이 이 계약서를 먼저 고쳤습니다. 새로고침 후 다시 시도해 주세요.',
   quoteNotContractable: '보냈거나 수락된 견적으로만 계약서를 만들 수 있습니다. 작성 중 견적은 아직 고객과 합의한 값이 아닙니다.',

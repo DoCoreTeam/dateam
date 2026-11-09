@@ -14,6 +14,7 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { CrmError } from '@/lib/crm/domain/errors'
 import { getCrmDb, type CrmDb } from '@/lib/crm/db/client'
+import { runAsCrmViewer } from '@/lib/crm/domain/contract-sensitivity'
 import {
   resolveCrmAccessForUser, hasCrmRole,
   type CrmRole, type CrmSession,
@@ -59,12 +60,12 @@ export async function withPublicCrmApi<T>(
         { ctx: key, request })
     }
 
-    const data = await fn({
+    const data = await runAsCrmViewer(access.session.role, () => fn({
       session: access.session,
       db: getCrmDb(access.session.workspaceId),
       key,
       request,
-    })
+    }))
 
     // 커서 페이지는 공개 API 의 목록 봉투로 편다 — 안 그러면 봉투가 또 두 벌이 된다.
     // (CRM 내부는 `{items, nextCursor}` 를 그대로 쓰지만, 공개 계약은 `data` + `meta` 다)

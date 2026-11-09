@@ -14,6 +14,7 @@
 
 import { PrismaClient } from '@prisma/client'
 import { injectWorkspaceFilter, isCrmModel } from './workspace-guard.ts'
+import { currentCrmViewerRole, guardContractSensitivity } from '../domain/contract-sensitivity.ts'
 
 // Next dev 는 모듈을 반복 평가한다. 매번 새 PrismaClient 를 만들면 커넥션이 누수된다.
 const globalForPrisma = globalThis as unknown as { crmPrisma?: PrismaClient }
@@ -38,7 +39,9 @@ export function getCrmDb(workspaceId: string) {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {
           if (!isCrmModel(model)) return query(args)
-          return query(injectWorkspaceFilter(args, workspaceId, operation, model) as typeof args)
+          const scoped = injectWorkspaceFilter(args, workspaceId, operation, model)
+          // 회사 단위 계약은 관리자만 — 역할은 사람 확인을 마친 창구가 연 문맥에서 읽는다 (P0184 I02)
+          return query(guardContractSensitivity(model, operation, scoped, currentCrmViewerRole()) as typeof args)
         },
       },
     },

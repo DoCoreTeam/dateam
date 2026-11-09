@@ -14,6 +14,7 @@ import { NextResponse } from 'next/server'
 import { CrmError } from '../domain/errors.ts'
 import { recordSystemEventAsync } from '../../system-log/record.ts'
 import { getCrmDb, type CrmDb } from '../db/client.ts'
+import { runAsCrmViewer } from '../domain/contract-sensitivity.ts'
 import { resolveCrmAccess, hasCrmRole, type CrmRole, type CrmSession } from '../auth/requireCrmMember.ts'
 import { canWrite } from '../../access/guard.ts'
 import { WRITE_DENIED } from '../../terms/index.ts'
@@ -71,7 +72,8 @@ export async function withCrmApi<T>(
       return NextResponse.json(err.toResponseBody(), { status: err.status })
     }
 
-    const data = await fn({ session: access.session, db: getCrmDb(access.session.workspaceId) })
+    const session = access.session
+    const data = await runAsCrmViewer(session.role, () => fn({ session, db: getCrmDb(session.workspaceId) }))
     /**
      * 스트리밍 응답은 **그대로 흘려보낸다.**
      *
