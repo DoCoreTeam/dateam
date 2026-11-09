@@ -89,7 +89,8 @@ export default function ContractEditModal({ contract, current, onClose, onSaved,
           <h3 id="contract-edit-fields" className={styles.sectionTitle}>{CONTRACT_SCREEN.fieldsSection}</h3>
           <p className={styles.hint}>{CONTRACT_SCREEN.fieldHint}</p>
           <div className={styles.fields}>
-            {VALUE_FIELDS.map((f) => {
+            {/* 지급 일정은 칸 하나에 JSON 이라 글 칸으로 고치지 않는다, 전용 편집기는 계약 상세에 있다 (I12) */}
+            {VALUE_FIELDS.filter((f) => f.kind !== 'payment').map((f) => {
               const auto = current.fieldValues[f.key]
               const isManual = (manual[f.key] ?? '').trim() !== ''
               const id = `contract-field-${f.key}`

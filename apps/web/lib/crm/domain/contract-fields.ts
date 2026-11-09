@@ -18,11 +18,13 @@
 import type { QuoteDocument } from './quote-document.ts'
 import { formatAmount } from '../../../app/(crm)/crm/deals/amount.ts'
 import { QUOTE } from '../../terms/quote.ts'
-import { CONTRACT_FIELD_LABEL, EMPTY_FIELD } from '../../terms/contract-doc.ts'
+import { CONTRACT_FIELD_LABEL, CONTRACT_PAYMENT, EMPTY_FIELD } from '../../terms/contract-doc.ts'
+import { parsePaymentValue, renderPaymentSchedule } from './contract-payment.ts'
 
 export type ContractFieldSource = 'supplier' | 'customer' | 'quote' | 'contract' | 'party'
 /** longtext — 사람이 계약마다 여러 줄로 채우는 내용(수행범위). 줄마다 문단이 된다 */
-export type ContractFieldKind = 'text' | 'money' | 'date' | 'block' | 'longtext'
+/** payment: 지급 일정 JSON 한 줄 (contract-payment.ts), 계약서에는 표로 찍힌다 */
+export type ContractFieldKind = 'text' | 'money' | 'date' | 'block' | 'longtext' | 'payment'
 
 export interface ContractFieldDef {
   key: string
@@ -75,6 +77,8 @@ export const CONTRACT_FIELDS: readonly ContractFieldDef[] = [
   { key: 'contract.end', label: CONTRACT_FIELD_LABEL['contract.end'], source: 'contract', kind: 'date', auto: false },
   // 계약마다 내용이 다른 조항 자리 — 템플릿은 칸만 두고 계약서 고치기에서 여러 줄로 채운다
   { key: 'contract.scope', label: CONTRACT_FIELD_LABEL['contract.scope'], source: 'contract', kind: 'longtext', auto: false },
+  // 지급 일정 — 대가 종류마다 정한 칸으로 받아 표로 인쇄한다 (P0184 I07)
+  { key: 'contract.payment', label: CONTRACT_FIELD_LABEL['contract.payment'], source: 'contract', kind: 'payment', auto: false },
   ...partyAliases(),
 ]
 
@@ -257,6 +261,7 @@ export function fillHtml(html: string, values: FieldValues, doc: QuoteDocument |
   const blockFilled = html.replace(/<p>\s*\{\{\s*([^{}]+?)\s*\}\}\s*<\/p>/g, (whole, label: string) => {
     const def = BY_LABEL.get(label)
     if (def?.kind === 'longtext') return longParagraphs(values[def.key]?.value ?? '')
+    if (def?.kind === 'payment') return paymentBlock(values[def.key]?.value ?? '')
     if (!def || def.kind !== 'block') return whole
     return doc ? renderBlock(def.key, doc) : `<p>${EMPTY_FIELD}</p>`
   })
@@ -265,12 +270,24 @@ export function fillHtml(html: string, values: FieldValues, doc: QuoteDocument |
     if (def.kind === 'block') return doc ? renderBlock(def.key, doc) : EMPTY_FIELD
     const v = values[def.aliasOf ?? def.key]?.value ?? ''
     if (v === '') return EMPTY_SPAN
+    // 글 속의 지급 일정은 표를 못 넣으니 대가 종류만 쓴다, 표는 문단 하나를 차지한 칸에서 찍힌다
+    if (def.kind === 'payment') return paymentInline(v)
     // 글 속에 든 여러 줄 칸은 문단을 못 쪼개니 줄바꿈으로 잇는다
     return def.kind === 'longtext' ? splitLines(v).map(escapeHtml).join('<br>') : escapeHtml(v)
   })
 }
 
 const EMPTY_SPAN = `<span class="field-empty">${EMPTY_FIELD}</span>`
+
+/** 지급 일정 칸 — 저장 때 검사를 지났지만 읽을 때도 다시 지난다. 못 읽으면 빈 칸으로 드러낸다 */
+function paymentBlock(v: string): string {
+  if (v.trim() === '') return `<p>${EMPTY_SPAN}</p>`
+  try { return renderPaymentSchedule(parsePaymentValue(v)) } catch { return `<p>${EMPTY_SPAN}</p>` }
+}
+
+function paymentInline(v: string): string {
+  try { return escapeHtml(CONTRACT_PAYMENT.kind[parsePaymentValue(v).kind]) } catch { return EMPTY_SPAN }
+}
 
 const splitLines = (v: string): string[] => v.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== '')
 

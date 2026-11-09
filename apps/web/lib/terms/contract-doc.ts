@@ -80,6 +80,7 @@ export const CONTRACT_FIELD_LABEL: Record<string, string> = {
   'contract.start': '계약.시작일',
   'contract.end': '계약.끝일',
   'contract.scope': '계약.수행범위',
+  'contract.payment': '계약.지급일정',
   'partyA.name': '갑.상호',
   'partyA.ceo': '갑.대표자',
   'partyA.bizNo': '갑.사업자번호',
@@ -510,3 +511,31 @@ export const CONTRACT_MODULE_KIND = {
 /** 조립한 조항의 제목 모양 */
 export const assembledArticleTitle = (n: number, title: string): string => `제${n}조 (${title})`
 export const assembledAnnexTitle = (n: number, title: string): string => `부속서 ${n}. ${title}`
+
+/** 지급 일정 (P0184 I07) */
+export const CONTRACT_PAYMENT = {
+  kind: {
+    LUMP: '일시 지급', INSTALLMENT: '분할 지급', FIXED: '정액 정기 지급', USAGE: '사용량 정산', PREPAID: '선불',
+    COMMITMENT: '약정', COMMISSION: '수수료', POINT_CONVERSION: '포인트 전환', SUBSIDY: '보조금',
+  } as Record<'LUMP' | 'INSTALLMENT' | 'FIXED' | 'USAGE' | 'PREPAID' | 'COMMITMENT' | 'COMMISSION' | 'POINT_CONVERSION' | 'SUBSIDY', string>,
+  period: { MONTH: '매월', QUARTER: '분기마다', YEAR: '매년' } as Record<'MONTH' | 'QUARTER' | 'YEAR', string>,
+  colKind: '대가', colStage: '구분', colPercent: '비율', colAmount: '금액', colDue: '지급 시기', colPeriod: '주기',
+  colUnitPrice: '단가', colMinimum: '최소 금액', colExpiry: '사용 기한', colRefund: '남은 금액 처리',
+  colShortfall: '약정 미달 시', colBasis: '기준', colPoints: '포인트', colSettlement: '정산',
+  colSubsidy: '보조금', colOwnShare: '자부담', colAgency: '지원 기관',
+  total: '합계',
+  none: '없음',
+  percent: (n: number): string => `${n}%`,
+  dueDay: (d: number): string => `${d}일`,
+  months: (n: number): string => `${n}개월`,
+  points: (n: number): string => `${n.toLocaleString('ko-KR')}점`,
+} as const
+
+export const CONTRACT_PAYMENT_MSG = {
+  badKind: '대가 종류가 올바르지 않습니다.',
+  badShape: '지급 일정의 모양이 올바르지 않습니다.',
+  badAmount: '금액은 최소 단위의 정수로 넣어 주세요.',
+  badCurrency: '통화는 세 글자 코드로 넣어 주세요.',
+  badPercent: '비율은 소수 둘째 자리까지 넣을 수 있습니다.',
+  percentSum: (sum: number): string => `분할 비율의 합이 100%가 아닙니다 (지금 ${sum}%).`,
+} as const

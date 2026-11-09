@@ -24,6 +24,7 @@ import {
   CONTRACT_FIELDS, autoValuesFrom, mergeFieldValues, fillHtml, fieldByKey, changedAutoFields, changedBlockFields,
   type FieldValues,
 } from '../domain/contract-fields.ts'
+import { PaymentInputError, parsePaymentValue, paymentValue } from '../domain/contract-payment.ts'
 import { canAmend, canContractFromQuote, canWriteVersion, type ContractVersionKind } from '../domain/contract-status.ts'
 import { DEFAULT_CONTRACT_NO_PATTERN, renderQuoteNo, seqOf, seqPrefix, validateQuoteNoPattern } from '../domain/quote-number.ts'
 import type { QuoteDocument } from '../domain/quote-document.ts'
@@ -118,10 +119,20 @@ export function checkManualFields(input: unknown): Record<string, string> {
     const def = fieldByKey(key)
     if (!def || def.kind === 'block' || def.aliasOf !== undefined || key === 'contract.no') throw new CrmError('VALIDATION_FAILED', CONTRACT_MSG.badField(key), { field: key })
     const value = typeof raw === 'string' ? raw.trim() : ''
-    if (value.length > (def.kind === 'longtext' ? MAX_LONG_FIELD_VALUE : MAX_FIELD_VALUE)) throw new CrmError('VALIDATION_FAILED', CONTRACT_MSG.fieldTooLong(def.label), { field: key })
-    out[key] = value
+    if (value.length > (def.kind === 'longtext' || def.kind === 'payment' ? MAX_LONG_FIELD_VALUE : MAX_FIELD_VALUE)) throw new CrmError('VALIDATION_FAILED', CONTRACT_MSG.fieldTooLong(def.label), { field: key })
+    out[key] = def.kind === 'payment' && value !== '' ? checkedPayment(key, value) : value
   }
   return out
+}
+
+/** 지급 일정은 검사하고 정리한 글자로 바꿔 담는다 — 같은 일정은 늘 같은 글자가 된다 */
+function checkedPayment(key: string, value: string): string {
+  try {
+    return paymentValue(parsePaymentValue(value))
+  } catch (e) {
+    if (e instanceof PaymentInputError) throw new CrmError('VALIDATION_FAILED', e.message, { field: key })
+    throw e
+  }
 }
 
 /** 버전에 든 칸 값에서 사람이 넣은 것만 꺼낸다 */
