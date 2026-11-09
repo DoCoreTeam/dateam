@@ -119,8 +119,10 @@ test('★ 계약서, 딜, 금액 이력, 감사 기록이 한 트랜잭션이다
   assert.ok(fn.includes("action === 'conclude' ? await bookDealAmount"), '딜 금액은 체결 때만 움직인다')
 })
 
-test('서명본은 이 딜에 계약서 종류로 올린 지우지 않은 첨부만', () => {
+test('서명본은 이 계약 또는 이 딜에 계약서 종류로 올린 지우지 않은 첨부만', () => {
   const fn = SIGN.slice(SIGN.indexOf('async function checkSignedAttachment'), SIGN.indexOf('/** 체결이 딜 금액을 정한다'))
-  assert.ok(fn.includes("targetType: 'DEAL', targetId: dealId, kind: 'CONTRACT', deletedAt: null"))
+  assert.ok(fn.includes("where: { id: raw, kind: 'CONTRACT', deletedAt: null, OR: places }"))
+  assert.ok(fn.includes("{ targetType: 'CONTRACT', targetId: contract.id }"), '딜 없는 계약은 계약 첨부에서 고른다 (P0184 I12c)')
+  assert.ok(fn.includes("contract.dealId ? [{ targetType: 'DEAL', targetId: contract.dealId }] : []"))
   assert.ok(read('lib/crm/services/attachment.ts').includes("const BUCKET = 'crm-attachment'"))
 })

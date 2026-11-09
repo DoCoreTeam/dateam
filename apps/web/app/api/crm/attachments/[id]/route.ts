@@ -2,13 +2,15 @@
 import type { NextRequest } from 'next/server'
 import { withCrmApi } from '@/lib/crm/api/handler'
 import { createAdminClient } from '@/lib/supabase/server'
-import { deleteAttachment, BUCKET } from '@/lib/crm/services/attachment'
+import { getCrmDb } from '@/lib/crm/db/client'
+import { deleteAttachment, assertAttachmentVisible, BUCKET } from '@/lib/crm/services/attachment'
 
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function DELETE(_req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params
   return withCrmApi('MEMBER', async ({ session }) => {
+    await assertAttachmentVisible(getCrmDb(session.workspaceId), id)
     await deleteAttachment(session.workspaceId, session.memberId, id, async (path) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sb = createAdminClient() as any

@@ -757,8 +757,9 @@ export async function listContracts(
  */
 export async function deleteContract(
   workspaceId: string, actorId: string | null, id: string, mode: 'trash' | 'purge' = 'trash',
+  removeFiles?: (paths: string[]) => Promise<void>,
 ): Promise<void> {
-  await withCrmTx(workspaceId, async (tx) => {
+  const files = await withCrmTx(workspaceId, async (tx) => {
     // 영구 삭제는 휴지통에 있는 것도 지울 수 있어야 한다 — 지운 행 걸러내기를 이 조회만 넘는다
     const before = await c(tx).findFirst({
       where: mode === 'purge' ? { id, deletedAt: { not: undefined } } : { id }, select: CONTRACT_SELECT,
@@ -767,18 +768,26 @@ export async function deleteContract(
     if (before.status === 'CONCLUDED' || before.status === 'TERMINATED') {
       throw new CrmError('INVALID_TRANSITION', CONTRACT_MSG.notDeletable)
     }
+    let paths: string[] = []
     if (mode === 'trash') {
       const res = await c(tx).updateMany({ where: { id }, data: { deletedAt: new Date(), ...BUMP_VERSION } })
       assertUpdated(res.count, { exists: true, version: before.version }, CONTRACT_DOC.entity)
     } else {
       // 버전은 FK CASCADE 로 함께 사라지고, 이 계약서를 원 계약으로 가리키던 변경 계약서는 연결만 끊긴다
+      // 계약 첨부 행은 트리거가 지우고(마이그 329) 버킷 파일은 밖에서 지운다 — 경로를 먼저 읽어 둔다
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      paths = ((await (tx as any).crmAttachment.findMany({ where: { targetType: 'CONTRACT', targetId: id }, select: { fileUrl: true } })) as { fileUrl: string }[])
+        .map((r) => r.fileUrl)
       await c(tx).deleteMany({ where: { id, deletedAt: { not: undefined } } })
     }
     await writeAudit(tx, {
       actorType: 'HUMAN', actorId, action: mode === 'trash' ? 'contract.deleted' : 'contract.purged',
       targetType: 'contract', targetId: id, beforeJson: { contractNo: before.contractNo, status: before.status },
     })
+    return paths
   })
+  // 파일은 트랜잭션 밖에서 지운다 — 스토리지는 롤백되지 않는다 (attachment.ts deleteAttachment 와 같은 순서)
+  if (files.length && removeFiles) await removeFiles(files)
 }
 
 export async function restoreContract(workspaceId: string, actorId: string | null, id: string): Promise<ContractRow> {

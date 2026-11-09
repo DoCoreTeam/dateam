@@ -75,13 +75,17 @@ export interface ContractActor {
   role: CrmRole
 }
 
-/** 서명본 — 이 딜에 계약서 종류로 올린, 지우지 않은 첨부 */
-async function checkSignedAttachment(tx: unknown, dealId: string | null, raw: unknown): Promise<string | null> {
+/** 서명본 — 이 계약 또는 이 딜에 계약서 종류로 올린, 지우지 않은 첨부 */
+async function checkSignedAttachment(tx: unknown, contract: Pick<ContractRow, 'id' | 'dealId'>, raw: unknown): Promise<string | null> {
   if (raw === undefined || raw === null || raw === '') return null
-  // 서명본은 지금 딜 첨부에서만 고른다 — 딜 없는 계약의 첨부 자리는 상세 화면(I12)이 연다
-  if (typeof raw !== 'string' || !dealId) throw new CrmError('VALIDATION_FAILED', CONTRACT_SIGN.signedNotFound, { field: 'signedAttachmentId' })
+  if (typeof raw !== 'string') throw new CrmError('VALIDATION_FAILED', CONTRACT_SIGN.signedNotFound, { field: 'signedAttachmentId' })
+  // 딜 없는 계약은 계약 자체에 올린 첨부에서 고른다 (P0184 I12c)
+  const places = [
+    { targetType: 'CONTRACT', targetId: contract.id },
+    ...(contract.dealId ? [{ targetType: 'DEAL', targetId: contract.dealId }] : []),
+  ]
   const row = await any(tx).crmAttachment.findFirst({
-    where: { id: raw, targetType: 'DEAL', targetId: dealId, kind: 'CONTRACT', deletedAt: null },
+    where: { id: raw, kind: 'CONTRACT', deletedAt: null, OR: places },
     select: { id: true },
   })
   if (!row) throw new CrmError('VALIDATION_FAILED', CONTRACT_SIGN.signedNotFound, { field: 'signedAttachmentId' })
@@ -131,7 +135,7 @@ export async function changeContractStatus(
     assertActionState(contract.status, action)
     // 표준과 다른 조항이 있으면 이 버전의 관리자 승인이 있어야 체결된다 (P0184 I08)
     if (action === 'conclude') await assertDeviationsApproved(tx, contract)
-    const signed = action === 'conclude' ? await checkSignedAttachment(tx, contract.dealId, input.signedAttachmentId) : null
+    const signed = action === 'conclude' ? await checkSignedAttachment(tx, contract, input.signedAttachmentId) : null
     const n = await any(tx).crmContract.updateMany({
       where: { id, version },
       data: { ...contractPatchFor(action, contract, new Date(), signed), version: { increment: 1 } },

@@ -46,7 +46,28 @@ export interface AttachmentRow {
 }
 
 const TARGETS: readonly AttachmentTarget[] =
-  ['DEAL', 'COMPANY', 'PERSON', 'MEETING', 'QUOTE', 'DEAL_COST', 'IN_KIND']
+  ['DEAL', 'COMPANY', 'PERSON', 'MEETING', 'QUOTE', 'DEAL_COST', 'IN_KIND', 'CONTRACT']
+
+/**
+ * 그 대상을 볼 수 있나 (P0184 I12c). 계약은 등급이 있다 — 회사 단위 계약은 관리자만 본다.
+ * 등급 거름망은 계약 표에만 걸려 있어 첨부 표는 모른다. 그래서 계약 첨부는 계약을 먼저 읽어 본다.
+ * 못 보면 「찾을 수 없음」이다, 있는지 없는지를 알려 주지 않는다 (S3).
+ * db 는 창구가 연 getCrmDb 여야 한다 — 그 연결이 보는 사람의 등급으로 거른다.
+ */
+export async function assertTargetVisible(db: CrmDb, target: AttachmentTarget, targetId: string): Promise<void> {
+  if (target !== 'CONTRACT') return
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const row = await (db as any).crmContract.findFirst({ where: { id: targetId }, select: { id: true } })
+  if (!row) throw new CrmError('NOT_FOUND', '첨부를 찾을 수 없습니다.')
+}
+
+/** 첨부 한 줄의 대상을 볼 수 있나 — 내려받기와 지우기가 부른다 */
+export async function assertAttachmentVisible(db: CrmDb, id: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const row = await (db as any).crmAttachment.findFirst({ where: { id }, select: { targetType: true, targetId: true } })
+  if (!row) throw new CrmError('NOT_FOUND', '첨부를 찾을 수 없습니다.')
+  await assertTargetVisible(db, row.targetType, row.targetId)
+}
 
 export function assertTarget(v: string): AttachmentTarget {
   if (!TARGETS.includes(v as AttachmentTarget)) {
@@ -97,6 +118,7 @@ export function extensionOf(fileName: string, mime: string): string {
 export async function listAttachments(
   db: CrmDb, target: AttachmentTarget, targetId: string,
 ): Promise<AttachmentRow[]> {
+  await assertTargetVisible(db, target, targetId)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (db as any).crmAttachment.findMany({
     where: { targetType: target, targetId },

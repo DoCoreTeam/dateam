@@ -149,9 +149,9 @@ export const contractApi = {
   versions: (id: string, fail: string) => callApi<{ items: ContractVersionItem[] }>(`${contractUrl(id)}/versions`, fail),
   compare: (id: string, fail: string, a: number, b: number) =>
     callApi<ContractCompareJson>(`${contractUrl(id)}/compare?a=${a}&b=${b}`, fail),
-  /** 서명본 후보 — 딜 첨부 중 계약서 종류. 서버도 같은 조건으로 다시 본다(contract-sign.ts) */
-  signedFiles: async (dealId: string, fail: string): Promise<Outcome<SignedFile[]>> => {
-    const out = await callApi<{ items: SignedFile[] }>(`/api/crm/attachments?target=DEAL&targetId=${encodeURIComponent(dealId)}`, fail)
+  /** 서명본 후보 — 계약 첨부(딜 없는 계약) 또는 딜 첨부 중 계약서 종류. 서버도 같은 조건으로 다시 본다(contract-sign.ts) */
+  signedFiles: async (target: 'DEAL' | 'CONTRACT', targetId: string, fail: string): Promise<Outcome<SignedFile[]>> => {
+    const out = await callApi<{ items: SignedFile[] }>(`/api/crm/attachments?target=${target}&targetId=${encodeURIComponent(targetId)}`, fail)
     return out.ok ? { ok: true, body: out.body.items.filter((f) => f.kind === 'CONTRACT') } : out
   },
   exportUrl: (id: string, format: 'pdf' | 'docx' | 'html', versionNo: number) =>

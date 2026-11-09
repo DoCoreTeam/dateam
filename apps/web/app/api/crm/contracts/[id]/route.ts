@@ -5,6 +5,8 @@
 // DELETE /api/crm/contracts/[id]?mode=trash|purge — 휴지통으로 또는 영구 삭제 (체결 해지한 것은 거절, 되살리기는 ./restore)
 import type { NextRequest } from 'next/server'
 import { withCrmApi, readJson, requireVersion } from '@/lib/crm/api/handler'
+import { createAdminClient } from '@/lib/supabase/server'
+import { BUCKET } from '@/lib/crm/services/attachment'
 import { deleteContract, getContract, refillContractFromQuote, saveContractVersion, type SaveContractInput } from '@/lib/crm/services/contract'
 import { listParties } from '@/lib/crm/services/contract-party'
 import { updateContractMeta, type ContractMetaInput } from '@/lib/crm/services/contract-meta'
@@ -40,7 +42,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 export async function DELETE(req: NextRequest, { params }: Ctx) {
   return withCrmApi('MEMBER', async ({ session }) => {
     const mode = req.nextUrl.searchParams.get('mode') === 'purge' ? 'purge' : 'trash'
-    await deleteContract(session.workspaceId, session.memberId, (await params).id, mode)
+    await deleteContract(session.workspaceId, session.memberId, (await params).id, mode, async (paths) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sb = createAdminClient() as any
+      await sb.storage.from(BUCKET).remove(paths)
+    })
     return { ok: true, mode }
   })
 }

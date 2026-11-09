@@ -2,7 +2,7 @@
 
 // 체결 — 서명본을 고르고 지금 버전으로 체결한다 (P0132 I12a)
 //
-// 서명본은 이 딜에 계약서 종류로 올린 파일 중에서만 고른다(서버가 같은 조건으로 다시 본다).
+// 서명본은 이 딜(딜 없는 계약이면 이 계약)에 계약서 종류로 올린 파일 중에서만 고른다(서버가 같은 조건으로 다시 본다).
 // 올리기는 기존 첨부 부품을 그대로 쓴다 — 올리고 나면 목록을 다시 읽어 바로 고를 수 있다.
 // 이 단추를 관리자에게만 그리는 것은 화면의 일이고, 거절은 서버가 한다.
 
@@ -33,17 +33,17 @@ export default function ContractConcludeModal({ contract, onClose, onDone, onFai
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [seq, setSeq] = useState(0)
+  // 딜 없는 계약은 계약 자체에 서명본을 붙인다 (P0184 I12c)
+  const place = contract.dealId ? { target: 'DEAL' as const, id: contract.dealId } : { target: 'CONTRACT' as const, id: contract.id }
 
   const load = useCallback(async () => {
     setFiles({ kind: 'loading' })
-    // 딜 없는 계약은 서명본을 붙일 딜 첨부가 없다 — 붙이는 자리는 상세 화면이 연다 (I12)
-    if (!contract.dealId) { setFiles({ kind: 'ok', items: [] }); return }
-    const out = await contractApi.signedFiles(contract.dealId, CONTRACT_SCREEN.signedLoadFailed)
+    const out = await contractApi.signedFiles(place.target, place.id, CONTRACT_SCREEN.signedLoadFailed)
     if (!out.ok) { setFiles({ kind: 'error', message: out.message }); return }
     const items = out.body
     setFiles({ kind: 'ok', items })
     setPicked((p) => (p && items.some((f) => f.id === p) ? p : items[0]?.id ?? null))
-  }, [contract.dealId])
+  }, [place.target, place.id])
 
   useEffect(() => { void load() }, [load])
 
@@ -78,12 +78,12 @@ export default function ContractConcludeModal({ contract, onClose, onDone, onFai
       )}
     >
       <div className={styles.body}>
-        <p className={styles.hint}>{CONTRACT_SCREEN.concludeBody(contract.currentVersionNo)}</p>
+        <p className={styles.hint}>{contract.dealId ? CONTRACT_SCREEN.concludeBody(contract.currentVersionNo) : CONTRACT_SCREEN.concludeBodyNoDeal(contract.currentVersionNo)}</p>
         <section className={styles.section} aria-labelledby="contract-signed-title">
           <h3 id="contract-signed-title" className={styles.sectionTitle}>{CONTRACT_SCREEN.pickSigned}</h3>
           {files.kind === 'loading' && <AXDotLoader />}
           {files.kind === 'error' && <ErrorState message={files.message} onRetry={() => void load()} />}
-          {files.kind === 'ok' && files.items.length === 0 && <p className={styles.hint}>{CONTRACT_SCREEN.signedNone}</p>}
+          {files.kind === 'ok' && files.items.length === 0 && <p className={styles.hint}>{contract.dealId ? CONTRACT_SCREEN.signedNone : CONTRACT_SCREEN.signedNoneNoDeal}</p>}
           {files.kind === 'ok' && files.items.length > 0 && (
             <ul className={styles.signedList}>
               {files.items.map((f) => (
@@ -100,15 +100,13 @@ export default function ContractConcludeModal({ contract, onClose, onDone, onFai
             </ul>
           )}
         </section>
-        {contract.dealId && (
-          <AttachmentPanel
-            target="DEAL"
-            targetId={contract.dealId}
-            defaultKind="CONTRACT"
-            reloadKey={seq}
-            onChanged={() => { setSeq((n) => n + 1); void load() }}
-          />
-        )}
+        <AttachmentPanel
+          target={place.target}
+          targetId={place.id}
+          defaultKind="CONTRACT"
+          reloadKey={seq}
+          onChanged={() => { setSeq((n) => n + 1); void load() }}
+        />
       </div>
     </NbModal>
   )

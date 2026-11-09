@@ -10,7 +10,7 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { CrmError } from '@/lib/crm/domain/errors'
 import { hasCapability } from '@/lib/crm/security/sensitivity'
 import {
-  listAttachments, recordAttachment, toAttachmentJson,
+  listAttachments, recordAttachment, toAttachmentJson, assertTargetVisible,
   assertTarget, assertKind, assertFile, storagePath, extensionOf, BUCKET,
 } from '@/lib/crm/services/attachment'
 import { ATTACHMENT } from '@/lib/terms/attachment'
@@ -58,6 +58,8 @@ export async function POST(req: NextRequest) {
 
     const mime = entry.type || 'application/octet-stream'
     assertFile(entry.size, mime)
+    // 볼 수 없는 계약에는 올리지 못한다 — 파일을 버킷에 올리기 전에 막는다
+    await assertTargetVisible(getCrmDb(session.workspaceId), target, targetId)
 
     const path = storagePath(session.workspaceId, target, targetId, extensionOf(entry.name, mime))
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

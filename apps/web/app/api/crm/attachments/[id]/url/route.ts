@@ -9,7 +9,7 @@ import { getCrmDb } from '@/lib/crm/db/client'
 import { createAdminClient } from '@/lib/supabase/server'
 import { CrmError } from '@/lib/crm/domain/errors'
 import { hasCapability } from '@/lib/crm/security/sensitivity'
-import { BUCKET } from '@/lib/crm/services/attachment'
+import { BUCKET, assertAttachmentVisible } from '@/lib/crm/services/attachment'
 
 /** 5분 — 눌러서 받기에 충분하고, 새어도 곧 죽는다 */
 const TTL_SECONDS = 300
@@ -25,6 +25,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       where: { id }, select: { fileUrl: true, fileName: true, sensitivity: true },
     }) as { fileUrl: string; fileName: string; sensitivity: string } | null
     if (!row) throw new CrmError('NOT_FOUND', '첨부를 찾을 수 없습니다.')
+    await assertAttachmentVisible(db, id)
 
     if (row.sensitivity === 'RESTRICTED' && !hasCapability({ role: session.role }, 'cost.view')) {
       throw new CrmError('FORBIDDEN', '이 파일은 관리자만 받을 수 있어요.')
