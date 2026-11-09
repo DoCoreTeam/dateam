@@ -13,6 +13,7 @@ import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/server'
 import type { MinuteBarInput, Timeframe } from './confirm.ts'
+import { pageRanges } from './page-ranges.ts'
 
 export interface SaveBarsInput {
   contractCode: string
@@ -76,17 +77,24 @@ export async function loadBarsAsOf(input: {
 }): Promise<MinuteBarInput[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const admin = createAdminClient() as any
-  const { data, error } = await admin
-    .from('trading_bars')
-    .select('bar_start_at, open, high, low, close, volume, available_at')
-    .eq('contract_code', input.contractCode)
-    .eq('tf', input.tf)
-    .lte('available_at', input.asOf.toISOString())
-    .order('bar_start_at', { ascending: false })
-    .limit(input.limit)
-  if (error) throw new Error(`봉을 읽지 못했습니다: ${error.message}`)
+  // 한 번에 1,000줄까지만 온다. 넘게 달라고 하면 조용히 잘린다 (`page-ranges.ts`)
+  const data: Record<string, string | number>[] = []
+  for (const [from, to] of pageRanges(input.limit)) {
+    const { data: page, error } = await admin
+      .from('trading_bars')
+      .select('bar_start_at, open, high, low, close, volume, available_at')
+      .eq('contract_code', input.contractCode)
+      .eq('tf', input.tf)
+      .lte('available_at', input.asOf.toISOString())
+      .order('bar_start_at', { ascending: false })
+      .range(from, to)
+    if (error) throw new Error(`봉을 읽지 못했습니다: ${error.message}`)
+    const rows = (page ?? []) as Record<string, string | number>[]
+    data.push(...rows)
+    if (rows.length < to - from + 1) break
+  }
 
-  return ((data ?? []) as Record<string, string | number>[])
+  return data
     .map((row) => ({
       startAt: new Date(String(row.bar_start_at)),
       open: Number(row.open),

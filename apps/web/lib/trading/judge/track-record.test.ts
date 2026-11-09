@@ -69,3 +69,9 @@ test('★ tick 이 신호를 내기 전에 성적 관문을 지난다 — 통과
   const overview = readFileSync(join(HERE, '../overview.ts'), 'utf8')
   assert.match(overview, /scoreRecentJudgments\(/, '현황이 다른 채점을 읽는다')
 })
+
+test('★ 관문은 규칙 판단만 센다 — AI 판단을 같이 세면 같은 거래를 두 번 센다', () => {
+  const jev = (o: JudgmentScore['outcome'], r: number) => ({ ...score(o, r), judge: 'jev' })
+  const rec = trackRecordOf([score('target', 1), score('stop', -1), jev('target', 1), jev('stop', -1)])
+  assert.equal(rec.settled, 2)
+})

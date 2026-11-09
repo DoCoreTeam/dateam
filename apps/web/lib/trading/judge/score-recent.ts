@@ -11,6 +11,7 @@ import 'server-only'
 
 import { createAdminClient } from '@/lib/supabase/server'
 import { loadBarsAsOf } from '../bars/store.ts'
+import { pageRanges } from '../bars/page-ranges.ts'
 import { loadInstrumentSpec } from '../settings/store.ts'
 import { leaningOf } from '../judgment-labels.ts'
 import { scoreJudgment, type JudgmentScore } from './score.ts'
@@ -21,8 +22,13 @@ import { scoreJudgment, type JudgmentScore } from './score.ts'
  * 판단이 난 뒤 결판이 날 때까지의 봉이 있어야 채점이 되고, 앞으로는 지표를 구할 만큼
  * 더 필요하다. 차트용 180봉으로 재면 오래된 판단이 죄다 「아직」으로 잡힌다.
  */
-const SCORE_BARS = 3_000
-const SCORE_JUDGMENTS = 2_000
+/*
+ * 한 거래일 접속매매가 1분봉 405개라 12,000개면 30거래일쯤이다. 관문 건수(기본 500건)를
+ * 채울 만큼 넉넉해야 한다 — 실측 2026-11-09 상한 1,000줄에 잘려 2.5거래일만 보던 때는
+ * 판단이 3,800건 쌓였는데 관문이 「177건, 측정 전」이라고 말했다
+ */
+const SCORE_BARS = 12_000
+const SCORE_JUDGMENTS = 8_000
 
 export type RecentScores =
   | { ok: true; scores: JudgmentScore[]; multiplier: number }
@@ -46,19 +52,28 @@ export async function scoreRecentJudgments(input: {
   const bars = await loadBarsAsOf({ contractCode, tf: '1m', asOf: now, limit: SCORE_BARS })
   if (bars.length === 0) return { ok: false, reason: '가격 봉이 아직 없습니다' }
 
-  const { data, error } = await admin
-    .from('trading_judgments')
-    .select('id, bar_close_at, judge, raw_score')
-    .eq('status', 'completed')
-    .eq('contract_code', contractCode)
-    .not('raw_score', 'is', null)
-    .order('bar_close_at', { ascending: false })
-    .limit(SCORE_JUDGMENTS)
-  if (error) return { ok: false, reason: `판단을 읽지 못했습니다: ${error.message}` }
+  // 봉 창보다 앞선 판단은 지표를 못 세워 채점이 안 된다. 창 안의 것만 읽는다
+  const since = bars[0].startAt.toISOString()
+  const data: Record<string, unknown>[] = []
+  for (const [from, to] of pageRanges(SCORE_JUDGMENTS)) {
+    const { data: page, error } = await admin
+      .from('trading_judgments')
+      .select('id, bar_close_at, judge, raw_score')
+      .eq('status', 'completed')
+      .eq('contract_code', contractCode)
+      .gte('bar_close_at', since)
+      .not('raw_score', 'is', null)
+      .order('bar_close_at', { ascending: false })
+      .range(from, to)
+    if (error) return { ok: false, reason: `판단을 읽지 못했습니다: ${error.message}` }
+    const rows = (page ?? []) as Record<string, unknown>[]
+    data.push(...rows)
+    if (rows.length < to - from + 1) break
+  }
 
   const slippage = instrument.tickSize * 2
   const scores: JudgmentScore[] = []
-  for (const row of (data ?? []) as { id: string; bar_close_at: string; judge: string; raw_score: Record<string, number> }[]) {
+  for (const row of data as unknown as { id: string; bar_close_at: string; judge: string; raw_score: Record<string, number> }[]) {
     const lean = leaningOf(row.raw_score)
     // 관망은 채점하지 않는다 — 들어갈 자리가 없으므로 맞고 틀림이 없다
     if (!lean || lean.direction === 'hold') continue

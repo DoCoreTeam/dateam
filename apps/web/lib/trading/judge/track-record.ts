@@ -45,8 +45,15 @@ export interface TrackRecordGate {
   code: string
 }
 
+/**
+ * 관문은 **규칙 판단만** 센다. AI 판단은 같은 봉에 규칙과 함께 기록되고 방향이 99.6% 같았다
+ * (실측 2026-11-05 1,757건 중 1,750건). 둘을 다 세면 같은 거래를 두 번 세어 건수 기준을
+ * 절반의 거래로 채운다
+ */
+export const GATE_JUDGE = 'rule'
+
 export function trackRecordOf(scores: readonly JudgmentScore[]): TrackRecord {
-  const settled = scores.filter((s) => isSettled(s) && s.netPnlR !== null)
+  const settled = scores.filter((s) => s.judge === GATE_JUDGE && isSettled(s) && s.netPnlR !== null)
   return {
     settled: settled.length,
     profitFactor: profitFactor(settled.map((s) => ({ tradeDate: s.barAt.slice(0, 10), netPnlR: s.netPnlR ?? 0 }))),
