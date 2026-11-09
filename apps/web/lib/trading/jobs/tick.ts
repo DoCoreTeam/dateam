@@ -850,7 +850,14 @@ async function tickBody(now: Date, runId: string): Promise<TickResult> {
     // 7 선점한 판단기만 부른다
     const judges = new Map<JudgeName, Judge>([['rule', createRuleJudge()]])
     const jevModel = str('jev_model', '')
-    if (jevModel !== '') {
+    /**
+     * **AI 판단은 스위치가 켜졌을 때만 부른다** (기본 꺼짐).
+     * 실측 2026-11-05 같은 봉 1,757건 중 1,750건이 규칙 판단과 방향이 같았다.
+     * 같은 말을 한 번 더 듣는 데 매분 호출 비용을 쓰고 있었다
+     */
+    if (str('jev_enabled', 'false') !== 'true') {
+      jevUnavailable = 'jev_switched_off'
+    } else if (jevModel !== '') {
       try {
         judges.set('jev', await createServerJevJudge({
           timeoutMs: num('jev_timeout_seconds', 10) * 1000,

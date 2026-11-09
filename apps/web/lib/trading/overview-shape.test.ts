@@ -184,3 +184,13 @@ test('안 쓰기로 한 공급자면 AI 판단이 돈다고 말하지 않는다'
     { on: false, reason: 'provider_disabled', aiJudgedToday: 3 },
   )
 })
+
+test('★ AI 판단 부르기를 끄면 모델과 키가 멀쩡해도 꺼짐이고, 이유가 「끔」이다', () => {
+  assert.deepEqual(
+    jevStatusOf({ enabled: false, model: 'google/gemini-2.5-flash', keyReason: 'pool', aiJudgedToday: 0 }),
+    { on: false, reason: 'switched_off', aiJudgedToday: 0 })
+  // 스위치를 먼저 본다 — 모델이 비어도 사유는 끔이다 (tick 과 같은 순서)
+  assert.equal(jevStatusOf({ enabled: false, model: '', keyReason: 'no_key' }).reason, 'switched_off')
+  // 켜 두면 예전처럼 모델과 키를 본다
+  assert.equal(jevStatusOf({ enabled: true, model: 'm', keyReason: 'pool' }).on, true)
+})

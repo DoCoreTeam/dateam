@@ -449,18 +449,22 @@ export interface JevStatus {
 /**
  * **부르는 쪽과 같은 순서로 가른다.**
  *
- * `jobs/tick.ts` 는 모델 이름을 먼저 보고(`jev_model_not_set`) 그 다음에 키를 찾는다.
+ * `jobs/tick.ts` 는 스위치(`jev_switched_off`)를 먼저 보고, 모델 이름(`jev_model_not_set`)을 본 뒤 키를 찾는다.
  * 화면이 키를 먼저 보면 둘 다 없을 때 실행 기록과 다른 이유를 댄다.
  *
  * 키는 **있는지 없는지만** 받는다. 키 값이 이 형에 들어오면 화면 데이터로 흘러간다(S3).
  */
 export function jevStatusOf(input: {
+  /** 설정 「AI 판단 부르기」. 안 주면 켜진 것으로 본다 — 스위치가 없던 때의 호출과 같다 */
+  enabled?: boolean
   model: string
   keyReason: 'pool' | 'meta' | 'no_key' | 'env_blocked' | 'disabled'
   /** 오늘 쌓인 AI 판단 건수. 안 주면 0 으로 보되 **없다는 사실**이지 0 건이라는 주장은 아니다 */
   aiJudgedToday?: number
 }): JevStatus {
   const aiJudgedToday = input.aiJudgedToday ?? 0
+  // tick 과 같은 순서 — 스위치를 먼저 본다
+  if (input.enabled === false) return { on: false, reason: 'switched_off', aiJudgedToday }
   if (input.model.trim() === '') return { on: false, reason: 'model_missing', aiJudgedToday }
   if (input.keyReason === 'no_key') return { on: false, reason: 'key_missing', aiJudgedToday }
   if (input.keyReason === 'env_blocked') return { on: false, reason: 'env_blocked', aiJudgedToday }

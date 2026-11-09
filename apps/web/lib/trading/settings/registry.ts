@@ -296,6 +296,21 @@ export const TRADING_SETTINGS: readonly TradingSetting[] = [
     source: '명세 §19 「보유 기준」',
   },
   {
+    key: 'jev_enabled',
+    group: 'decision',
+    label: 'AI 판단 부르기',
+    help: '켜면 진입 조건이 걸릴 때 AI 에게도 방향을 묻습니다. 끄면 규칙 판단만 남습니다',
+    type: 'choice',
+    choices: ['true', 'false'],
+    /**
+     * **기본은 끈다.** 실측 2026-11-05 AI 판단 1,757건 중 1,750건이 규칙 판단과 같은 방향이었고,
+     * 비용을 넣은 성적은 둘 다 마이너스였다. 덧붙이는 정보가 없는 호출을 기본으로 두지 않는다
+     */
+    defaultValue: 'false',
+    usedFrom: '1-A',
+    source: '명세 §7.2 판단기는 교체 가능',
+  },
+  {
     key: 'jev_provider',
     group: 'decision',
     label: 'AI 판단을 어디에 맡길까',

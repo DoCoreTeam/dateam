@@ -107,3 +107,10 @@ test('안 씀은 키 없음과 다른 말을 한다 — 할 일이 정반대다'
   assert.doesNotMatch(JEV_OFF_REASON_LABEL.provider_disabled, /등록되지 않/, '있는 키를 없다고 하면 안 된다')
   assert.match(JEV_OFF_REMEDY_LABEL.provider_disabled, /켜/, '다시 켜면 된다는 것을 말해야 한다')
 })
+
+test('★ 일부러 끈 AI 판단은 고칠 것이 있는 것처럼 말하지 않는다', () => {
+  const line = jevConsequenceLine({ reason: 'switched_off', todayCount: 0 })
+  assert.doesNotMatch(line, /시작할 수 없/, '끈 것을 고장처럼 말한다')
+  assert.match(JEV_OFF_REMEDY_LABEL.switched_off, /켜/, '다시 켜는 길을 말해야 한다')
+  assert.match(JEV_OFF_REASON_LABEL.switched_off, /꺼 두었/)
+})

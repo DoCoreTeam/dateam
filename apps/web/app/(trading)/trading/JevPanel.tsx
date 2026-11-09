@@ -22,7 +22,12 @@ export default function JevPanel({ jev }: Props) {
   if (jev.on || !jev.reason) return null
 
   return (
-    <section className="card" role="status" style={{ borderLeft: '3px solid var(--warning)' }}>
+    // 일부러 끈 것은 경고가 아니다. 경고 색을 달면 없는 고장을 찾으러 간다
+    <section
+      className="card"
+      role="status"
+      style={{ borderLeft: `3px solid ${jev.reason === 'switched_off' ? 'var(--border)' : 'var(--warning)'}` }}
+    >
       <h2
         style={{
           display: 'flex', alignItems: 'center', gap: 'var(--space-2)',

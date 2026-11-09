@@ -29,7 +29,7 @@
  * `jobs/tick.ts` 는 모델 이름을 먼저 보고, 그 다음에 키를 찾는다.
  * 화면이 다른 순서로 말하면 실행 기록과 화면이 서로 다른 이유를 댄다.
  */
-export type JevOffReason = 'model_missing' | 'key_missing' | 'env_blocked' | 'provider_disabled'
+export type JevOffReason = 'switched_off' | 'model_missing' | 'key_missing' | 'env_blocked' | 'provider_disabled'
 
 /**
  * 제목. `env_blocked` 만 다른 말을 쓴다 — 나머지 둘은 정말로 꺼진 것이고,
@@ -51,6 +51,8 @@ export function jevOffTitle(reason: JevOffReason): string {
 }
 
 export const JEV_OFF_REASON_LABEL: Record<JevOffReason, string> = {
+  // 고장이 아니라 고른 것이다. 키와 모델은 그대로 있다
+  switched_off: '트레이딩 설정에서 AI 판단 부르기를 꺼 두었습니다',
   model_missing: 'AI 판단에 쓸 모델을 아직 안 골랐습니다',
   key_missing: '고른 곳의 AI 키가 등록되지 않았습니다',
   // 넣어 둔 키를 「없다」고 하지 않는다. 있는데 이 화면이 안 쓰는 것이다
@@ -61,6 +63,7 @@ export const JEV_OFF_REASON_LABEL: Record<JevOffReason, string> = {
 
 /** 무엇을 하면 켜지나. **되는 일만 적는다** — 없는 칸을 가리키지 않는다 */
 export const JEV_OFF_REMEDY_LABEL: Record<JevOffReason, string> = {
+  switched_off: '트레이딩 설정의 「AI 판단 부르기」를 켜면 다음 진입 조건부터 다시 묻습니다',
   model_missing: '트레이딩 설정의 「AI 판단에 쓸 모델」에서 하나 고르면 켜집니다',
   key_missing: '시스템 설정의 AI 공급자 키에 그 곳의 키를 등록하면 켜집니다',
   env_blocked: '이 화면에서도 쓰려면 시스템 설정의 AI 공급자 키 목록에 그 곳의 키를 한 줄 등록하면 됩니다. 목록에 등록한 키는 화면을 가리지 않고 쓰입니다',
@@ -85,7 +88,11 @@ export function jevRunningElsewhere(todayCount: number): string {
  * 결과 줄을 고른다 — 기록이 있으면 사실을, 없으면 앞으로 벌어질 일을.
  * 고르는 규칙을 화면에 두면 화면마다 다르게 고른다.
  */
+/** 일부러 끈 때의 결과. 「시작할 수 없다」고 하면 고칠 것이 있는 것처럼 읽힌다 */
+export const JEV_SWITCHED_OFF_CONSEQUENCE = '그동안은 규칙 판단만 기록되고 AI 호출 비용이 들지 않습니다'
+
 export function jevConsequenceLine(input: { reason: JevOffReason; todayCount: number }): string {
+  if (input.reason === 'switched_off') return JEV_SWITCHED_OFF_CONSEQUENCE
   if (input.reason === 'env_blocked' && input.todayCount > 0) return jevRunningElsewhere(input.todayCount)
   return JEV_OFF_CONSEQUENCE
 }

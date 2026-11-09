@@ -166,6 +166,10 @@ async function loadJevStatus(
   aiJudgedToday: number,
 ): Promise<JevStatus> {
   const model = typeof values.jev_model === 'string' ? values.jev_model : ''
+  // 값이 없으면 레지스트리 기본값과 같이 꺼진 것으로 본다. tick 도 같은 기본값을 쓴다
+  if (String(values.jev_enabled ?? 'false') !== 'true') {
+    return jevStatusOf({ enabled: false, model, keyReason: 'no_key', aiJudgedToday })
+  }
   if (model.trim() === '') return jevStatusOf({ model: '', keyReason: 'no_key', aiJudgedToday })
   try {
     const choice = await resolveProviderKey('jev', null)
