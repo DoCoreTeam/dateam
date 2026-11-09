@@ -102,6 +102,7 @@ import { decideEnableNotify, enableHint } from './notify/enable-gate.ts'
 import { evaluateGate, type CriterionResult } from './gate/criteria.ts'
 import { loadBarsAsOf } from './bars/store.ts'
 import { scoreRecentJudgments } from './judge/score-recent.ts'
+import { trackRecordGate, trackRecordOf, trackRecordThresholdsOf, signalGateViewOf } from './judge/track-record.ts'
 import { buildSeries, type ChartSeries, type PlanParams } from './chart/series.ts'
 import { scoreJudgment, summarizeScores, type JudgmentScore } from './judge/score.ts'
 import { feeConfigured } from './risk/fees.ts'
@@ -534,6 +535,7 @@ async function loadAccuracy(
     contracts: 1, multiplier: 0, baseKrw, feeIncluded: feeConfigured(feePercent, feeFlat),
     replay: replayRuleOf(values, feeConfigured(feePercent, feeFlat)),
     whyNegative: null,
+    signalGate: null,
   })
   if (!contractCode) return empty('근월물이 정해지지 않았습니다')
   try {
@@ -576,6 +578,8 @@ async function loadAccuracy(
         뜨고, 다섯 번 뜨는 설명은 한 번도 안 읽힌다
         (사용자 지적 2026-09-30 「그리고 다 마이너스네」)
       */
+      // tick 이 신호를 막는 것과 같은 판정이다. 화면이 따로 셈하면 「미달」인데 신호가 나간다
+      signalGate: signalGateViewOf(trackRecordGate(trackRecordOf(scores), trackRecordThresholdsOf(values))),
       whyNegative: whyNegativeLine({
         hitRate: summarizeScores(scores).hitRate,
         stopAtrMultiple: Number(values.exit_stop_atr_multiple) || 1.2,

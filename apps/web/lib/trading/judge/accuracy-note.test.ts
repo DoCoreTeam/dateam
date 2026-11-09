@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { replayLines, breakEvenHitRate, whyNegativeLine } from './accuracy-note.ts'
+import { NOT_MEASURED } from '../../terms/measure.ts'
+import { replayLines, breakEvenHitRate, whyNegativeLine, signalGateLine } from './accuracy-note.ts'
 
 /** 실측 2026-09-30 설정값 */
 const RULE = {
@@ -61,4 +62,18 @@ test('본전선을 넘었으면 아무 말도 안 한다 — 늘 뜨는 설명�
 test('안 잰 것을 나쁘다고 하지 않는다', () => {
   assert.equal(whyNegativeLine({ hitRate: null, stopAtrMultiple: 1.2, targetAtrMultiple: 1.5 }), null)
   assert.equal(whyNegativeLine({ hitRate: 0.19, stopAtrMultiple: 0, targetAtrMultiple: 1.5 }), null)
+})
+
+test('★ 신호 관문 줄이 신호를 내는지와 무엇이 얼마나 모자란지 말한다', () => {
+  const base = { settled: 551, profitFactor: 0.9, minTrades: 500, minProfitFactor: 1.25 }
+  const fail = signalGateLine({ ...base, status: 'fail' })
+  assert.match(fail, /신호를 내지 않습니다/)
+  assert.match(fail, /0\.90/, '지금 값을 안 말한다')
+  assert.match(fail, /1\.25/, '기준을 안 말한다')
+  assert.match(fail, /551건/)
+  const thin = signalGateLine({ ...base, settled: 120, status: 'insufficient' })
+  assert.ok(thin.includes(`성적이 ${NOT_MEASURED}`), '건수 미달을 미달로 말한다')
+  assert.match(thin, /500건/)
+  assert.match(signalGateLine({ ...base, profitFactor: 1.4, status: 'pass' }), /신호를 냅니다/)
+  assert.match(signalGateLine({ ...base, profitFactor: null, status: 'fail' }), /잃은 판단이 없어/)
 })

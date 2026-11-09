@@ -14,6 +14,8 @@
  * 숫자를 여기서 새로 정하지 않는다 — 전부 설정에서 받아 문장으로만 만든다(M4).
  */
 
+import { NOT_MEASURED } from '../../terms/measure.ts'
+
 export interface ReplayRule {
   /** 판단 봉이 닫힌 뒤 몇 분에 들어가나 */
   delayMinutes: number
@@ -45,7 +47,7 @@ export function replayLines(rule: ReplayRule): string[] {
 export const HIT_MEANING = '적중은 목표가에 닿아 끝난 것만 셉니다. 시간이 지나 조금 번 것은 적중이 아닙니다'
 
 /** 「못 들어간 것」이 무슨 뜻인가 */
-export const UNSCORED_MEANING = '못 들어간 것은 값이 한계가를 넘어가 따라가지 않은 판단입니다'
+export const UNSCORED_MEANING = '못 들어간 것은 값이 한계가를 넘어갔거나 이미 손절선을 지나 따라가지 않은 판단입니다'
 
 /**
  * 본전 적중률 — **손절과 목표 폭이 정한다.**
@@ -80,4 +82,31 @@ export function whyNegativeLine(input: {
   const pct = (v: number): string => `${Math.round(v * 100)}%`
   return `지금 손절과 목표 폭이면 ${pct(breakEven)}는 맞아야 본전인데 ${pct(hit)}입니다.`
     + ' 그래서 합계가 마이너스이고, 검증 관문이 아직 알림을 안 켜 주는 이유도 이것입니다'
+}
+
+/**
+ * 신호 관문 한 줄 — **지금 신호가 나가는지, 안 나가면 무엇이 얼마나 모자란지**
+ *
+ * 실측 2026-11-05: 성적이 마이너스인데 화면은 그 숫자만 보였고, 그 성적으로 신호를 낼지는
+ * 어디에도 없었다. 기준은 관문 설정(`gate_min_validate_trades` · `gate_min_profit_factor`)이다.
+ */
+export function signalGateLine(gate: {
+  status: 'pass' | 'fail' | 'insufficient'
+  settled: number
+  profitFactor: number | null
+  minTrades: number
+  minProfitFactor: number
+}): string {
+  const count = `결판 난 판단 ${gate.settled.toLocaleString('ko-KR')}건`
+  if (gate.status === 'insufficient') {
+    return `${count}이라 성적이 ${NOT_MEASURED}이고 신호를 내지 않습니다. ${gate.minTrades.toLocaleString('ko-KR')}건이 모이면 잽니다`
+  }
+  if (gate.profitFactor === null) {
+    return `${count} 가운데 잃은 판단이 없어 Profit Factor 를 셀 수 없습니다. 신호를 내지 않습니다`
+  }
+  const pf = `Profit Factor(번 것 ÷ 잃은 것) ${gate.profitFactor.toFixed(2)}`
+  if (gate.status === 'fail') {
+    return `성적이 기준에 못 미쳐 신호를 내지 않습니다. ${pf}, 기준 ${gate.minProfitFactor} 이상 (${count})`
+  }
+  return `성적이 기준을 넘어 신호를 냅니다. ${pf}, 기준 ${gate.minProfitFactor} 이상 (${count})`
 }

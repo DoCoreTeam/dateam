@@ -310,6 +310,21 @@ export interface AccuracySummary {
   tradeDays: number
   /** 못 쟀으면 왜. 쟀으면 빈 문자열 */
   unmeasuredReason: string
+  /**
+   * 신호 관문 — **이 성적으로 신호를 내는가.** tick 이 같은 채점·같은 기준으로 막는다
+   * (`judge/track-record.ts`). 못 쟀으면 null
+   */
+  signalGate: SignalGateView | null
+}
+
+export interface SignalGateView {
+  status: 'pass' | 'fail' | 'insufficient'
+  /** 결판 난 판단 수 */
+  settled: number
+  /** 번 것 ÷ 잃은 것. 잃은 것이 없으면 null */
+  profitFactor: number | null
+  minTrades: number
+  minProfitFactor: number
 }
 
 export interface TradingOverview {

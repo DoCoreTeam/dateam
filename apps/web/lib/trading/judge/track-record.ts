@@ -70,6 +70,23 @@ export function trackRecordGate(
   return { ...at, status: 'pass', code: 'track_record:pass' }
 }
 
+/** 화면에 넘길 모양. 기계 사유(code)는 화면에 안 싣는다 */
+export function signalGateViewOf(gate: TrackRecordGate): {
+  status: TrackRecordStatus
+  settled: number
+  profitFactor: number | null
+  minTrades: number
+  minProfitFactor: number
+} {
+  return {
+    status: gate.status,
+    settled: gate.record.settled,
+    profitFactor: gate.record.profitFactor,
+    minTrades: gate.thresholds.minTrades,
+    minProfitFactor: gate.thresholds.minProfitFactor,
+  }
+}
+
 /** 설정에서 기준을 읽는다. 화면과 tick 이 같은 자리에서 읽어야 같은 기준으로 판정한다 */
 export function trackRecordThresholdsOf(values: Readonly<Record<string, unknown>>): TrackRecordThresholds {
   return {

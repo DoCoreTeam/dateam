@@ -12,7 +12,7 @@ import { fmtNum } from '@/lib/ui/number-format'
 import { Target } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import type { AccuracySummary, AccuracyRow } from '@/lib/trading/overview-shape'
-import { replayLines, HIT_MEANING, UNSCORED_MEANING } from '@/lib/trading/judge/accuracy-note'
+import { replayLines, HIT_MEANING, UNSCORED_MEANING, signalGateLine } from '@/lib/trading/judge/accuracy-note'
 import styles from './AccuracyPanel.module.css'
 
 /** 건당 손익(R). **없으면 없다고 말한다** — 0 은 「본전이었다」는 사실이다 */
@@ -120,6 +120,15 @@ export default function AccuracyPanel({ accuracy }: { accuracy: AccuracySummary 
         **왜 마이너스인지 말한다** (사용자 지적 2026-09-30 「그리고 다 마이너스네」).
         본전선을 넘으면 이 줄이 사라진다 — 늘 뜨는 설명은 안 읽힌다.
       */}
+      {/*
+        **이 성적으로 신호를 내는가.** 신호 발행이 같은 판정으로 막힌다 —
+        숫자만 보이고 그 결과가 안 보이면 마이너스인데 왜 신호가 안 오는지(또는 오는지) 모른다
+      */}
+      {accuracy.signalGate && (
+        <p className={accuracy.signalGate.status === 'pass' ? styles.basis : styles.warn} role="status">
+          {signalGateLine(accuracy.signalGate)}
+        </p>
+      )}
       {accuracy.whyNegative && (
         <p className={styles.warn}>{accuracy.whyNegative}</p>
       )}
