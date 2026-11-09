@@ -1694,7 +1694,16 @@ model CrmContractTemplateVersion {
 model CrmContract {
   id                 String            @id @default(cuid())
   workspaceId        String
-  dealId             String
+  /// 딜 없이도 선다(마이그 325). 딜을 지우면 비워진다 — 계약은 남는다
+  dealId             String?
+  /// 매출 매입 제휴(PARTNERSHIP) 공동수급(CONSORTIUM) 3자(BROKERAGE) 회사 단위(CORPORATE)
+  direction          String            @default("SALES")
+  /// 우리 양식(OURS) 상대 양식(THEIRS) 발주처 고정 양식(ISSUER)
+  formOwner          String            @default("OURS")
+  /// 단독 기본계약(MASTER) 주문서(ORDER) 변경(AMENDMENT) 업무협약(MOU) 비밀유지(NDA)
+  docLayer           String            @default("STANDALONE")
+  /// 영업(SALES) 매입(PURCHASE) 회사 기밀(CORPORATE, 관리자만)
+  sensitivity        String            @default("SALES")
   /// 이 계약서를 채운 견적. 견적이 지워져도 계약서는 남는다 (스냅샷이 버전에 있다)
   quoteId            String?
   contractNo         String
@@ -1725,16 +1734,61 @@ model CrmContract {
   deletedAt          DateTime?
 
   workspace CrmWorkspace         @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  deal      CrmDeal              @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  deal      CrmDeal?             @relation(fields: [dealId], references: [id], onDelete: SetNull)
   quote     CrmQuote?            @relation(fields: [quoteId], references: [id], onDelete: SetNull)
   parent    CrmContract?         @relation("ContractAmendment", fields: [parentContractId], references: [id], onDelete: SetNull)
   amendments CrmContract[]       @relation("ContractAmendment")
   versions  CrmContractVersion[]
+  parties   CrmContractParty[]
+  links     CrmContractLink[]
 
   @@unique([workspaceId, contractNo])
   @@index([workspaceId, dealId, createdAt])
   @@index([workspaceId, status])
+  @@index([workspaceId, direction])
+  @@index([workspaceId, sensitivity])
   @@map("crm_contract")
+}
+
+/// 계약 당사자. 계약이 소유하고, 회사는 가리킬 뿐이다 — 글자는 스냅샷이 든다
+model CrmContractParty {
+  id          String   @id @default(cuid())
+  workspaceId String
+  contractId  String
+  /// SUPPLIER CUSTOMER LEAD(주관사) MEMBER(구성원) BROKER PARTNER OTHER
+  role        String
+  /// 우리 회사인가
+  isSelf      Boolean  @default(false)
+  position    Int      @default(0)
+  companyId   String?
+  /// 체결 때의 상호 대표자 사업자번호 주소 연락처
+  snapshot    Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  contract CrmContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId, position])
+  @@index([workspaceId, companyId])
+  @@map("crm_contract_party")
+}
+
+/// 계약과 다른 기록의 연결. 대상 칼럼 중 정확히 하나만 찬다(DB CHECK)
+model CrmContractLink {
+  id          String   @id @default(cuid())
+  workspaceId String
+  contractId  String
+  dealId      String?
+  quoteId     String?
+  companyId   String?
+  projectId   String?  @db.Uuid
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  contract CrmContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@map("crm_contract_link")
 }
 
 /// 계약서 버전. 한 번 쓰면 안 바뀐다 — 고치면 다음 버전이다
