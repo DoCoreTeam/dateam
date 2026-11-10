@@ -468,6 +468,7 @@ export const CONTRACT_CLAUSE_STATUS = { DRAFT: '초안', APPROVED: '승인' } as
 export const CONTRACT_CLAUSE_CARD = {
   cardTitle: '조항 라이브러리',
   cardDesc: '계약서를 조립하는 표준 조항입니다. 승인한 조항이 표준이 되고, 승인한 글을 고치면 다음 버전 초안이 새로 생깁니다.',
+  draftNote: (n: number): string => `초안 ${n}개는 승인 전까지 계약서 조립과 표준 이탈 판정에 쓰이지 않습니다.`,
   create: '새 조항',
   editTitle: '조항 수정',
   key: '조항 키',

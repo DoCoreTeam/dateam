@@ -139,6 +139,8 @@ export default function ContractClausesCard() {
 
   if (loading && items.length === 0) return <AXDotLoader />
 
+  const drafts = items.filter((c) => c.status === 'DRAFT').length
+
   const header = canWrite ? (
     <NbButton variant="ghost" onClick={openNew}><Plus size={14} /> {CONTRACT_CLAUSE_CARD.create}</NbButton>
   ) : null
@@ -146,6 +148,7 @@ export default function ContractClausesCard() {
   return (
     <SettingsCard title={CONTRACT_CLAUSE_CARD.cardTitle} headingLevel={3} headerAction={header}>
       <p className={styles.desc}>{CONTRACT_CLAUSE_CARD.cardDesc}</p>
+      {drafts > 0 && <p role="note" className={`${styles.tag} ${styles.tagWarn}`}>{CONTRACT_CLAUSE_CARD.draftNote(drafts)}</p>}
       {error && <ErrorState message={error} onRetry={() => void load()} />}
       {notice && <p role="status" className={styles.desc}>{notice}</p>}
 
