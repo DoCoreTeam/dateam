@@ -8,8 +8,8 @@
  * **미리 보기와 저장이 같은 길이다.** dryRun 이면 저장만 빼고 같은 판정을 돌려준다. 화면이 따로
  * 판정하면 미리 본 것과 저장된 것이 갈린다.
  *
- * **승인본만 조립한다.** 초안은 법무 검토를 안 거친 글이라 표준이 아니다. 빠진 키가 하나라도
- * 있으면 저장하지 않고 그 키를 말한다.
+ * **승인본을 먼저 쓰고, 없으면 초안을 쓴다.** 초안 조항은 표준이 아니라 이탈로 잡혀 승인 전에는
+ * 체결되지 않는다. 라이브러리에 아예 없는 키가 하나라도 있으면 저장하지 않고 그 키를 말한다.
  */
 
 import type { CrmDb } from '../db/client.ts'
@@ -39,8 +39,10 @@ export interface AssemblyPlan {
   modules: string[]
   /** 조건이 맞아 저절로 들어간 모듈 (골랐어도 여기에 든다) */
   automatic: string[]
-  /** 승인본이 없는 조항 키 */
+  /** 라이브러리에 아예 없는 조항 키 — 하나라도 있으면 저장하지 않는다 */
   missing: string[]
+  /** 승인본이 없어 초안 글로 들어간 조항 키 — 관리자 승인 전에는 체결되지 않는다 */
+  drafts: string[]
   clauseCount: number
 }
 
@@ -75,16 +77,30 @@ async function activeModules(db: unknown): Promise<ContractModule[]> {
   }))
 }
 
-/** 조항 키마다 가장 최근 승인본 (한국어) */
-async function approvedTexts(db: unknown, keys: readonly string[]): Promise<Map<string, ClauseText>> {
-  const rows: { key: string; title: string; html: string }[] = await any(db).crmContractClause.findMany({
-    where: { status: 'APPROVED', lang: 'ko', key: { in: [...keys] } },
+/**
+ * 조항 키마다 쓸 글 (한국어). 승인본이 있으면 가장 최근 승인본, 없으면 가장 최근 초안.
+ * 초안 글로 조립한 조항은 표준이 아니라서 표준 이탈(표준에 없는 조항)로 잡히고,
+ * 관리자가 그 버전을 승인하기 전에는 체결되지 않는다 (contract-deviation.ts, I08 관문).
+ * 공통 조항이 초안뿐이라고 계약서를 아예 못 만들게 두지 않는다 (P0184 I13a)
+ */
+async function clauseTexts(db: unknown, keys: readonly string[]): Promise<{ texts: Map<string, ClauseText>; drafts: Set<string> }> {
+  const rows: { key: string; title: string; html: string; status: string }[] = await any(db).crmContractClause.findMany({
+    where: { lang: 'ko', key: { in: [...keys] } },
     orderBy: [{ key: 'asc' }, { versionNo: 'desc' }],
-    select: { key: true, title: true, html: true },
+    select: { key: true, title: true, html: true, status: true },
   })
-  const out = new Map<string, ClauseText>()
-  for (const r of rows) if (!out.has(r.key)) out.set(r.key, { title: r.title, html: r.html })
-  return out
+  const texts = new Map<string, ClauseText>()
+  const drafts = new Set<string>()
+  for (const r of rows) {
+    if (r.status === 'APPROVED' && (!texts.has(r.key) || drafts.has(r.key))) {
+      texts.set(r.key, { title: r.title, html: r.html })
+      drafts.delete(r.key)
+    } else if (!texts.has(r.key)) {
+      texts.set(r.key, { title: r.title, html: r.html })
+      drafts.add(r.key)
+    }
+  }
+  return { texts, drafts }
 }
 
 async function contextOf(db: unknown, contract: ContractRow, values: FieldValues): Promise<ModuleContext> {
@@ -101,15 +117,15 @@ async function contextOf(db: unknown, contract: ContractRow, values: FieldValues
 /** 계약 사실과 고른 모듈로 조립 결과를 낸다 — 상세 화면 조립과 템플릿 없이 만들기가 같은 길을 쓴다 */
 export async function planAssembly(
   db: unknown, ctx: ModuleContext, chosen: readonly string[],
-): Promise<{ selected: ContractModule[]; clauses: Clause[]; missing: string[] }> {
+): Promise<{ selected: ContractModule[]; clauses: Clause[]; missing: string[]; drafts: string[] }> {
   const modules = await activeModules(db)
   const known = new Set(modules.map((m) => m.key))
   const unknown = chosen.filter((k) => !known.has(k))
   if (unknown.length) throw new CrmError('VALIDATION_FAILED', CONTRACT_ASSEMBLY_MSG.unknownModules(unknown.join(', ')), { field: 'moduleKeys' })
   const selected = selectModules(modules, chosen, ctx)
-  const texts = await approvedTexts(db, selected.flatMap((m) => m.clauseKeys))
+  const { texts, drafts } = await clauseTexts(db, selected.flatMap((m) => m.clauseKeys))
   const { clauses, missing } = assembleContract(selected, texts)
-  return { selected, clauses, missing }
+  return { selected, clauses, missing, drafts: [...drafts] }
 }
 
 export async function assembleContractModules(
@@ -119,13 +135,14 @@ export async function assembleContractModules(
   const contract = await findContract(db, id)
   const current = await getContractVersion(db, id, contract.currentVersionNo)
   const ctx = await contextOf(db, contract, current.fieldValues)
-  const { selected, clauses, missing } = await planAssembly(db, ctx, chosen)
+  const { selected, clauses, missing, drafts } = await planAssembly(db, ctx, chosen)
   if (selected.length === 0) throw new CrmError('VALIDATION_FAILED', CONTRACT_ASSEMBLY_MSG.nothingToAssemble)
   const plan: AssemblyPlan = {
     modules: selected.map((m) => m.key),
     // 조건이 정하는 모듈은 골랐든 안 골랐든 저절로 들어간 것이다 — 화면이 그 칸을 잠근다
     automatic: selected.filter((m) => m.kind !== 'COMMON' && conditionHolds(m.enableWhen, ctx)).map((m) => m.key),
     missing,
+    drafts,
     clauseCount: clauses.length,
   }
   if (input.dryRun === true) return { ...plan, saved: null }

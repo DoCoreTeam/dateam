@@ -154,6 +154,9 @@ export default function ContractModulePicker({ contract, current, onClose, onSav
         {!checking && plan && plan.missing.length === 0 && plan.clauseCount > 0 && (
           <p className={styles.hint}>{CONTRACT_ASSEMBLY.willInclude(plan.clauseCount)}</p>
         )}
+        {!checking && plan && plan.missing.length === 0 && plan.drafts.length > 0 && (
+          <p className={styles.tagWarn} role="note">{CONTRACT_ASSEMBLY.drafts(plan.drafts.length)}</p>
+        )}
       </div>
     </NbModal>
   )

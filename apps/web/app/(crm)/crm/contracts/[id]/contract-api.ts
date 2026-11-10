@@ -91,6 +91,7 @@ export interface AssemblyJson {
   modules: string[]
   automatic: string[]
   missing: string[]
+  drafts: string[]
   clauseCount: number
   saved: SaveResult | null
 }

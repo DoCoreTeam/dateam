@@ -11,6 +11,7 @@ import assert from 'node:assert/strict'
 
 import { assembleContractModules } from './contract-assembly.ts'
 import { CrmError } from '../domain/errors.ts'
+import { canConcludeWith, detectDeviations } from '../domain/contract-deviation.ts'
 import { CONTRACT_ASSEMBLY_MSG, CONTRACT_MODULE_MSG } from '../../terms/contract-doc.ts'
 
 type Row = Record<string, unknown>
@@ -58,15 +59,28 @@ test('1 미리 보기는 공통 고른 것 조건이 맞는 것을 담고, 조�
   assert.deepEqual(again.automatic, ['reg.purchase'])
 })
 
-test('2 승인본이 없는 조항이 있으면 저장하지 않고 그 키를 말한다', async () => {
+test('2 승인본이 없으면 초안 글로 들어가 drafts 로 말하고, 라이브러리에 없는 키는 저장하지 않는다', async () => {
   const draftOnly = { ...approved('perf.gpu', 'GPU 임대'), status: 'DRAFT' }
   const db = fakeDb([approved('common.purpose', '목적'), draftOnly, approved('reg.purchase', '매입 규제')])
   const dry = await assembleContractModules(asDb(db), 'ws1', 'm1', 'ct1', 3, { moduleKeys: ['perf.gpu'], dryRun: true })
-  assert.deepEqual(dry.missing, ['perf.gpu'])
+  assert.deepEqual(dry.missing, [])
+  assert.deepEqual(dry.drafts, ['perf.gpu'])
+  assert.equal(dry.clauseCount, 3)
+  // 승인본과 초안이 함께 있으면 승인본을 쓴다
+  const both = fakeDb([approved('common.purpose', '목적'), draftOnly, approved('perf.gpu', 'GPU 임대'), approved('reg.purchase', '매입 규제')])
+  assert.deepEqual((await assembleContractModules(asDb(both), 'ws1', 'm1', 'ct1', 3, { moduleKeys: ['perf.gpu'], dryRun: true })).drafts, [])
+  const absent = fakeDb([approved('common.purpose', '목적'), approved('reg.purchase', '매입 규제')])
   await assert.rejects(
-    assembleContractModules(asDb(db), 'ws1', 'm1', 'ct1', 3, { moduleKeys: ['perf.gpu'] }),
+    assembleContractModules(asDb(absent), 'ws1', 'm1', 'ct1', 3, { moduleKeys: ['perf.gpu'] }),
     failsWith('VALIDATION_FAILED', CONTRACT_MODULE_MSG.missingClauses('perf.gpu')),
   )
+})
+
+test('2a 초안 글로 조립한 조항은 표준 이탈이라 승인 없이는 체결되지 않는다', () => {
+  const draftClause = { id: 'perf-gpu', title: '제2조 (GPU 임대)', html: '<p>GPU 임대 본문</p>', origin: 'template' as const }
+  const deviations = detectDeviations([draftClause], { library: new Map(), template: null })
+  assert.deepEqual(deviations.map((d) => d.reason), ['unknown'])
+  assert.equal(canConcludeWith(deviations, { versionNo: 2, contentHash: 'h' }, null), false)
 })
 
 test('3 없거나 꺼진 모듈 키, 모양이 틀린 목록은 거절', async () => {

@@ -30,8 +30,9 @@ const cv = (db: unknown): any => (db as any).crmContractVersion
 type Tx = TxLike & AuditCapableTx
 
 /**
- * 발행한 템플릿이 없으면 승인된 모듈로 첫 본문을 조립한다 (P0184 I12).
- * 공통 조항과 조건이 맞는 모듈만 들어간다. 승인본이 빠졌으면 템플릿도 모듈도 없는 것으로 보고 거절한다.
+ * 발행한 템플릿이 없으면 공통 조항과 조건이 맞는 모듈로 첫 본문을 조립한다 (P0184 I12, I13a).
+ * 승인본이 없는 조항은 초안 글로 들어가 이탈로 잡히고 관리자 승인 뒤에만 체결된다.
+ * 라이브러리에 없는 키가 있거나 들어갈 조항이 없으면 템플릿도 모듈도 없는 것으로 보고 거절한다.
  */
 async function firstBodyFromModules(
   db: CrmDb, direction: string, businessTypeKey: string | null, manual: Record<string, string>,
