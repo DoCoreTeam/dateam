@@ -2,7 +2,7 @@
 //
 // 버전을 안 주면 지금 버전이다. 보낸 종이를 다시 받으려면 그 번호를 준다.
 import type { NextRequest } from 'next/server'
-import { withCrmApi } from '@/lib/crm/api/handler'
+import { withCrmApi, CONTRACT_HREF } from '@/lib/crm/api/handler'
 import { CrmError } from '@/lib/crm/domain/errors'
 import { canExport } from '@/lib/access/guard'
 import { EXPORT_DENIED } from '@/lib/terms'
@@ -15,7 +15,7 @@ type Ctx = { params: Promise<{ id: string }> }
 export async function GET(req: NextRequest, { params }: Ctx) {
   return withCrmApi('MEMBER', async ({ db }) => {
     // 멤버인 것과 파일로 빼도 되는 것은 다른 질문이다 (LOOP.md 7절 S2)
-    if (!(await canExport('/crm'))) throw new CrmError('FORBIDDEN', EXPORT_DENIED)
+    if (!(await canExport(CONTRACT_HREF))) throw new CrmError('FORBIDDEN', EXPORT_DENIED)
 
     const id = (await params).id
     const q = req.nextUrl.searchParams
@@ -45,5 +45,5 @@ export async function GET(req: NextRequest, { params }: Ctx) {
         'Cache-Control': 'no-store',
       },
     })
-  })
+  }, { href: CONTRACT_HREF, read: true })
 }

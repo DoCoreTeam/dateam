@@ -2,7 +2,7 @@
 // GET  /api/crm/contracts?q=&status=&direction=&formOwner=&sensitivity=&trash=1&limit=&cursor= — 워크스페이스 계약서 목록 (dealId 가 없을 때)
 // POST /api/crm/contracts         — 계약서 만들기, 딜 없이 {direction, title, parties[], dealId?, templateId?, formOwner?, docLayer?, manual?} 또는 견적에서 {quoteId, templateId?, title?, manual?}
 import type { NextRequest } from 'next/server'
-import { withCrmApi, readJson } from '@/lib/crm/api/handler'
+import { withCrmApi, CONTRACT_HREF, readJson } from '@/lib/crm/api/handler'
 import { CrmError } from '@/lib/crm/domain/errors'
 import { CONTRACT_MSG } from '@/lib/terms/contract-doc'
 import { listContracts, listDealContracts, createContractFromQuote, type CreateContractInput } from '@/lib/crm/services/contract'
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       direction: sp.get('direction'), formOwner: sp.get('formOwner'), sensitivity: sp.get('sensitivity'),
       limit: Number(sp.get('limit')) || undefined, cursor: sp.get('cursor'),
     })
-  })
+  }, { href: CONTRACT_HREF, read: true })
 }
 
 export async function POST(req: NextRequest) {
@@ -31,5 +31,5 @@ export async function POST(req: NextRequest) {
       return createContractFromQuote(db, session.workspaceId, session.memberId, body as CreateContractInput)
     }
     return createContract(db, session.workspaceId, session.memberId, body as CreateContractBlankInput)
-  })
+  }, { href: CONTRACT_HREF })
 }

@@ -1,7 +1,7 @@
 // GET /api/crm/contracts/[id]/versions          — 버전 기록 (본문 없이)
 // GET /api/crm/contracts/[id]/versions?no=N     — 그 버전 하나
 import type { NextRequest } from 'next/server'
-import { withCrmApi } from '@/lib/crm/api/handler'
+import { withCrmApi, CONTRACT_HREF } from '@/lib/crm/api/handler'
 import { CrmError } from '@/lib/crm/domain/errors'
 import { CONTRACT_MSG } from '@/lib/terms/contract-doc'
 import { listContractVersions, getContractVersion } from '@/lib/crm/services/contract'
@@ -16,5 +16,5 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     const n = Number(no)
     if (!Number.isInteger(n) || n < 1) throw new CrmError('VALIDATION_FAILED', CONTRACT_MSG.badVersionNo, { field: 'no' })
     return getContractVersion(db, id, n)
-  })
+  }, { href: CONTRACT_HREF, read: true })
 }

@@ -137,6 +137,13 @@ export const SURFACES: readonly Surface[] = [
     key: 'crm', href: '/crm', group: 'service', defaultAudience: 'admin',
     // 허용을 저장하면 창구가 읽기 전용 자리를 함께 만든다 — 그래서 여기만 바로 열린다
     autoSeat: true,
+    /**
+     * 계약서 (P0184 I12d). 영업 CRM 안에서 사람별로 계약서만 막거나 쓰기 내보내기만 막는다.
+     * 소비자: 계약 화면 문(app/(crm)/crm/contracts/layout.tsx)과 계약 창구(withContractApi).
+     * 부여가 없으면 영업 CRM 판정이 그대로 내려온다 — 등재만으로는 아무에게도 바뀌는 것이 없다.
+     * 승인 같은 더 높은 권한은 여기서 주지 않는다 (actions.ts, 거부권만)
+     */
+    zones: [{ name: 'contracts', label: '계약서' }],
   },
   {
     key: 'ci', href: '/ci', group: 'service', defaultAudience: 'admin',

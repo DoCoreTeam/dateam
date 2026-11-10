@@ -175,15 +175,22 @@ function routes(dir: string): string[] {
 }
 
 // MEMBER 보다 엄격한 ADMIN 창구(표준 이탈 승인 P0184 I12b)도 관문을 지난 것으로 센다, READONLY 는 여전히 안 된다
-test('★ 계약서 라우트는 전부 withCrmApi MEMBER 이상을 지난다', () => {
+test('★ 계약서 라우트는 전부 withCrmApi MEMBER 이상을 지나고 「계약서」 자리를 넘긴다', () => {
   const files = routes(join(ROOT, 'app/api/crm/contracts'))
   assert.ok(files.length >= 4, `라우트를 못 찾았다(${files.length})`)
   for (const f of files) {
     const src = readFileSync(f, 'utf8')
     const handlers = [...src.matchAll(/export async function (GET|POST|PATCH|PUT|DELETE)\b/g)].length
     const guarded = [...src.matchAll(/withCrmApi\('(MEMBER|ADMIN)'/g)].length
+    // 접근권한의 「계약서」 자리로 판정한다 (P0184 I12d) — 안 넘기면 영업 CRM 전체 판정만 받는다
+    const zoned = [...src.matchAll(/\{ href: CONTRACT_HREF(, read: true)? \}\)/g)].length
     assert.ok(handlers > 0, `${f} 에 처리기가 없다`)
     assert.equal(guarded, handlers, `${f} 처리기 ${handlers}개 중 MEMBER 관문 ${guarded}개`)
+    assert.equal(zoned, handlers, `${f} 처리기 ${handlers}개 중 계약서 자리를 넘기는 것 ${zoned}개`)
+    // 읽기 표시는 GET 에만 — 쓰기 창구에 붙이면 쓰기 차단이 안 걸린다
+    for (const part of src.split('export async function ').slice(1)) {
+      if (!part.startsWith('GET')) assert.ok(!part.includes('read: true'), `${f} 의 쓰기 처리기에 read 표시가 붙었다`)
+    }
   }
 })
 

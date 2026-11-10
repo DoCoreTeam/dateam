@@ -2,6 +2,7 @@ import { resolveCrmAccess, hasCrmRole } from '@/lib/crm/auth/requireCrmMember'
 import { CONTRACT_ACTION_ROLE } from '@/lib/crm/domain/contract-status'
 import { visibleSensitivities } from '@/lib/crm/domain/contract-sensitivity'
 import { canExport } from '@/lib/access/guard'
+import { CONTRACT_HREF } from '@/lib/crm/api/handler'
 import { SERVICE_LABEL } from '@/lib/terms/entity'
 import { CONTRACT_DOC } from '@/lib/terms/contract-doc'
 import ContractView, { type ContractAbilities } from './ContractView'
@@ -25,7 +26,7 @@ async function readAbilities(): Promise<ContractAbilities> {
     return {
       conclude: hasCrmRole(role, CONTRACT_ACTION_ROLE.conclude),
       terminate: hasCrmRole(role, CONTRACT_ACTION_ROLE.terminate),
-      exportFiles: await canExport('/crm'),
+      exportFiles: await canExport(CONTRACT_HREF),
       corporate: visibleSensitivities(role).includes('CORPORATE'),
       approveDeviation: hasCrmRole(role, 'ADMIN'),
     }

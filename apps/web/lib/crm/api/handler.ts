@@ -16,7 +16,7 @@ import { recordSystemEventAsync } from '../../system-log/record.ts'
 import { getCrmDb, type CrmDb } from '../db/client.ts'
 import { runAsCrmViewer } from '../domain/contract-sensitivity.ts'
 import { resolveCrmAccess, hasCrmRole, type CrmRole, type CrmSession } from '../auth/requireCrmMember.ts'
-import { canWrite } from '../../access/guard.ts'
+import { canOpen, canWrite } from '../../access/guard.ts'
 import { WRITE_DENIED } from '../../terms/index.ts'
 
 export interface CrmApiContext {
@@ -37,10 +37,15 @@ export type RequiredRole = CrmRole
  */
 const WRITE_ROLES = new Set<CrmRole>(['OWNER', 'ADMIN', 'MEMBER'])
 
+/** 접근권한의 자리 — 계약 창구는 영업 CRM 안의 「계약서」 자리로 판정한다 (P0184 I12d) */
+export const CONTRACT_HREF = '/crm/contracts'
+
 export async function withCrmApi<T>(
   required: RequiredRole,
   fn: (ctx: CrmApiContext) => Promise<T>,
+  opts: { href?: string; read?: boolean } = {},
 ): Promise<Response> {
+  const href = opts.href ?? '/crm'
   try {
     const access = await resolveCrmAccess()
     if (!access.ok) {
@@ -67,7 +72,14 @@ export async function withCrmApi<T>(
      * 쓰기 등급을 요구하는 창구에서만 묻는다. 읽기 창구는 표면 판정이 이미 지나온 자리다.
      * 그리고 동작 부여가 0건이면 이 판정은 표면 판정과 같은 답이라 **지금과 다르지 않다.**
      */
-    if (WRITE_ROLES.has(required) && !(await canWrite('/crm'))) {
+    // 자리가 따로 있는 창구는 그 자리를 접근권한이 열었나부터 본다 — 부여가 없으면 영업 CRM 판정이 내려온다
+    if (opts.href && !(await canOpen(href))) {
+      const err = new CrmError('FORBIDDEN', '이 작업을 할 권한이 없습니다.')
+      return NextResponse.json(err.toResponseBody(), { status: err.status })
+    }
+
+    // 읽기 창구(read)는 등급이 MEMBER 여도 쓰기 차단을 묻지 않는다 — 「보기만」인 사람이 보지도 못하게 된다
+    if (WRITE_ROLES.has(required) && !opts.read && !(await canWrite(href))) {
       const err = new CrmError('FORBIDDEN', WRITE_DENIED)
       return NextResponse.json(err.toResponseBody(), { status: err.status })
     }
@@ -109,6 +121,7 @@ export async function withCrmApi<T>(
     return NextResponse.json(err.toResponseBody(), { status: err.status })
   }
 }
+
 
 /** 요청 본문을 안전하게 읽는다 — 깨진 JSON 이 500 이 되지 않게 */
 export async function readJson(req: Request): Promise<Record<string, unknown>> {

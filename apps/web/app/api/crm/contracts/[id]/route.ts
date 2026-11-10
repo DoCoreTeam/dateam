@@ -4,7 +4,7 @@
 //                                 {version, direction?, formOwner?, docLayer?, parties?} 이면 계약 정보 고치기 (당사자를 바꾸면 다음 버전)
 // DELETE /api/crm/contracts/[id]?mode=trash|purge — 휴지통으로 또는 영구 삭제 (체결 해지한 것은 거절, 되살리기는 ./restore)
 import type { NextRequest } from 'next/server'
-import { withCrmApi, readJson, requireVersion } from '@/lib/crm/api/handler'
+import { withCrmApi, CONTRACT_HREF, readJson, requireVersion } from '@/lib/crm/api/handler'
 import { createAdminClient } from '@/lib/supabase/server'
 import { BUCKET } from '@/lib/crm/services/attachment'
 import { deleteContract, getContract, refillContractFromQuote, saveContractVersion, type SaveContractInput } from '@/lib/crm/services/contract'
@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     // 계약을 먼저 읽는다 — 등급 거름망에 걸리면 여기서 「찾을 수 없음」이 되고 당사자는 안 읽는다
     const detail = await getContract(db, id)
     return { ...detail, parties: await listParties(db, id) }
-  })
+  }, { href: CONTRACT_HREF, read: true })
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
@@ -36,7 +36,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       return refillContractFromQuote(db, session.workspaceId, session.memberId, id, version)
     }
     return saveContractVersion(session.workspaceId, session.memberId, id, version, body as SaveContractInput)
-  })
+  }, { href: CONTRACT_HREF })
 }
 
 export async function DELETE(req: NextRequest, { params }: Ctx) {
@@ -48,5 +48,5 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
       await sb.storage.from(BUCKET).remove(paths)
     })
     return { ok: true, mode }
-  })
+  }, { href: CONTRACT_HREF })
 }
