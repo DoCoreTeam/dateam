@@ -36,6 +36,56 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.109',
+    date: '2026-11-10',
+    title: '계약서가 딜 없이 서고, 표준 조항을 골라 조립돼요',
+    items: [
+      {
+        kind: 'feature',
+        emoji: '📄',
+        headline: '딜 없이도 계약서를 만들어요',
+        detail: '매출뿐 아니라 매입, 제휴, 공동수급, 3자, 회사 단위 계약을 계약서 메뉴에서 바로 만들어요. 당사자는 역할을 골라 여럿 넣을 수 있어요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '🧩',
+        headline: '표준 조항과 모듈을 골라 본문을 조립해요',
+        detail: '설정의 계약 탭에서 조항을 쓰고 승인한 뒤 모듈로 묶어 두면, 계약서 화면의 「모듈로 조립」에서 골라 본문을 만들어요. 매입처럼 조건이 맞는 모듈은 저절로 들어가요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '💳',
+        headline: '지급 일정을 칸으로 넣으면 표로 찍혀요',
+        detail: '일시, 분할, 정기, 사용량, 선불 등 대가 종류를 고르고 칸을 채우면 계약서에 지급 일정 표가 들어가요. 분할 비율 합이 100%가 아니면 저장 전에 알려 줘요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '🛡️',
+        headline: '표준과 다른 조항은 관리자 승인 뒤에 체결돼요',
+        detail: '승인한 표준 조항과 글이 다르거나 새로 넣은 조항이 있으면 계약서 화면에 표시되고, 관리자가 그 버전을 승인하기 전에는 체결 단추가 잠겨요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🔑',
+        headline: '접근권한에서 계약서만 따로 열고 닫아요',
+        detail: '관리자 접근권한 화면의 영업 CRM 아래 「계약서」 자리에서 사람이나 조직별로 보기, 쓰기, 내보내기를 정할 수 있어요. 쓰기만 막으면 보기는 그대로 돼요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '📎',
+        headline: '딜 없는 계약도 서명본을 올려 체결해요',
+        detail: '체결 창에서 계약서 자체에 서명본을 올리고 골라 체결할 수 있어요.',
+      },
+      {
+        kind: 'feature',
+        emoji: '🛠️',
+        headline: 'teamda CLI 에서도 계약 모듈과 조립, 표준 이탈 승인을 써요',
+        detail: 'teamda crm contract-module, crm contract assemble, crm contract deviations, crm contract approve-deviations 명령이 생겼어요.',
+        developer: true,
+      },
+    ],
+  },
+  {
     version: '0.11.108',
     date: '2026-11-09',
     title: 'AI 트레이딩 성적을 바로 세고, 성적이 될 때만 신호를 내요',
