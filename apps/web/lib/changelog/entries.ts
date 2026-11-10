@@ -36,6 +36,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.110',
+    date: '2026-11-10',
+    title: '고친 회의 정리가 버려지지 않아요',
+    items: [
+      {
+        kind: 'fix',
+        emoji: '💾',
+        headline: '고치는 사이 새 정리가 생겨도 고친 것이 저장돼요',
+        detail: '회의 정리를 고치는 동안 정리가 새로 만들어지면 다시 고치라고 하던 것을 고쳤어요. 이제 고친 내용이 새 버전으로 저장되고, 그사이 만들어진 정리는 「이전 정리」에서 볼 수 있어요.',
+      },
+      {
+        kind: 'improve',
+        emoji: '🔄',
+        headline: '새로고침해도 고치던 정리가 남아 있어요',
+        detail: '저장하기 전에 화면을 새로고침하거나 닫아도, 다시 열면 고치던 내용 그대로 편집 화면이 열려요.',
+      },
+    ],
+  },
+  {
     version: '0.11.109',
     date: '2026-11-10',
     title: '계약서가 딜 없이 서고, 표준 조항을 골라 조립돼요',
