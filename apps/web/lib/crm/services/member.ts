@@ -15,25 +15,13 @@ import { writeAudit } from '../db/audit.ts'
 import { CrmError } from '../domain/errors.ts'
 import { requireText, normalizeText } from '../domain/normalize.ts'
 import type { CrmRole } from '../auth/requireCrmMember.ts'
+import { ROLES, ROLE_LABEL, ROLE_HINT } from '../domain/member-roles.ts'
 
-export const ROLES: CrmRole[] = ['OWNER', 'ADMIN', 'MEMBER', 'READONLY']
+// 화면은 domain/member-roles.ts 에서 바로 가져온다 — 여기서 가져오면 DB 연결이 브라우저 묶음에 끌려 간다
+export { ROLES, ROLE_LABEL, ROLE_HINT }
 
 /** 관리 권한을 가진 역할 — 이 사람이 0명이 되면 워크스페이스가 잠긴다 */
 const ADMIN_ROLES = new Set<CrmRole>(['OWNER', 'ADMIN'])
-
-export const ROLE_LABEL: Record<CrmRole, string> = {
-  OWNER: '소유자',
-  ADMIN: '관리자',
-  MEMBER: '멤버',
-  READONLY: '보기만',
-}
-
-export const ROLE_HINT: Record<CrmRole, string> = {
-  OWNER: '모든 것을 할 수 있고, 워크스페이스를 책임집니다',
-  ADMIN: '설정·멤버·파이프라인을 바꿀 수 있습니다',
-  MEMBER: '회사·인물·딜을 만들고 고칠 수 있습니다',
-  READONLY: '보기만 하고 바꾸지는 못합니다',
-}
 
 export interface MemberRow {
   id: string

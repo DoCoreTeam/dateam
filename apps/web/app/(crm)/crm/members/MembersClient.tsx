@@ -25,7 +25,7 @@ import { readApiError, describeFetchFailure } from '@/lib/crm/api/read-error'
 import FormErrorBanner from '@/components/ui/FormErrorBanner'
 import RecordPickerField, { type RecordOption } from '@/components/ui/RecordPicker'
 import { formatKstDateTimeShort } from '@/lib/datetime/kst'
-import { ROLES, ROLE_LABEL, ROLE_HINT } from '@/lib/crm/services/member'
+import { ROLES, ROLE_LABEL, ROLE_HINT } from '@/lib/crm/domain/member-roles'
 import styles from './members.module.css'
 
 /** 견적서에 찍히는 자기 정보 — 「내 정보」가 아니라 무엇을 고치는지 밝힌다 */
