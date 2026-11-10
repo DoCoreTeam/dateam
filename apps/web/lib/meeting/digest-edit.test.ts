@@ -6,7 +6,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { applyDigestEdits, parseDigestEdits, MAX_EDIT_CHARS } from './digest-edit.ts'
+import { applyDigestEdits, parseDigestEdits, rebaseDigestEdits, MAX_EDIT_CHARS } from './digest-edit.ts'
 import { parseStoredDigest, type DigestResult } from './digest.ts'
 
 const base: DigestResult = {
@@ -105,8 +105,13 @@ test('저장 창구는 로그인과 주인을 확인하고 고침 목록만 받�
   const run = readFileSync('lib/meeting/digest-run.ts', 'utf8')
   const save = run.slice(run.indexOf('export async function saveEditedDigest'), run.indexOf('export interface DigestVersion'))
   assert.match(save, /\.eq\('user_id', userId\)/)
-  assert.match(save, /latest\.seq !== baseSeq/)
-  assert.match(save, /applyDigestEdits\(latest\.digest, edits\)/)
+  // 판이 달라도 거절하지 않는다 — 새 정리로 옮기거나 사람이 본 판 위에 얹는다
+  assert.doesNotMatch(save, /status: 409/)
+  assert.match(save, /pickEditTarget\(versions, baseSeq, edits\)/)
+  assert.match(save, /applyDigestEdits\(target\.version\.digest, target\.edits\)/)
+  const pick = run.slice(run.indexOf('function pickEditTarget'))
+  assert.match(pick, /rebaseDigestEdits\(base\.digest, latest\.digest, edits\)/)
+  assert.match(pick, /\{ version: base, edits \}/)
   assert.doesNotMatch(save, /callGeminiJson|summarizeMeeting/)
 })
 
@@ -126,4 +131,31 @@ test('회의 기록의 「수정」은 정리본을 그 자리에서 고치고, 
   const ed = readFileSync('components/meeting/DigestEditor.tsx', 'utf8')
   assert.match(ed, /method: 'PUT'/)
   assert.match(ed, /JSON\.stringify\(\{ baseSeq, edits: \[\.\.\.drafts\.values\(\)\] \}\)/)
+})
+
+test('그새 새 정리가 생겨도 고친 줄의 원래 글이 있으면 새 자리로 옮긴다', () => {
+  // 새 정리: 안건이 하나 앞에 끼어 자리가 밀렸다
+  const latest: DigestResult = {
+    ...base,
+    agenda: [{ title: '새 안건', facts: [{ text: '새 줄', origin: 'transcript', segmentIds: ['s9'] }] }, ...base.agenda],
+  }
+  const moved = rebaseDigestEdits(base, latest, [
+    { path: { kind: 'fact', agenda: 1, fact: 0 }, text: '마감 10월 24일' },
+    { path: { kind: 'outcome' }, text: '통합 1식 발주' },
+  ])
+  assert.deepEqual(moved, [
+    { path: { kind: 'fact', agenda: 2, fact: 0 }, text: '마감 10월 24일' },
+    { path: { kind: 'outcome' }, text: '통합 1식 발주' },
+  ])
+  const out = applyDigestEdits(latest, moved!)
+  assert.ok(out.ok)
+  if (out.ok) {
+    assert.equal(out.digest.agenda[2].facts[0].text, '마감 10월 24일')
+    assert.equal(out.digest.agenda[0].title, '새 안건')
+  }
+})
+
+test('고친 줄의 원래 글이 새 정리에 없으면 옮기지 않는다(null) — 사람이 본 판 위에 얹는다', () => {
+  const latest: DigestResult = { ...base, agenda: [{ title: '일정', facts: [{ text: '마감 11월 1일', origin: 'transcript', segmentIds: ['s3'] }] }] }
+  assert.equal(rebaseDigestEdits(base, latest, [{ path: { kind: 'fact', agenda: 1, fact: 0 }, text: '마감 10월 24일' }]), null)
 })

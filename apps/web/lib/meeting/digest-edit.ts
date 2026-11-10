@@ -137,3 +137,43 @@ export function applyDigestEdits(base: DigestResult, edits: DigestEdit[]): EditO
     digest: { outcome, nextStep, agenda, decisions, conflicts: base.conflicts, ...(heads.length > 0 ? { headEdited: heads } : {}) },
   }
 }
+
+/** 정리본에서 그 자리의 글. 없는 자리면 null */
+function textAt(d: DigestResult, p: DigestEditPath): string | null {
+  if (p.kind === 'outcome' || p.kind === 'nextStep') return d[p.kind]
+  if (p.kind === 'agendaTitle') return d.agenda[p.agenda]?.title ?? null
+  if (p.kind === 'fact') return d.agenda[p.agenda]?.facts[p.fact]?.text ?? null
+  return d.decisions[p.index]?.text ?? null
+}
+
+/** 같은 종류의 자리를 전부 — 같은 글을 찾을 후보 */
+function pathsLike(d: DigestResult, p: DigestEditPath): DigestEditPath[] {
+  if (p.kind === 'outcome' || p.kind === 'nextStep') return [p]
+  if (p.kind === 'agendaTitle') return d.agenda.map((_, agenda) => ({ kind: 'agendaTitle', agenda }))
+  if (p.kind === 'fact') return d.agenda.flatMap((a, agenda) => a.facts.map((_, fact) => ({ kind: 'fact' as const, agenda, fact })))
+  return d.decisions.map((_, index) => ({ kind: 'decision', index }))
+}
+
+/**
+ * 사람이 본 판(base)에서 고친 것을 그새 생긴 새 정리(latest)의 자리로 옮긴다.
+ *
+ * 사용자 지시(2026-11-10): *"버전을 관리 하던가 해야지 다시 하라니 실컷 수정작업을 다 한사람한테"*.
+ * 예전엔 판이 다르면 409 로 고친 것을 통째로 돌려보냈다.
+ *
+ * 고친 줄의 **원래 글**이 새 정리에 그대로 있으면(같은 자리 먼저, 없으면 같은 종류 어디든) 그 자리로 옮긴다.
+ * 하나라도 못 찾으면 null — 부르는 쪽이 사람이 본 판 위에 얹어 저장한다(새 정리는 이력에 남는다).
+ */
+export function rebaseDigestEdits(base: DigestResult, latest: DigestResult, edits: DigestEdit[]): DigestEdit[] | null {
+  const taken = new Set<string>()
+  const out: DigestEdit[] = []
+  for (const e of edits) {
+    const before = textAt(base, e.path)
+    if (before === null) return null
+    const same = textAt(latest, e.path) === before && !taken.has(keyOf(e.path)) ? e.path : null
+    const found = same ?? pathsLike(latest, e.path).find((p) => !taken.has(keyOf(p)) && textAt(latest, p) === before) ?? null
+    if (!found) return null
+    taken.add(keyOf(found))
+    out.push({ path: found, text: e.text })
+  }
+  return out
+}
