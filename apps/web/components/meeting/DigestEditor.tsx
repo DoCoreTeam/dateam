@@ -9,13 +9,14 @@
  * 그대로 가져간다(`lib/meeting/digest-edit.ts`). 줄을 비우면 그 줄이 빠진다.
  */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Save } from 'lucide-react'
 import NbButton from '@/components/ui/nb/NbButton'
 import InlineError from '@/components/ui/InlineError'
 import { ACTION, progress } from '@/lib/terms'
 import type { DigestResult } from '@/lib/meeting/digest'
 import type { DigestEdit, DigestEditPath } from '@/lib/meeting/digest-edit'
+import { digestDraftKey, serializeDigestDraft, type DigestDraft } from '@/lib/meeting/digest-draft'
 import styles from './digest.module.css'
 
 interface Props {
@@ -24,14 +25,39 @@ interface Props {
   digest: DigestResult
   onSaved: (seq: number, changed: number) => void
   onCancel: () => void
+  /** 임시 저장 키를 가를 사용자. 모르면 남기지 않는다 */
+  userId: string | null
+  /** 새로고침 전에 고치던 것. 있으면 그때 본 판 위에서 이어 고친다 */
+  restored?: DigestDraft | null
 }
 
 const keyOf = (p: DigestEditPath): string => JSON.stringify(p)
 
-export default function DigestEditor({ noteId, baseSeq, digest, onSaved, onCancel }: Props) {
-  const [drafts, setDrafts] = useState<Map<string, DigestEdit>>(new Map())
+export default function DigestEditor({ noteId, baseSeq: currentSeq, digest: currentDigest, onSaved, onCancel, userId, restored }: Props) {
+  // 되살린 것은 그때 본 판 기준이다 — 자리 번호가 그 판을 가리킨다
+  const [baseSeq] = useState(restored?.baseSeq ?? currentSeq)
+  const [digest] = useState(restored?.digest ?? currentDigest)
+  const [drafts, setDrafts] = useState<Map<string, DigestEdit>>(
+    () => new Map((restored?.edits ?? []).map((e) => [keyOf(e.path), e])),
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const storageKey = userId ? digestDraftKey(userId, noteId) : null
+
+  // 고칠 때마다 브라우저에 남긴다 — 저장이 막히거나 새로고침해도 고친 글이 사라지지 않게
+  useEffect(() => {
+    if (!storageKey || drafts.size === 0) return
+    try {
+      localStorage.setItem(storageKey, serializeDigestDraft({ baseSeq, digest, edits: [...drafts.values()] }, Date.now()))
+    } catch { /* 저장소를 못 쓰는 브라우저면 화면 상태로만 둔다 */ }
+  }, [storageKey, baseSeq, digest, drafts])
+
+  const clearStored = () => {
+    if (!storageKey) return
+    try { localStorage.removeItem(storageKey) } catch { /* 위와 같다 */ }
+  }
+  const cancel = () => { clearStored(); onCancel() }
 
   const valueOf = (path: DigestEditPath, original: string): string => drafts.get(keyOf(path))?.text ?? original
   const change = (path: DigestEditPath, text: string) =>
@@ -39,7 +65,7 @@ export default function DigestEditor({ noteId, baseSeq, digest, onSaved, onCance
 
   async function save() {
     if (saving) return
-    if (drafts.size === 0) { onCancel(); return }
+    if (drafts.size === 0) { cancel(); return }
     setSaving(true)
     setError(null)
     try {
@@ -50,6 +76,7 @@ export default function DigestEditor({ noteId, baseSeq, digest, onSaved, onCance
       })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) { setError(body?.error ?? '저장하지 못했어요. 잠시 후 다시 시도해 주세요.'); return }
+      clearStored()
       onSaved(Number(body.seq), Number(body.changed ?? 0))
     } catch {
       setError('저장하지 못했어요. 연결을 확인해 주세요. 고친 내용은 이 화면에 그대로 있어요.')
@@ -71,6 +98,7 @@ export default function DigestEditor({ noteId, baseSeq, digest, onSaved, onCance
   return (
     <div className={styles.editor}>
       <p className={styles.editHint}>고칠 곳을 눌러 바로 고치세요. 줄을 비우면 그 줄이 빠지고, 고친 것은 「이전 정리」에 남아 언제든 돌아갈 수 있어요.</p>
+      {restored && <p className={styles.editHint}>저장하지 않고 나갔던 고친 내용을 다시 불러왔어요.</p>}
       {error && <InlineError spaced onDismiss={() => setError(null)}>{error}</InlineError>}
 
       {(digest.outcome || digest.nextStep) && (
@@ -100,7 +128,7 @@ export default function DigestEditor({ noteId, baseSeq, digest, onSaved, onCance
       )}
 
       <div className={styles.editActions}>
-        <NbButton variant="ghost" onClick={onCancel} disabled={saving}>{ACTION.cancel}</NbButton>
+        <NbButton variant="ghost" onClick={cancel} disabled={saving}>{ACTION.cancel}</NbButton>
         <NbButton onClick={() => void save()} disabled={saving}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <Save size={14} aria-hidden /> {saving ? progress(ACTION.save) : ACTION.save}

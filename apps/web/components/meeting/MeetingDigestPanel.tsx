@@ -25,6 +25,8 @@ import {
 } from '@/lib/terms'
 import MeetingExportModal from '@/app/(member)/meeting-notes/MeetingExportModal'
 import DigestEditor from './DigestEditor'
+import { useDraftUserId } from '@/lib/forms/use-draft-user'
+import { digestDraftKey, parseDigestDraft, type DigestDraft } from '@/lib/meeting/digest-draft'
 import { useAskDialog } from '@/components/ui/useAskDialog'
 import { PERSON_EDIT_MODEL } from '@/lib/meeting/digest-edit'
 import { hasMixedOrigins } from '@/lib/meeting/digest'
@@ -94,6 +96,17 @@ export default function MeetingDigestPanel({
   const [notice, setNotice] = useState<string | null>(null)
   /** 정리본을 그 자리에서 고치는 중인가 */
   const [editing, setEditing] = useState(false)
+  /** 새로고침 전에 고치던 것 — 있으면 편집 화면을 그대로 다시 연다 */
+  const [restored, setRestored] = useState<DigestDraft | null>(null)
+  const draftUserId = useDraftUserId()
+  useEffect(() => {
+    if (!draftUserId) return
+    let found: DigestDraft | null = null
+    try { found = parseDigestDraft(localStorage.getItem(digestDraftKey(draftUserId, noteId)), Date.now()) } catch { /* 저장소를 못 쓰면 되살릴 것도 없다 */ }
+    if (!found) return
+    setRestored(found)
+    setEditing(true)
+  }, [draftUserId, noteId])
   const { ask, dialog } = useAskDialog()
 
   const load = useCallback(async () => {
@@ -187,7 +200,7 @@ export default function MeetingDigestPanel({
     접힌 동안 화면에 「수정」이 한 개도 없었다 — 실측으로 사용자가 못 찾았다
     (*"수정은 어떻게 하니?"*). 내보내기·다시 정리와 같은 줄에 세운다.
   */
-  // 고치는 것은 가장 최근 판뿐이다 — 옛 판을 고치면 그 뒤의 정리를 덮어쓴다(서버도 409 로 막는다)
+  // 고치는 것은 가장 최근 판뿐이다 — 옛 판을 고치면 그 뒤의 정리를 덮어쓴다(서버는 그새 새 정리가 생기면 고친 줄을 그리로 옮기거나 본 판 위에 얹어 새 판으로 쌓는다)
   const editButton = canEdit && latest && current && current.seq === latest.seq && !running ? (
     <NbButton variant="ghost" onClick={() => setEditing(true)}>
       <Pencil size={15} /> {ACTION.edit}
@@ -302,9 +315,12 @@ export default function MeetingDigestPanel({
               noteId={noteId}
               baseSeq={current!.seq}
               digest={current!.digest}
-              onCancel={() => setEditing(false)}
+              userId={draftUserId}
+              restored={restored}
+              onCancel={() => { setEditing(false); setRestored(null) }}
               onSaved={(_seq, changed) => {
                 setEditing(false)
+                setRestored(null)
                 setShowing(null)
                 setNotice(changed > 0 ? null : '바뀐 곳이 없어 그대로 두었어요.')
                 if (changed > 0) onDigested?.(new Date().toISOString())
