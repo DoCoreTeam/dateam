@@ -54,16 +54,20 @@
 
 .metaList {
   display: grid;
-  grid-template-columns: auto auto;
-  gap: 0.15rem var(--space-3);
+  /*
+    **두 열 다 글자 길이만큼.** 라벨과 값이 붙어 있으면 글꼴이 조금만 넓은 환경에서
+    「견적번호DA-2026」처럼 이어져 읽힌다(요구 REQ-089). 줄을 안 바꾸고 칸이 늘어난다.
+  */
+  grid-template-columns: max-content max-content;
+  gap: 0.15rem var(--space-4);
   font-size: var(--fs-sm);
   margin: 0;
   /* 라벨은 오른쪽 끝에, 값도 오른쪽 끝에 — 두 열이 각각 정렬되어야 눈이 편하다 */
   justify-content: end;
 }
 
-.metaList dt { color: var(--text-muted); margin: 0; text-align: right; }
-.metaList dd { margin: 0; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.metaList dt { color: var(--text-muted); margin: 0; text-align: right; white-space: nowrap; }
+.metaList dd { margin: 0; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .docTitle {
   text-align: center;
@@ -131,14 +135,19 @@
 /* 라벨/값 두 열. **양쪽 박스가 같은 라벨 폭**을 쓰므로 값의 시작점이 나란하다 */
 .partyRows {
   display: grid;
-  grid-template-columns: 5.5rem 1fr;
+  /*
+    **라벨 열은 가장 긴 라벨만큼 늘어난다.** 5.5rem(88px) 고정일 때 「사업자등록번호」가
+    79px 이라 9px 남았고, 나눔고딕이면 86px 이었다. 글꼴이 조금만 넓으면 라벨이 값 위로
+    넘쳐 겹쳤다(요구 REQ-089). 짧은 라벨뿐인 칸은 예전 폭 그대로다.
+  */
+  grid-template-columns: minmax(5.5rem, max-content) minmax(0, 1fr);
   gap: 0.35rem var(--space-3);
   font-size: var(--fs-sm);
   line-height: 1.55;
   margin: 0;
 }
 
-.partyRows dt { color: var(--text-muted); margin: 0; }
+.partyRows dt { color: var(--text-muted); margin: 0; white-space: nowrap; }
 
 /*
   **줄은 낱말 사이에서 넘어간다.** `anywhere` 는 「스토리지」를 「스토」/「리지」로 잘랐다 —
