@@ -36,12 +36,12 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
-    version: '0.11.111',
+    version: '0.11.112',
     date: '2026-11-18',
     title: '견적서 거래 조건을 견적마다 고쳐요',
     items: [
       {
-        kind: 'new',
+        kind: 'feature',
         emoji: '📝',
         headline: '거래 조건 문구를 견적마다 고치고 지울 수 있어요',
         detail: '견적 수정 화면의 「거래 조건」에서 줄마다 문구를 고치거나 지우고 새 줄을 더할 수 있어요. 고친 문구가 견적서 미리보기, PDF, 엑셀에 그대로 나가고 다른 견적에는 영향이 없어요. teamda CLI 의 crm quote update 로도 바꿀 수 있어요.',
