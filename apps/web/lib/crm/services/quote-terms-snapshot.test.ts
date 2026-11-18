@@ -14,7 +14,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { termsTextToLines } from './quote.ts'
+import { termsTextToLines, normalizeTermLines, QUOTE_TERMS_MAX_LINES, QUOTE_TERMS_MAX_LINE_LENGTH } from './quote.ts'
+import { buildQuoteDocument } from '../domain/quote-document.ts'
 import { assetHash } from './quote-asset.ts'
 
 const QUOTE = readFileSync(new URL('./quote.ts', import.meta.url), 'utf8')
@@ -73,10 +74,15 @@ test('★ 복제한 견적도 굳은 조건을 물려받는다 — 다른 조건
 })
 
 test('★ 읽을 때 굳은 것이 먼저다 — 비어 있을 때만 살아 있는 조건을 본다', () => {
+  /*
+    **굳은 견적이면 빈 목록도 조건이다** (P0186). 사람이 줄을 다 지웠는데 공급자 기본 조건으로
+    떨어지면 지운 문장이 되살아난다. 공급자도 굳은 견적은 스냅샷이 곧 조건이다.
+  */
   assert.ok(
-    /^\s*const useSnapshot = termsSnapshot\.length > 0$/m.test(DOCUMENT),
+    /^\s*const useSnapshot = termsSnapshot\.length > 0 \|\| useSupplierSnapshot$/m.test(DOCUMENT),
     '문서 조립이 굳은 조건을 보지 않는다',
   )
+  assert.ok(/^\s*termsExact: useSnapshot,$/m.test(live(DOCUMENT)), '굳은 조건을 비어 있어도 그대로 찍게 넘기지 않는다')
   // 굳은 조건이 있으면 **조건 표를 읽지 않는다** — 읽으면 지워진 조건에서 빈 배열이 돌아온다
   assert.ok(
     /^\s*!useSnapshot && termIds\.length > 0$/m.test(DOCUMENT),
@@ -181,4 +187,55 @@ test('★ 읽는 쪽이 굳은 칸을 실제로 읽어 온다 — 안 읽으면 
   for (const field of ['termsSnapshot: true', 'supplierSnapshot: true', 'logoAssetHash: true', 'sealAssetHash: true']) {
     assert.ok(src.includes(field), `SELECT 에 ${field} 가 없다`)
   }
+})
+
+// ------------------------------------------------------------
+// 견적마다 문구를 고친다 (P0186, 요구 REQ-087)
+//
+// update 로 보낸 문구를 서버가 버려 CLI 가 저장값 불일치(종료 코드 9)로 끝났다.
+// 「유효기간 경과 시」 줄은 공급자 기본 조건에서 오는 고정값이라 견적에서 못 지웠다.
+// ------------------------------------------------------------
+
+test('★ 고칠 때 보낸 문구가 그대로 저장된다 — 고른 조건보다 먼저다', () => {
+  const from = QUOTE.indexOf('export async function updateQuote')
+  const next = QUOTE.indexOf('export async function', from + 1)
+  const body = live(QUOTE.slice(from, next > 0 ? next : undefined))
+  const assign = /^\s*if \(input\.termsSnapshot !== undefined\) data\.termsSnapshot = normalizeTermLines\(input\.termsSnapshot\)$/m
+  assert.ok(assign.test(body), 'updateQuote 가 보낸 문구를 저장하지 않는다')
+  // 고른 조건의 다시 굳히기보다 **뒤에** 와야 둘 다 보냈을 때 사람이 적은 문구가 남는다
+  const at = body.search(assign)
+  const fromIds = body.search(/data\.termsSnapshot = await resolveTermsSnapshot\(tx, termIds\)/)
+  assert.ok(fromIds > 0 && at > fromIds, '보낸 문구가 고른 조건에 덮인다')
+})
+
+test('★ 받는 값을 검사한다 — 밖에서 온 값이다', () => {
+  assert.deepEqual(normalizeTermLines(['  가 ', '', '나\n다']), ['가', '나', '다'])
+  assert.deepEqual(normalizeTermLines([]), [])
+  for (const bad of [null, 'a', [1], [{}], ['ok', 2]]) {
+    assert.throws(() => normalizeTermLines(bad), (e: { code?: string }) => e.code === 'VALIDATION_FAILED', String(bad))
+  }
+  assert.throws(() => normalizeTermLines(Array.from({ length: QUOTE_TERMS_MAX_LINES + 1 }, (_, i) => `줄${i}`)))
+  assert.doesNotThrow(() => normalizeTermLines(Array.from({ length: QUOTE_TERMS_MAX_LINES }, (_, i) => `줄${i}`)))
+  assert.throws(() => normalizeTermLines(['가'.repeat(QUOTE_TERMS_MAX_LINE_LENGTH + 1)]))
+})
+
+test('★ 굳은 조건이 비면 아무것도 안 찍는다 — 공급자 기본 조건으로 안 떨어진다', () => {
+  const base = {
+    quote: {
+      id: 'q', quoteNo: 'DA-1', title: '시험', currency: 'KRW', status: 'DRAFT', version: 1,
+      validUntil: null, issuedAt: null, createdAt: '2026-11-18T00:00:00.000Z',
+      subtotalMinor: 1000n, discountMinor: 0n, taxMinor: 100n, totalMinor: 1100n,
+      notesMd: null, lines: [], sections: [],
+    },
+    lines: [], sections: [],
+    customer: { companyName: '고객', personName: null, personPhone: null, fallbackName: '딜' },
+    supplier: { name: '공급자', terms: '※ 유효기간 경과 시 GPU 이용 금액이 변경될 수 있습니다.' },
+    todayKey: '2026-11-18',
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const build = (extra: Record<string, unknown>) => (buildQuoteDocument as any)({ ...base, ...extra })
+  assert.deepEqual(build({ termsExact: true, selectedTerms: [] }).terms, [])
+  assert.deepEqual(build({ termsExact: true, selectedTerms: ['결제: 30일'] }).terms, ['결제: 30일'])
+  // 굳지 않은 옛 견적만 예전처럼 기본 조건으로 떨어진다
+  assert.deepEqual(build({ selectedTerms: [] }).terms, ['※ 유효기간 경과 시 GPU 이용 금액이 변경될 수 있습니다.'])
 })

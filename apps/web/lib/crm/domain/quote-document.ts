@@ -432,6 +432,11 @@ export interface BuildQuoteDocumentInput {
    * 조건 항목을 등록하기 전에 만든 견적이 갑자기 조건 없는 문서가 되면 안 된다
    */
   selectedTerms?: readonly string[]
+  /**
+   * 참이면 `selectedTerms` 를 **비어 있어도 그대로** 찍는다.
+   * 견적마다 조건을 고칠 수 있게 된 뒤로, 빈 목록은 「사람이 다 지웠다」는 뜻이다
+   */
+  termsExact?: boolean
   /** 견적 소유자의 프로필. 없으면 담당 줄이 안 나온다 */
   owner?: { name?: string | null; title?: string | null; email?: string | null; phone?: string | null }
   /** 오늘 — KST 기준 날짜 문자열을 호출부가 만들어 넘긴다(이 파일은 시간을 모른다) */
@@ -824,8 +829,8 @@ export function buildQuoteDocument(input: BuildQuoteDocumentInput): QuoteDocumen
       totalInWords: hangulAmount(input.quote.totalMinor, currency),
     },
     // 고른 조건이 있으면 그것을, 없으면 설정의 기본 조건을 줄 단위로
-    terms: (input.selectedTerms && input.selectedTerms.length > 0)
-      ? input.selectedTerms.map((t) => t.trim()).filter((t) => t !== '')
+    terms: (input.termsExact || (input.selectedTerms && input.selectedTerms.length > 0))
+      ? (input.selectedTerms ?? []).map((t) => t.trim()).filter((t) => t !== '')
       : text(input.supplier.terms).split('\n').map((t) => t.trim()).filter((t) => t !== ''),
     customerNote: noteToPlain(text(input.quote.notesMd)) || null,
     customerNoteHtml: noteToHtml(text(input.quote.notesMd)) || null,

@@ -56,6 +56,7 @@ import {
   roundingUnitName,
   RATE_AXIS_ORDER, LINE_NOTE_ORDER, TOTAL_CONV_ORDER,
   DURATION_UNIT_ORDER, type DurationUnit,
+  QUOTE_TERMS_EDIT,
 } from '../../terms/quote.ts'
 import { kstDeadlineIso, kstTodayKey } from '../../datetime/kst.ts'
 import { readQuoteNoPattern, readQuoteSupplier, readQuoteImages } from './setting.ts'
@@ -905,6 +906,31 @@ export function termsTextToLines(text: string | null | undefined): string[] {
   return (text ?? '').split('\n').map((t) => t.trim()).filter((t) => t !== '')
 }
 
+/** 견적 하나에 적을 수 있는 거래 조건 줄 수와 한 줄 글자 수 */
+export const QUOTE_TERMS_MAX_LINES = 30
+export const QUOTE_TERMS_MAX_LINE_LENGTH = 500
+
+/**
+ * 사람이 고친 거래 조건 문구를 받는다.
+ *
+ * 밖에서 온 값이라 문자열 목록만 받는다. 줄 안의 줄바꿈은 줄로 나누고
+ * 빈 줄은 버린다, 읽는 쪽(termsTextToLines)과 같은 규칙이어야 저장한 것과 찍힌 것이 같다.
+ */
+export function normalizeTermLines(value: unknown): string[] {
+  const invalid = (message: string) => new CrmError('VALIDATION_FAILED', message, { field: 'termsSnapshot' })
+  if (!Array.isArray(value) || value.some((v) => typeof v !== 'string')) {
+    throw invalid(QUOTE_TERMS_EDIT.notList)
+  }
+  const lines = (value as string[]).flatMap((v) => termsTextToLines(v))
+  if (lines.length > QUOTE_TERMS_MAX_LINES) {
+    throw invalid(QUOTE_TERMS_EDIT.tooMany(QUOTE_TERMS_MAX_LINES))
+  }
+  if (lines.some((l) => l.length > QUOTE_TERMS_MAX_LINE_LENGTH)) {
+    throw invalid(QUOTE_TERMS_EDIT.tooLong(QUOTE_TERMS_MAX_LINE_LENGTH))
+  }
+  return lines
+}
+
 /**
  * 이 견적서에 인쇄될 조건을 **지금 값으로 굳힌다**.
  *
@@ -1251,6 +1277,8 @@ async function approvalThreshold(tx: any): Promise<number> {
 export interface UpdateQuoteInput extends QuotePricingInput {
   learnedAliases?: unknown
   termIds?: string[]
+  /** 이 견적에 인쇄할 거래 조건 문구, 줄마다 하나. 주면 그대로 저장하고 빈 목록은 조건을 다 지운다 */
+  termsSnapshot?: string[]
   version: number
   /**
    * 금액 표시 — 무엇을 함께 인쇄할지. **합계는 이 선택으로 안 바뀐다.**
@@ -1385,6 +1413,12 @@ export async function updateQuote(
       data.termIds = termIds
       data.termsSnapshot = await resolveTermsSnapshot(tx, termIds)
     }
+    /*
+      **사람이 고친 문구가 고른 조건보다 먼저다.** 견적마다 문구를 고치고 지울 수 있어야 한다
+      (요구 REQ-087, 보낸 문구를 서버가 버려 CLI 가 저장값 불일치 9 로 끝났다).
+      공급자 기본 조건은 새 견적의 첫 값일 뿐이고 여기서는 안 읽는다.
+    */
+    if (input.termsSnapshot !== undefined) data.termsSnapshot = normalizeTermLines(input.termsSnapshot)
     // 빈 문자열은 «고르지 않음»이다 — null 로 눕혀야 FK 가 받는다
     if (input.recipientPersonId !== undefined) data.recipientPersonId = input.recipientPersonId || null
     if (input.ownerId !== undefined) data.ownerId = input.ownerId || null

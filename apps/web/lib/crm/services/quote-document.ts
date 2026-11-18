@@ -81,7 +81,6 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
     스냅샷이 실패한 견적을 위한 길이고, 그 길에서도 문서는 조건 없이 나가지 않는다.
   */
   const termsSnapshot = (quote as { termsSnapshot?: string[] }).termsSnapshot ?? []
-  const useSnapshot = termsSnapshot.length > 0
   /*
     **공급자와 로고도 굳은 것이 먼저다**(마이그 271).
     상호·대표이사·주소·로고가 바뀌어도 이미 나간 견적서는 그대로여야 한다 —
@@ -89,6 +88,13 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
   */
   const supplierSnapshot = ((quote as { supplierSnapshot?: unknown }).supplierSnapshot ?? {}) as Record<string, string>
   const useSupplierSnapshot = Object.keys(supplierSnapshot).length > 0
+  /*
+    **굳은 견적이면 빈 목록도 그 견적의 조건이다.** 사람이 견적에서 조건 줄을 다 지웠으면
+    아무것도 안 찍혀야 한다. 비었다고 공급자 기본 조건으로 떨어지면 지운 문장이 되살아난다
+    (요구 REQ-087, 「유효기간 경과 시」 줄이 고쳐도 계속 찍혔다).
+    공급자까지 비어 있는 견적만 예전처럼 살아 있는 조건을 읽는다.
+  */
+  const useSnapshot = termsSnapshot.length > 0 || useSupplierSnapshot
   const logoAssetHash = (quote as { logoAssetHash?: string | null }).logoAssetHash ?? null
   const sealAssetHash = (quote as { sealAssetHash?: string | null }).sealAssetHash ?? null
   /*
@@ -237,6 +243,8 @@ export async function getQuoteDocument(db: CrmDb, quoteId: string): Promise<Quot
     supplier,
     // **고른 순서대로** 인쇄한다 — DB 가 준 순서가 아니라 termIds 의 순서다.
     // 굳은 조건이 있으면 그것이 이미 그 순서다(굳힐 때 termIds 순서로 넣었다)
+    // 굳은 조건은 비어 있어도 그대로 찍는다, 기본 조건으로 안 떨어진다
+    termsExact: useSnapshot,
     selectedTerms: useSnapshot
       ? termsSnapshot
       : termIds

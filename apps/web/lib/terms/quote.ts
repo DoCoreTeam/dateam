@@ -1338,3 +1338,20 @@ export const QUOTE_EXPORT = {
   untrustedOrigin: '이 주소에서는 견적서를 파일로 만들 수 없습니다. 서비스 주소로 다시 시도해 주세요.',
   keyOwnerSecondFactor: '2단계 인증을 켠 계정의 API 키로는 견적서를 파일로 만들 수 없습니다. 화면에서 내려받아 주세요.',
 } as const
+
+/**
+ * 견적마다 고치는 거래 조건 문구 (P0186, 요구 REQ-087)
+ * 공급자 기본 조건은 새 견적의 첫 값이고, 고친 뒤로는 이 견적의 문구가 인쇄된다
+ */
+export const QUOTE_TERMS_EDIT = {
+  notList: '거래 조건은 문구 목록이어야 합니다.',
+  tooMany: (max: number) => `거래 조건은 ${max}줄까지 적을 수 있습니다.`,
+  tooLong: (max: number) => `거래 조건 한 줄은 ${max}자까지 적을 수 있습니다.`,
+  hint: '이 견적서에 찍히는 문구입니다. 줄마다 고치거나 지울 수 있습니다.',
+  line: (n: number) => `거래 조건 ${n}째 줄`,
+  remove: (n: number) => `${n}째 줄 삭제`,
+  add: '줄 추가',
+  empty: '거래 조건 없이 나갑니다.',
+  presets: '등록된 조건에서 넣기',
+  insert: '넣기',
+} as const

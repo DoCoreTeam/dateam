@@ -31695,6 +31695,13 @@
            "type": "string"
           }
          },
+         "termsSnapshot": {
+          "type": "array",
+          "items": {
+           "type": "string"
+          },
+          "description": "이 견적에 인쇄할 거래 조건 문구, 줄마다 하나. 주면 그대로 저장하고 빈 목록은 조건을 다 지운다"
+         },
          "title": {
           "type": "string"
          },
@@ -60981,5 +60988,5 @@
    }
   }
  },
- "x-spec-hash": "48251c314fcb25e8"
+ "x-spec-hash": "8702c5e7158dd9e2"
 }
