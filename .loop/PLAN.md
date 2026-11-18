@@ -55,7 +55,7 @@
 의존: I01
 
 ### I03 견적서 머리 칸이 라벨 길이에 맞춰 늘어남
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/app/(crm)/crm/quotes/[id]/quote-document.module.css
 감사 기준:
@@ -66,7 +66,7 @@
 의존: 없음
 
 ### I04 엑셀 담당자 칸이 숨긴 할인 열 위에서 안 잘림
-상태: 대기
+상태: 통과
 모드: 경량
 범위: apps/web/lib/crm/services/quote-xlsx.ts, apps/web/lib/crm/services/quote-xlsx.test.ts
 감사 기준:

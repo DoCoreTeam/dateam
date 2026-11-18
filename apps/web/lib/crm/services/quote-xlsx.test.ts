@@ -702,3 +702,59 @@ test('★ 기간을 안 적은 줄의 수식은 전과 똑같다 — 새 칸이 
     assert.match(f, /^ROUND\(D\d+\*E\d+\*[\d.]+,0\)$/, `기간 없는 줄에 군더더기가 붙었다: ${f}`)
   }
 })
+
+// ------------------------------------------------------------
+// 할인 열을 숨긴 견적의 값 칸 (P0186, 요구 REQ-089)
+//
+// 기준 견적 DA-2026-1110-01 은 할인이 없어 F 열(할인)을 숨긴다. 그런데 공급자 값과 담당,
+// 상단 합계가 **F 부터** 병합돼 숨은 칸에 앉아 있었다. 숨은 시작 칸 자리에 그리는 뷰어에서
+// 담당자 칸과 할인 칸이 겹쳤다.
+// ------------------------------------------------------------
+
+function baseQuoteNoDiscount() {
+  return doc({
+    quote: {
+      quoteNo: 'DA-2026-1110-01', title: '숙명여대 빅데이터혁신융합사업단 GPU 클라우드 크레딧 견적', currency: 'KRW',
+      validUntil: '2026-11-30', createdAt: '2026-11-10T00:00:00.000Z',
+      subtotalMinor: BigInt(9090909), discountMinor: BigInt(0), taxMinor: BigInt(909091), totalMinor: BigInt(10000000),
+      notesMd: null,
+    },
+    lines: [
+      { name: 'gcube H100 GPU 클라우드 크레딧', descriptionMd: null, unit: '식', quantity: '1', unitPriceMinor: BigInt(9090909), discountPercent: '0', lineTotalMinor: BigInt(9090909) },
+    ],
+    owner: { name: '김도현', title: '본부장', email: 'michaelkim@data-alliance.com', phone: null },
+  })
+}
+
+test('★ 할인 열을 숨기면 값이 숨은 칸에 앉지 않는다 — 보이는 G 에서 시작한다', async () => {
+  const d = baseQuoteNoDiscount()
+  const { ws } = await sheetOf((await quoteDocumentToXlsx({ document: d })).buffer)
+  assert.equal(ws.getColumn(6).hidden, true, '전제: 할인 없는 견적은 F 를 숨긴다')
+  const merges = (ws.model as { merges?: string[] }).merges ?? []
+  const fromHidden = merges.filter((m) => /^F\d+:/.test(m))
+  assert.deepEqual(fromHidden, [], `숨은 F 에서 시작하는 병합이 있다: ${fromHidden.join(', ')}`)
+  // 숨은 칸에 값이 남아 있으면 그 값은 받은 사람에게 안 보인다
+  // 병합에 딸린 칸은 주 칸 값을 돌려준다, 주 칸이 F 인 것만 센다
+  ws.eachRow((row, r) => {
+    const c = row.getCell(6)
+    if (c.isMerged && c.master.address !== c.address) return
+    const v = c.value
+    assert.ok(v === null || v === undefined || v === '', `숨은 F${r} 에 값이 있다: ${String(v)}`)
+  })
+  // 머리 라벨도 보이는 E 에 선다
+  assert.equal(String(ws.getCell('E1').value), QUOTE.quoteNo)
+  const owner = `${d.owner.name} ${d.owner.title} · ${d.owner.email}`
+  let ownerRow = 0
+  ws.eachRow((row, r) => { if (String(row.getCell(7).value ?? '') === owner) ownerRow = r })
+  assert.ok(ownerRow > 0, '담당 값이 보이는 G 에 없다')
+  assert.equal(String(ws.getCell(`E${ownerRow}`).value), QUOTE.supplierContact)
+  // 폭 21 칸에 「김도현 본부장 · 메일」은 석 줄이다, 두 줄 높이면 메일이 잘린다
+  assert.ok((ws.getRow(ownerRow).height ?? 0) >= 45, `담당 줄 높이 ${ws.getRow(ownerRow).height} 가 석 줄에 모자란다`)
+})
+
+test('★ 할인 열이 보이는 견적은 예전처럼 F 부터 병합한다', async () => {
+  const { ws } = await sheetOf((await quoteDocumentToXlsx({ document: doc() })).buffer)
+  assert.notEqual(ws.getColumn(6).hidden, true, '전제: 할인 있는 견적은 F 를 보인다')
+  const merges = (ws.model as { merges?: string[] }).merges ?? []
+  assert.ok(merges.some((m) => /^F\d+:G\d+$/.test(m)), '할인 열이 보이면 공급자 값이 F:G 에 걸쳐야 한다')
+})

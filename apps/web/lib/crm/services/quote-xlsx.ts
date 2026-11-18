@@ -242,7 +242,22 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   */
   ws.views = [{ showGridLines: false }]
 
-  /** 한글은 한 글자가 두 칸을 먹는다 — 줄 수를 세어 행 높이를 정한다 */
+  /*
+    **값 칸이 시작하는 열.** 할인 열(F)을 숨긴 견적에서 F 부터 병합하면 값이 **숨은 칸에 앉는다**.
+    엑셀은 병합을 보이는 G 로 그려 주지만, 숨은 시작 칸 자리에 그리는 뷰어에서는
+    담당자 칸과 할인 칸이 겹쳤다(요구 REQ-089). 할인이 없으면 보이는 G 에 바로 쓴다
+  */
+  const valueCol = showDiscount ? 'F' : LAST_COL
+  const valueCell = (row: number): ReturnType<typeof ws.getCell> => {
+    if (valueCol !== LAST_COL) ws.mergeCells(`${valueCol}${row}:${LAST_COL}${row}`)
+    return ws.getCell(`${valueCol}${row}`)
+  }
+
+  /**
+   * 한글은 한 글자가 두 칸을 먹는다 — 줄 수를 세어 행 높이를 정한다.
+   * 열 폭 단위가 곧 영문 한 글자라 한 줄에 드는 칸은 **열 폭 그대로**다.
+   * 예전엔 폭의 두 배로 잡아 줄 수를 절반으로 셌고, 담당 칸(폭 21)의 메일 줄이 잘렸다(요구 REQ-089)
+   */
   /**
    * 그 글이 몇 줄로 접힐지 재서 행 높이를 낸다.
    *
@@ -254,7 +269,7 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     const widthOf = (t: string) =>
       Array.from(t).reduce((a, ch) => a + (ch.charCodeAt(0) > 0x2000 ? 2 : 1), 0)
     const lines = text.split('\n').reduce((sum, one) =>
-      sum + Math.max(1, Math.ceil(widthOf(one) / Math.max(4, colWidth * 2 - 2))), 0)
+      sum + Math.max(1, Math.ceil(widthOf(one) / Math.max(4, colWidth - 1))), 0)
     return base * Math.max(1, lines)
   }
 
@@ -316,7 +331,8 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
   headMeta.forEach(([label, value], i) => {
     const row = headTop + i
     if (i > 0) ws.getRow(row).height = 16
-    const l = ws.getCell(`F${row}`)
+    // 할인 열(F)을 숨긴 견적은 라벨이 그 열과 함께 사라졌다, 보이는 E 에 쓴다
+    const l = ws.getCell(`${valueCol === 'F' ? 'F' : 'E'}${row}`)
     l.value = label
     l.font = { size: 9, color: { argb: MUTED } }
     l.alignment = { horizontal: 'right', vertical: 'middle' }
@@ -382,10 +398,10 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     ws.getCell(`E${row}`).value = SUPPLIER_LABEL[f]
     ws.getCell(`E${row}`).font = { size: 9, color: { argb: MUTED } }
     ws.getCell(`E${row}`).alignment = { horizontal: 'left', vertical: 'middle', indent: 1 }
-    ws.mergeCells(`F${row}:${LAST_COL}${row}`)
-    ws.getCell(`F${row}`).value = doc.supplier[f]
-    ws.getCell(`F${row}`).font = { size: 10 }
-    ws.getCell(`F${row}`).alignment = { wrapText: true, vertical: 'top' }
+    const cell = valueCell(row)
+    cell.value = doc.supplier[f]
+    cell.font = { size: 10 }
+    cell.alignment = { wrapText: true, vertical: 'top' }
   })
 
   // 담당 — 이 견적을 만든 사람. 화면에 있는 것이 파일에도 있어야 한다
@@ -393,12 +409,14 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     const row = partyTop + 1 + filled.length
     ws.getCell(`E${row}`).value = QUOTE.supplierContact
     ws.getCell(`E${row}`).font = { size: 9, color: { argb: MUTED } }
-    ws.mergeCells(`F${row}:${LAST_COL}${row}`)
+    // 다른 공급자 라벨과 같은 자리에 선다, 이 줄만 들여쓰기가 빠져 있었다
+    ws.getCell(`E${row}`).alignment = { horizontal: 'left', vertical: 'middle', indent: 1 }
     const who = `${doc.owner.name}${doc.owner.title ? ` ${doc.owner.title}` : ''}`
     const how = [doc.owner.phone, doc.owner.email].filter(Boolean).join(' · ')
-    ws.getCell(`F${row}`).value = how ? `${who} · ${how}` : who
-    ws.getCell(`F${row}`).font = { size: 10 }
-    ws.getCell(`F${row}`).alignment = { wrapText: true, vertical: 'top' }
+    const cell = valueCell(row)
+    cell.value = how ? `${who} · ${how}` : who
+    cell.font = { size: 10 }
+    cell.alignment = { wrapText: true, vertical: 'top' }
   }
 
   /*
@@ -422,7 +440,7 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
 
   // 긴 값(주소·종목·담당)은 한 줄에 안 들어간다 — 행 높이를 안 키우면 **잘려서 인쇄된다**
   for (let row = partyTop; row <= partyBottom; row += 1) {
-    const texts = [String(ws.getCell(`B${row}`).value ?? ''), String(ws.getCell(`F${row}`).value ?? '')]
+    const texts = [String(ws.getCell(`B${row}`).value ?? ''), String(ws.getCell(`${valueCol}${row}`).value ?? '')]
     /*
       **왼쪽과 오른쪽의 병합 폭이 다르다.** 예전엔 둘 다 B+C 폭으로 쟀는데,
       공급자 값은 F+G 에 들어가므로 **주소처럼 긴 값이 잘린 채 인쇄됐다**
@@ -497,15 +515,14 @@ export async function quoteDocumentToXlsx(input: QuoteXlsxInput): Promise<QuoteX
     w.alignment = { horizontal: 'left', vertical: 'middle' }
     bandWordsCell = `C${r}`
 
-    ws.mergeCells(`F${r}:${LAST_COL}${r}`)
-    const v = ws.getCell(`F${r}`)
+    const v = valueCell(r)
     /*
       **아래 합계를 참조한다.** 같은 금액을 두 번 적으면 항목을 고쳤을 때 위아래가 달라지고,
       어느 쪽이 맞는지 받은 사람이 판단해야 한다(사용자 지시: 「G16의 금액도 수식」).
       합계 행 번호는 뒤에서 정해지므로 자리만 잡아 두고 마지막에 채운다.
     */
     v.numFmt = fmt
-    bandTotalCell = `F${r}`
+    bandTotalCell = `${valueCol}${r}`
     v.font = { size: 14, bold: true }
     v.font = { size: 14, bold: true }
     v.alignment = { horizontal: 'right', vertical: 'middle' }
