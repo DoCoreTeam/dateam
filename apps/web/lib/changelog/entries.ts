@@ -36,6 +36,25 @@ export interface ChangelogNote {
 export const CHANGELOG: ChangelogNote[
 ] = [
   {
+    version: '0.11.111',
+    date: '2026-11-18',
+    title: '견적서 거래 조건을 견적마다 고쳐요',
+    items: [
+      {
+        kind: 'new',
+        emoji: '📝',
+        headline: '거래 조건 문구를 견적마다 고치고 지울 수 있어요',
+        detail: '견적 수정 화면의 「거래 조건」에서 줄마다 문구를 고치거나 지우고 새 줄을 더할 수 있어요. 고친 문구가 견적서 미리보기, PDF, 엑셀에 그대로 나가고 다른 견적에는 영향이 없어요. teamda CLI 의 crm quote update 로도 바꿀 수 있어요.',
+      },
+      {
+        kind: 'fix',
+        emoji: '🧾',
+        headline: '견적서 머리와 엑셀 칸의 글자가 겹치지 않아요',
+        detail: '견적번호, 유효기간, 사업자등록번호 칸이 글자 길이만큼 넓어져요. 할인이 없는 견적의 엑셀에서 담당자 칸이 할인 칸 자리에 겹치거나 견적번호 라벨이 안 보이던 것도 고쳤어요.',
+      },
+    ],
+  },
+  {
     version: '0.11.110',
     date: '2026-11-10',
     title: '고친 회의 정리가 버려지지 않아요',
