@@ -1,6 +1,6 @@
 # PLAN newAX: 견적서 거래 조건을 견적마다 고치고 머리 칸 글자가 안 겹친다
 플랜 ID: P0186
-플랜 버전: v0.1.1
+플랜 버전: v0.1.2
 상태: 진행중
 지시: ins_0511
 목표 버전: v0.11.111
@@ -44,9 +44,9 @@
 의존: 없음
 
 ### I02 견적 편집 화면에서 거래 조건을 줄마다 고치고 지우기
-상태: 대기
+상태: 통과
 모드: 경량
-범위: apps/web/components/ui/crm/QuoteEditorModal.tsx, apps/web/components/ui/crm/quote-draft-shape.ts, apps/web/lib/terms/quote.ts
+범위: apps/web/components/ui/crm/QuoteEditorModal.tsx, apps/web/components/ui/crm/quote-draft-shape.ts, apps/web/components/ui/crm/QuoteTermLines.tsx (신규), apps/web/components/ui/crm/quote-panel.module.css, apps/web/lib/terms/index.ts, apps/web/lib/crm/services/quote-terms-snapshot.test.ts
 감사 기준:
 - 보안: 해당 없음 근거 새 창구 없음, 값은 I01 의 PATCH 가 검사
 - 편집 화면 거래 조건 접이에 줄마다 글 칸과 삭제 단추, 줄 추가 단추가 있고 저장하면 PATCH 본문에 termsSnapshot 이 실림
@@ -92,3 +92,4 @@
 ## 변경 이력
 - v0.1.0 (2026-11-18) 최초 작성 (ins_0511)
 - v0.1.1 (2026-11-18) I01 범위에 용어 파일 추가(서버 오류 문구가 lib/terms 키), 대응표는 생성 줄이 이미 CLI됨이라 변경 없음 (audit:I01)
+- v0.1.2 (2026-11-18) I02 범위: 편집기를 새 부품 QuoteTermLines 로 빼고 CSS 모듈과 용어 색인, 배선 단정을 더함 (audit:I02)

@@ -239,3 +239,11 @@ test('★ 굳은 조건이 비면 아무것도 안 찍는다 — 공급자 기�
   // 굳지 않은 옛 견적만 예전처럼 기본 조건으로 떨어진다
   assert.deepEqual(build({ selectedTerms: [] }).terms, ['※ 유효기간 경과 시 GPU 이용 금액이 변경될 수 있습니다.'])
 })
+
+test('★ 편집 화면이 고친 문구를 보낸다 — 조회한 문구에서 시작해 PATCH 본문에 싣는다', () => {
+  const modal = live(readFileSync(new URL('../../../components/ui/crm/QuoteEditorModal.tsx', import.meta.url), 'utf8'))
+  const shape = live(readFileSync(new URL('../../../components/ui/crm/quote-draft-shape.ts', import.meta.url), 'utf8'))
+  assert.ok(/termLines: Array\.isArray\(body\.termsSnapshot\)/.test(shape), '편집 초안이 저장된 문구를 안 읽는다')
+  assert.ok(/draft\.termLines !== null \? \{ termsSnapshot: draft\.termLines \}/.test(modal), '저장 본문에 고친 문구가 안 실린다')
+  assert.ok(/<QuoteTermLines/.test(modal), '편집 화면에 문구 편집기가 없다')
+})

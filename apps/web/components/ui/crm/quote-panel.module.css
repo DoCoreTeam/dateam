@@ -434,6 +434,15 @@
 
 .termBody { color: var(--text); line-height: 1.5; }
 
+/* 저장된 견적의 조건 문구, 줄마다 글 칸과 삭제 단추 (P0186) */
+.termHint { margin: 0 0 var(--space-2); color: var(--text-muted); font-size: var(--fs-sm); }
+.termLines { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); }
+.termLine { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); align-items: center; }
+.termActions { margin-top: var(--space-2); }
+.termPresets { margin-top: var(--space-3); font-size: var(--fs-sm); }
+.termPresets summary { min-height: var(--control-h); display: flex; align-items: center; cursor: pointer; color: var(--text-muted); }
+.termPreset { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); align-items: center; padding: var(--space-1) 0; }
+
 /* 편집 화면도 견적서와 같은 흐름을 쓴다 — 「정상가 → 특별가」 */
 .lineArrow {
   color: var(--danger);

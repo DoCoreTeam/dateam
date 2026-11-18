@@ -138,6 +138,11 @@ export interface QuoteDraft {
    * 통째로 적어 둔 한 덩어리가 아니라 항목이라, 사업마다 필요한 것만 나간다.
    */
   termIds: string[]
+  /**
+   * 이 견적에 굳어 인쇄되는 거래 조건 문구, 줄마다 하나 (P0186).
+   * 저장된 견적만 가진다, 새 견적은 null 이고 고른 조건(termIds)으로 처음 굳는다
+   */
+  termLines: string[] | null
   /** 묶음. 비어 있으면 묶음 없는 견적이다 */
   sections: { id?: string | null; name: string; roundingUnit?: number; businessTypeKey?: string | null }[]
   /** 절사 단위(원). 0 = 안 함 */
@@ -256,6 +261,7 @@ export function newQuoteDraft(
     notesMd: '',
     recipientPersonId: null,
     termIds: [],
+    termLines: null,
     sections: [],
     // 새 견적은 절사 안 함 — 협상 결과이지 기본값이 아니다
     roundingUnit: 0,
@@ -290,6 +296,7 @@ export function quoteToDraft(body: any): QuoteDraft {
     status: body.status,
     recipientPersonId: body.recipientPersonId ?? null,
     termIds: body.termIds ?? [],
+    termLines: Array.isArray(body.termsSnapshot) ? body.termsSnapshot.map(String) : null,
     sections: (body.sections ?? []).map((x: { id: string; name: string; roundingUnit?: number; businessTypeKey?: string | null }) => ({
       id: x.id, name: x.name, roundingUnit: Number(x.roundingUnit ?? 0), businessTypeKey: x.businessTypeKey ?? null,
     })),

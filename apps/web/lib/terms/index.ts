@@ -97,6 +97,7 @@ export {
   DURATION, DURATION_UNIT_ORDER, DURATION_UNIT_LABEL, type DurationUnit,
   fillDurationFound, fillDurationApply,
   VARIANT, QUOTE_CARD, variantFromLine, variantCopyNote,
+  QUOTE_TERMS_EDIT,
 } from './quote.ts'
 
 export {

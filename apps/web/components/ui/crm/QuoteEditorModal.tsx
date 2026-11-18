@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Plus, X } from 'lucide-react'
 import ReorderList from '@/components/ui/ReorderList'
+import QuoteTermLines from './QuoteTermLines'
 import QuoteFillPanel, { QuoteFillButtons, type QuoteFillMode } from './QuoteFillPanel'
 import QuoteTotals, { QuoteFold } from './QuoteTotals'
 import NbModal from '@/components/ui/nb/NbModal'
@@ -40,6 +41,7 @@ import {
   QUOTE_LINES_LOCKED,
   sectionDefaultName,
   approvalNeeded, PRICEBOOK,
+  QUOTE_TERMS_EDIT,
 } from '@/lib/terms'
 import QuoteLineSpecFields from '@/components/ui/crm/QuoteLineSpecFields'
 import QuoteLinePeriodFields from '@/components/ui/crm/QuoteLinePeriodFields'
@@ -192,6 +194,8 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
         notesMd: draft.notesMd.trim() || null,
         recipientPersonId: draft.recipientPersonId,
         termIds: draft.termIds,
+        // 저장된 견적은 사람이 고친 문구가 그대로 간다, 서버가 고른 조건보다 이것을 먼저 쓴다
+        ...(draft.termLines !== null ? { termsSnapshot: draft.termLines } : {}),
         // 절사 지시는 **항목과 함께** 잠긴다 — 보낸 견적의 금액은 못 고친다
         ...(linesLocked ? {} : {
           roundingUnit: draft.roundingUnit,
@@ -725,7 +729,15 @@ export default function QuoteEditorModal({ dealId, initial, onClose, onSaved }: 
           (사용자 지적: 「우리 사업 스타일별로 이 내용이 다 다르거든」).
           조건이 하나도 등록돼 있지 않으면 자리를 만들지 않는다 — 빈 목록은 안내가 아니다.
         */}
-        {terms.length > 0 && (
+        {draft.termLines !== null && (
+          <QuoteTermLines
+            lines={draft.termLines}
+            presets={terms}
+            locked={linesLocked}
+            onChange={(termLines) => setDraft((d) => ({ ...d, termLines }))}
+          />
+        )}
+        {draft.termLines === null && terms.length > 0 && (
           <QuoteFold title={QUOTE.terms} filled={draft.termIds.length > 0}>
             <ul className={styles.termList}>
               {terms.map((t) => {
